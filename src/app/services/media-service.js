@@ -7,6 +7,11 @@
   const STORE_NAME = "media";
   const urlCache = new Map();
 
+  function createEmbedPlaceholderDataUrl(label) {
+    const text = encodeURIComponent(label || "Vidéo");
+    return `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720"><rect width="1280" height="720" rx="36" fill="%23dbe9fb"/><rect x="80" y="80" width="1120" height="560" rx="28" fill="%23ffffff"/><circle cx="640" cy="360" r="96" fill="%232c73da"/><polygon points="610,305 610,415 705,360" fill="%23ffffff"/><text x="640" y="560" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="42" font-weight="700" fill="%23122033">${text}</text></svg>`;
+  }
+
   function openDatabase() {
     return new Promise((resolve, reject) => {
       const request = indexedDB.open(DB_NAME, DB_VERSION);
@@ -266,7 +271,7 @@
       externalUrl: cleanUrl,
       embedUrl: embedMeta.embedUrl,
       provider: embedMeta.provider,
-      thumbnailUrl: embedMeta.thumbnailUrl,
+      thumbnailUrl: embedMeta.thumbnailUrl || createEmbedPlaceholderDataUrl(embedMeta.name),
     });
   }
 
@@ -430,10 +435,7 @@
     });
   }
 
-  function createVideoPlaceholderDataUrl(label) {
-    const text = encodeURIComponent(label || "Video");
-    return `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720"><rect width="1280" height="720" rx="36" fill="%23dbe9fb"/><rect x="80" y="80" width="1120" height="560" rx="28" fill="%23ffffff"/><circle cx="640" cy="360" r="96" fill="%232c73da"/><polygon points="610,305 610,415 705,360" fill="%23ffffff"/><text x="640" y="560" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="42" font-weight="700" fill="%23122033">${text}</text></svg>`;
-  }
+  const createVideoPlaceholderDataUrl = createEmbedPlaceholderDataUrl;
 
   async function resolvePdfMediaAssets(items) {
     const previewMap = {};
