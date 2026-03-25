@@ -1,0 +1,299 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Outil évolutif de création d'ingénierie de formation et de slides avec taxonomie de Bloom et principes cognitifs."
+    />
+    <title>Studio Ingenierie Formation</title>
+    <link rel="stylesheet" href="styles/base.css" />
+    <link rel="stylesheet" href="styles/layout.css" />
+    <link rel="stylesheet" href="styles/components.css" />
+    <link rel="stylesheet" href="styles/slide.css" />
+    <script defer src="src/app/data/bloom-levels.js"></script>
+    <script defer src="src/app/data/cognitive-principles.js"></script>
+    <script defer src="src/app/state/default-state.js"></script>
+    <script defer src="src/app/utils/helpers.js"></script>
+    <script defer src="src/app/services/storage-service.js"></script>
+    <script defer src="src/app/services/media-service.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
+    <script defer src="src/app/ui/slide-markup.js"></script>
+    <script defer src="src/app/ui/render-dashboard.js"></script>
+    <script defer src="src/app/services/export-service.js"></script>
+    <script defer src="src/app/main.js"></script>
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div class="brand-block">
+          <div class="brand-mark">IF</div>
+          <div>
+            <p class="brand-kicker">Arborescence évolutive</p>
+            <h1>Studio Ingenierie Formation</h1>
+            <p class="topbar-subtitle">
+              Création de slides et structuration d'un parcours au regard de Bloom et des principes cognitifs.
+            </p>
+          </div>
+        </div>
+
+        <div class="topbar-actions">
+          <button id="generate-bloom-deck" class="button button-primary" type="button" data-view="engineering">Structure Bloom x6</button>
+          <div class="add-slide-group" data-view="presentation">
+            <button id="add-slide" class="button button-soft" type="button" aria-haspopup="true" aria-expanded="false">Nouvelle slide</button>
+            <div id="add-slide-menu" class="add-slide-menu" hidden></div>
+          </div>
+          <button id="duplicate-slide" class="button button-soft" type="button" data-view="presentation">Dupliquer</button>
+          <button id="delete-slide" class="button button-soft" type="button" data-view="presentation">Supprimer</button>
+          <button id="open-presentation" class="button button-soft" type="button" data-view="presentation">Présenter</button>
+          <button id="export-pdf" class="button button-soft" type="button" data-view="presentation">Exporter PDF</button>
+          <button id="export-pptx" class="button button-soft" type="button" data-view="presentation">Exporter PPTX</button>
+          <button id="export-html" class="button button-dark" type="button" data-view="presentation">Exporter HTML</button>
+        </div>
+      </header>
+
+      <nav class="app-tabs" aria-label="Phases de creation">
+        <button id="tab-engineering" class="app-tab" type="button" data-switch-view="engineering" aria-pressed="true">
+          Ingenierie de formation
+        </button>
+        <button id="tab-presentation" class="app-tab" type="button" data-switch-view="presentation" aria-pressed="false">
+          Création de la présentation
+        </button>
+      </nav>
+
+      <main class="workspace">
+        <aside class="sidebar">
+          <section class="panel" data-view="presentation">
+            <div class="panel-heading">
+              <div>
+                <p class="panel-kicker">Cadre global</p>
+                <h2>Présentation</h2>
+              </div>
+              <div class="panel-heading-actions">
+                <input id="import-json-input" class="media-upload-input" type="file" accept=".json,application/json" />
+                <button id="import-json" class="button button-ghost" type="button">Importer JSON</button>
+                <button id="export-json" class="button button-ghost" type="button">Exporter JSON</button>
+              </div>
+            </div>
+
+            <div class="form-grid">
+              <label>
+                Titre du diaporama
+                <input id="deck-title" type="text" maxlength="60" />
+              </label>
+              <label>
+                Sous-titre
+                <input id="deck-subtitle" type="text" maxlength="90" />
+              </label>
+              <label>
+                Signature
+                <input id="deck-footer" type="text" maxlength="50" />
+              </label>
+              <label>
+                Habillage
+                <select id="deck-theme">
+                  <option value="mix">Ronds bleus + vagues</option>
+                  <option value="circles">Ronds bleus</option>
+                  <option value="waves">Vagues</option>
+                  <option value="clean">Minimal</option>
+                </select>
+              </label>
+            </div>
+
+            <div class="guidance">
+              <p class="guidance-title">Règles de production</p>
+              <ul>
+                <li>1 idée principale par slide</li>
+                <li>3 points maximum</li>
+                <li>1 note finale courte</li>
+                <li>1 niveau Bloom principal par slide</li>
+              </ul>
+            </div>
+          </section>
+
+          <section class="panel" data-view="engineering">
+            <div class="panel-heading">
+              <div>
+                <p class="panel-kicker">Taxonomie de Bloom</p>
+                <h2>Parcours x6</h2>
+              </div>
+              <span id="taxonomy-count" class="count-pill"></span>
+            </div>
+
+            <div id="taxonomy-roadmap" class="taxonomy-roadmap"></div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-heading">
+              <div>
+                <p class="panel-kicker">Slides</p>
+                <h2>Séquence</h2>
+              </div>
+              <span id="slide-count" class="count-pill"></span>
+            </div>
+
+            <div id="slide-list" class="slide-list" aria-label="Liste des slides"></div>
+          </section>
+        </aside>
+
+        <section class="editor-column">
+          <section class="panel" data-view="engineering">
+            <div class="panel-heading">
+              <div>
+                <p class="panel-kicker">Scénario pédagogique</p>
+                <h2>Bloom et preuves</h2>
+              </div>
+              <div id="density-badge" class="density-badge"></div>
+            </div>
+
+            <div class="editor-form">
+              <div class="form-grid">
+                <label>
+                  Niveau Bloom
+                  <select id="slide-bloom-level"></select>
+                </label>
+                <label>
+                  Étiquette
+                  <input id="slide-label" type="text" maxlength="24" />
+                </label>
+              </div>
+
+              <label>
+                Objectif d'apprentissage
+                <textarea id="slide-objective" rows="3" maxlength="180"></textarea>
+                <span id="objective-meta" class="field-meta"></span>
+              </label>
+
+              <div class="form-grid">
+                <label>
+                  Trace attendue
+                  <input id="slide-evidence" type="text" maxlength="120" />
+                  <span id="evidence-meta" class="field-meta"></span>
+                </label>
+                <label>
+                  Numéro visible
+                  <input id="slide-number" type="text" maxlength="8" />
+                </label>
+              </div>
+            </div>
+          </section>
+
+          <section class="panel" data-view="engineering">
+            <div class="panel-heading">
+              <div>
+                <p class="panel-kicker">Principes cognitifs</p>
+                <h2>Activation par slide</h2>
+              </div>
+            </div>
+
+            <div id="principles-list" class="principles-list"></div>
+          </section>
+
+          <section class="panel" data-view="presentation">
+            <div class="panel-heading">
+              <div>
+                <p class="panel-kicker">Contenu de slide</p>
+                <h2>Modèle répétitif</h2>
+              </div>
+              <button id="delete-slide-inline" class="icon-button icon-button-danger" type="button" aria-label="Supprimer la slide">
+                x
+              </button>
+            </div>
+
+            <form id="slide-form" class="editor-form">
+              <label>
+                Titre
+                <input id="slide-title" type="text" maxlength="72" />
+                <span id="title-meta" class="field-meta"></span>
+              </label>
+
+              <label>
+                Sous-titre
+                <textarea id="slide-subtitle" rows="3" maxlength="170"></textarea>
+                <span id="subtitle-meta" class="field-meta"></span>
+              </label>
+
+              <div class="bullet-grid">
+                <label>
+                  Point 1
+                  <input id="slide-bullet-1" type="text" maxlength="90" />
+                </label>
+                <label>
+                  Point 2
+                  <input id="slide-bullet-2" type="text" maxlength="90" />
+                </label>
+                <label>
+                  Point 3
+                  <input id="slide-bullet-3" type="text" maxlength="90" />
+                </label>
+              </div>
+
+              <label>
+                Note de fermeture
+                <input id="slide-note" type="text" maxlength="110" />
+                <span id="note-meta" class="field-meta"></span>
+              </label>
+
+              <div class="slide-media-panel">
+                <div class="slide-media-header">
+                  <div>
+                    <p class="panel-kicker">Media</p>
+                    <h3>Zone graphique constante</h3>
+                  </div>
+                  <div class="slide-media-actions">
+                    <input
+                      id="media-upload"
+                      class="media-upload-input"
+                      type="file"
+                      accept=".png,.jpg,.jpeg,.gif,.webp,.svg,.mp4,.mov,.mkv,.webm,.avi,image/*,video/*"
+                      multiple
+                    />
+                    <button id="media-upload-trigger" class="button button-ghost" type="button">Importer</button>
+                    <button id="clear-slide-media" class="button button-soft" type="button">Retirer</button>
+                  </div>
+                </div>
+
+                <div class="media-link-row">
+                  <input id="media-link-input" type="url" placeholder="Coller un lien image ou vidéo" />
+                  <button id="media-link-add" class="button button-soft" type="button">Ajouter le lien</button>
+                </div>
+
+                <p id="media-link-feedback" class="field-meta"></p>
+                <p id="slide-media-selection" class="preview-hint"></p>
+                <div id="media-library" class="media-library" aria-label="Bibliothèque média"></div>
+              </div>
+            </form>
+          </section>
+
+          <section class="panel preview-panel" data-view="presentation">
+            <div class="panel-heading">
+              <div>
+                <p class="panel-kicker">Aperçu</p>
+                <h2>Slide active</h2>
+              </div>
+              <p id="slide-hint" class="preview-hint"></p>
+            </div>
+
+            <div class="stage-wrap">
+              <div id="stage" class="stage"></div>
+            </div>
+
+            <div id="pedagogy-brief" class="pedagogy-brief"></div>
+          </section>
+
+          <section class="panel" data-view="presentation">
+            <div class="panel-heading">
+              <div>
+                <p class="panel-kicker">Vue d'ensemble</p>
+                <h2>Miniatures</h2>
+              </div>
+            </div>
+            <div id="thumb-strip" class="thumb-strip"></div>
+          </section>
+        </section>
+      </main>
+    </div>
+  </body>
+</html>
