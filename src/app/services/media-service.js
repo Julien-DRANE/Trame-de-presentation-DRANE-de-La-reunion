@@ -136,8 +136,76 @@
     return "";
   }
 
+  function extractAppsEducationEmbed(url) {
+    try {
+      const parsed = new URL(String(url || "").trim());
+      const hostname = parsed.hostname.toLowerCase();
+      if (!hostname.endsWith(".apps.education.fr")) {
+        return null;
+      }
+
+      const parts = parsed.pathname.split("/").filter(Boolean);
+      if (parts.length < 2) {
+        return null;
+      }
+
+      if (parts[0] === "w" && parts[1]) {
+        return {
+          provider: "apps-education",
+          id: parts[1],
+          embedUrl: `${parsed.origin}/videos/embed/${parts[1]}`,
+          thumbnailUrl: "",
+          name: `Vidéo ${parts[1]}`,
+        };
+      }
+
+      if (parts[0] === "video" && parts[1]) {
+        const videoId = parts[1].split("-")[0];
+        if (!videoId) {
+          return null;
+        }
+        return {
+          provider: "apps-education",
+          id: videoId,
+          embedUrl: `${parsed.origin}/videos/embed/${videoId}`,
+          thumbnailUrl: "",
+          name: parts[1].replace(/-/g, " "),
+        };
+      }
+
+      if (parts[0] === "videos" && (parts[1] === "watch" || parts[1] === "embed") && parts[2]) {
+        return {
+          provider: "apps-education",
+          id: parts[2],
+          embedUrl: `${parsed.origin}/videos/embed/${parts[2]}`,
+          thumbnailUrl: "",
+          name: `Vidéo ${parts[2]}`,
+        };
+      }
+    } catch (error) {
+      return null;
+    }
+
+    return null;
+  }
+
+  function extractEmbedMeta(url) {
+    const youtubeId = extractYouTubeId(url);
+    if (youtubeId) {
+      return {
+        provider: "youtube",
+        id: youtubeId,
+        embedUrl: `https://www.youtube.com/embed/${youtubeId}`,
+        thumbnailUrl: `https://img.youtube.com/vi/${youtubeId}/hqdefault.jpg`,
+        name: `YouTube ${youtubeId}`,
+      };
+    }
+
+    return extractAppsEducationEmbed(url);
+  }
+
   function isEmbeddableMediaUrl(url) {
-    return Boolean(extractYouTubeId(url));
+    return Boolean(extractEmbedMeta(url));
   }
 
   function createExternalMedia(url) {
@@ -178,21 +246,21 @@
 
   function createEmbedMedia(url) {
     const cleanUrl = String(url || "").trim();
-    const youtubeId = extractYouTubeId(cleanUrl);
-    if (!youtubeId) {
+    const embedMeta = extractEmbedMeta(cleanUrl);
+    if (!embedMeta) {
       return null;
     }
 
     return sanitizeMediaItem({
       id: ns.utils.createId("media"),
-      name: `YouTube ${youtubeId}`,
+      name: embedMeta.name,
       mimeType: "",
       kind: "embed",
       size: 0,
       externalUrl: cleanUrl,
-      embedUrl: `https://www.youtube.com/embed/${youtubeId}`,
-      provider: "youtube",
-      thumbnailUrl: `https://img.youtube.com/vi/${youtubeId}/hqdefault.jpg`,
+      embedUrl: embedMeta.embedUrl,
+      provider: embedMeta.provider,
+      thumbnailUrl: embedMeta.thumbnailUrl,
     });
   }
 
