@@ -69,6 +69,16 @@
       `;
     }
 
+    if (media.kind === "embed" && media.provider === "apps-education") {
+      const linkHref = media.externalUrl || media.embedUrl || "";
+      return `
+        <div class="slide-media-print-card">
+          <img class="slide-media-image" src="${utils.escapeHtml(media.src)}" alt="${utils.escapeHtml(media.name)}" />
+          ${linkHref ? `<a class="slide-media-link" href="${utils.escapeHtml(linkHref)}" target="_blank" rel="noopener noreferrer">Ouvrir la vidéo</a>` : ""}
+        </div>
+      `;
+    }
+
     if (media.kind === "embed") {
       return `
         <div class="slide-media-embed-wrap">
