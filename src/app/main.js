@@ -50,6 +50,8 @@
     slideBullet1: document.querySelector("#slide-bullet-1"),
     slideBullet2: document.querySelector("#slide-bullet-2"),
     slideBullet3: document.querySelector("#slide-bullet-3"),
+    addBullet: document.querySelector("#add-bullet"),
+    extraBulletsList: document.querySelector("#extra-bullets-list"),
     slideNote: document.querySelector("#slide-note"),
     titleMeta: document.querySelector("#title-meta"),
     subtitleMeta: document.querySelector("#subtitle-meta"),
@@ -127,11 +129,41 @@
       if (slide.id !== state.selectedSlideId) {
         return slide;
       }
-      const bullets = slide.bullets.slice(0, 3);
-      while (bullets.length < 3) {
+      const bullets = Array.isArray(slide.bullets) ? slide.bullets.slice() : [];
+      while (bullets.length <= index) {
         bullets.push("");
       }
       bullets[index] = value;
+      return Object.assign({}, slide, { bullets });
+    });
+    render();
+  }
+
+  function addSelectedBullet() {
+    state.slides = state.slides.map((slide) => {
+      if (slide.id !== state.selectedSlideId) {
+        return slide;
+      }
+      const bullets = Array.isArray(slide.bullets) ? slide.bullets.slice() : ["", "", ""];
+      bullets.push("");
+      return Object.assign({}, slide, { bullets });
+    });
+    render();
+  }
+
+  function removeSelectedBullet(index) {
+    state.slides = state.slides.map((slide) => {
+      if (slide.id !== state.selectedSlideId) {
+        return slide;
+      }
+      const bullets = Array.isArray(slide.bullets) ? slide.bullets.slice() : [];
+      if (index < 3 || index >= bullets.length) {
+        return slide;
+      }
+      bullets.splice(index, 1);
+      while (bullets.length < 3) {
+        bullets.push("");
+      }
       return Object.assign({}, slide, { bullets });
     });
     render();
@@ -308,10 +340,18 @@
   refs.slideEvidence.addEventListener("input", (event) => updateSelectedSlide({ evidence: ns.utils.clampText(event.target.value, 120) }));
   refs.slideTitle.addEventListener("input", (event) => updateSelectedSlide({ title: ns.utils.clampText(event.target.value, 72) }));
   refs.slideSubtitle.addEventListener("input", (event) => updateSelectedSlide({ subtitle: ns.utils.clampText(event.target.value, 170) }));
-  refs.slideBullet1.addEventListener("input", (event) => updateSelectedBullet(0, ns.utils.clampText(event.target.value, 90)));
-  refs.slideBullet2.addEventListener("input", (event) => updateSelectedBullet(1, ns.utils.clampText(event.target.value, 90)));
-  refs.slideBullet3.addEventListener("input", (event) => updateSelectedBullet(2, ns.utils.clampText(event.target.value, 90)));
-  refs.slideNote.addEventListener("input", (event) => updateSelectedSlide({ note: ns.utils.clampText(event.target.value, 110) }));
+  refs.slideBullet1.addEventListener("input", (event) => updateSelectedBullet(0, ns.utils.clampText(event.target.value, 140)));
+  refs.slideBullet2.addEventListener("input", (event) => updateSelectedBullet(1, ns.utils.clampText(event.target.value, 140)));
+  refs.slideBullet3.addEventListener("input", (event) => updateSelectedBullet(2, ns.utils.clampText(event.target.value, 140)));
+  refs.addBullet.addEventListener("click", addSelectedBullet);
+  refs.slideNote.addEventListener("input", (event) => updateSelectedSlide({ note: ns.utils.clampText(event.target.value, 180) }));
+  refs.extraBulletsList.addEventListener("input", (event) => {
+    const input = event.target.closest("[data-extra-bullet-index]");
+    if (!input) {
+      return;
+    }
+    updateSelectedBullet(Number(input.getAttribute("data-extra-bullet-index")), ns.utils.clampText(input.value, 140));
+  });
   refs.mediaUploadTrigger.addEventListener("click", () => refs.mediaUpload.click());
   refs.importJson.addEventListener("click", () => refs.importJsonInput.click());
   refs.importJsonInput.addEventListener("change", async (event) => {
@@ -388,6 +428,7 @@
     const deleteTrigger = event.target.closest("[data-delete-slide]");
     const mediaAssignTrigger = event.target.closest("[data-assign-media]");
     const mediaDeleteTrigger = event.target.closest("[data-delete-media]");
+    const removeBulletTrigger = event.target.closest("[data-remove-bullet]");
     const addSlideTrigger = event.target.closest("[data-add-slide-bloom]");
     const bloomTrigger = event.target.closest("[data-set-bloom]");
 
@@ -413,6 +454,11 @@
       });
       ns.services.media.deleteMedia(mediaId).then(() => render());
       render();
+      return;
+    }
+
+    if (removeBulletTrigger) {
+      removeSelectedBullet(Number(removeBulletTrigger.getAttribute("data-remove-bullet")));
       return;
     }
 

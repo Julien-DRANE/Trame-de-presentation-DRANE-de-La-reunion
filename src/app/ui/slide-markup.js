@@ -110,26 +110,41 @@
     return `<img class="slide-media-image" src="${utils.escapeHtml(media.src)}" alt="${utils.escapeHtml(media.name)}" />`;
   }
 
+  function createExtraBulletsMarkup(items) {
+    const utils = ns.utils;
+    return `
+      <ul class="slide-side-bullets">
+        ${items.map((item) => `<li>${utils.escapeHtml(item)}</li>`).join("")}
+      </ul>
+    `;
+  }
+
   function createSlideMarkup(slide, settings, options) {
     const opts = options || {};
     const utils = ns.utils;
     const bloomMeta = getBloomMeta(slide.bloomLevel);
     const logoSources = getSlideLogoSources(opts);
     const slideMedia = getSlideMedia(slide, opts);
-    const bullets = (slide.bullets || []).filter((item) => item && item.trim()).slice(0, 3);
-    const bulletMarkup = bullets.length
-      ? bullets.map((item) => `<li>${utils.escapeHtml(item)}</li>`).join("")
+    const bullets = (slide.bullets || []).filter((item) => item && item.trim());
+    const mainBullets = bullets.slice(0, 3);
+    const extraBullets = bullets.slice(3);
+    const bulletMarkup = mainBullets.length
+      ? mainBullets.map((item) => `<li>${utils.escapeHtml(item)}</li>`).join("")
       : "<li>Ajoutez un point clé pour structurer la slide.</li>";
     const compactClass = opts.compact ? " deck-slide-compact" : "";
-    const mediaMarkup = createSlideMediaMarkup(slide, opts);
-    const bodyClass = slideMedia ? "slide-body" : "slide-body slide-body-no-media";
+    const sideMarkup = extraBullets.length
+      ? createExtraBulletsMarkup(extraBullets)
+      : createSlideMediaMarkup(slide, opts);
+    const hasSideContent = Boolean(extraBullets.length || slideMedia);
+    const bodyClass = hasSideContent ? "slide-body" : "slide-body slide-body-no-media";
+    const sideClass = extraBullets.length ? " slide-side-bullets-slot" : "";
     const subtitle = slide.subtitle
       ? `<p class="slide-subtitle-text">${utils.escapeHtml(slide.subtitle)}</p>`
       : "";
     const signature = settings.footer ? `<span class="slide-signature">${utils.escapeHtml(settings.footer)}</span>` : "";
     const note = slide.note
       ? `<div class="slide-note">${utils.escapeHtml(slide.note)}</div>`
-      : '<div class="slide-note">Ajoutez une note courte pour fermer la slide.</div>';
+      : "";
 
     return `
       <article class="deck-slide theme-${utils.escapeHtml(settings.theme || "mix")}${compactClass}">
@@ -147,9 +162,14 @@
             <div class="slide-main">
               <h3 class="slide-headline">${utils.escapeHtml(slide.title || "Titre à compléter")}</h3>
               ${subtitle}
-              <ul class="slide-bullets">${bulletMarkup}</ul>
+              ${extraBullets.length ? `
+                <div class="slide-bullets-row">
+                  <ul class="slide-bullets">${bulletMarkup}</ul>
+                  <aside class="slide-media-slot${sideClass}">${sideMarkup}</aside>
+                </div>
+              ` : `<ul class="slide-bullets">${bulletMarkup}</ul>`}
             </div>
-            ${slideMedia ? `<aside class="slide-media-slot">${mediaMarkup}</aside>` : ""}
+            ${!extraBullets.length && slideMedia ? `<aside class="slide-media-slot">${sideMarkup}</aside>` : ""}
           </div>
           <div class="slide-footer">
             ${note}

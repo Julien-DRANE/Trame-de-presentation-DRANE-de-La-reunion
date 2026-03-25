@@ -59,11 +59,12 @@
     refs.slideBullet1.value = selectedSlide.bullets[0] || "";
     refs.slideBullet2.value = selectedSlide.bullets[1] || "";
     refs.slideBullet3.value = selectedSlide.bullets[2] || "";
+    refs.extraBulletsList.innerHTML = renderExtraBullets(selectedSlide);
     refs.slideNote.value = selectedSlide.note;
 
     refs.titleMeta.textContent = `${selectedSlide.title.length}/72 caracteres`;
     refs.subtitleMeta.textContent = `${selectedSlide.subtitle.length}/170 caracteres`;
-    refs.noteMeta.textContent = `${selectedSlide.note.length}/110 caracteres`;
+    refs.noteMeta.textContent = `${selectedSlide.note.length}/180 caracteres`;
     refs.objectiveMeta.textContent = `${selectedSlide.objective.length}/180 caracteres`;
     refs.evidenceMeta.textContent = `${selectedSlide.evidence.length}/120 caracteres`;
 
@@ -264,6 +265,38 @@
               x
             </button>
           </article>
+        `;
+      })
+      .join("");
+  }
+
+  function renderExtraBullets(selectedSlide) {
+    const extraBullets = (selectedSlide.bullets || []).slice(3);
+    if (extraBullets.length === 0) {
+      return '<p class="extra-bullets-empty">Aucun point supplémentaire.</p>';
+    }
+
+    return extraBullets
+      .map((bullet, index) => {
+        const actualIndex = index + 3;
+        return `
+          <div class="extra-bullet-row">
+            <input
+              type="text"
+              maxlength="140"
+              value="${ns.utils.escapeHtml(bullet || "")}"
+              data-extra-bullet-index="${actualIndex}"
+              placeholder="Point ${actualIndex + 1}"
+            />
+            <button
+              class="icon-button icon-button-danger"
+              type="button"
+              data-remove-bullet="${actualIndex}"
+              aria-label="Supprimer le point ${actualIndex + 1}"
+            >
+              x
+            </button>
+          </div>
         `;
       })
       .join("");

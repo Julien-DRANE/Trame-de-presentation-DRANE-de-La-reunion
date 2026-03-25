@@ -65,7 +65,7 @@
     }
 
     const utils = ns.utils;
-    const bullets = Array.isArray(slide.bullets) ? slide.bullets.slice(0, 3) : [];
+    const bullets = Array.isArray(slide.bullets) ? slide.bullets.slice(0, 12) : [];
     while (bullets.length < 3) {
       bullets.push("");
     }
@@ -83,8 +83,8 @@
       principleIds,
       title: utils.clampText(slide.title, 72),
       subtitle: utils.clampText(slide.subtitle, 170),
-      bullets: bullets.map((item) => utils.clampText(item, 90)),
-      note: utils.clampText(slide.note, 110),
+      bullets: bullets.map((item) => utils.clampText(item, 140)),
+      note: utils.clampText(slide.note, 180),
     };
   }
 
