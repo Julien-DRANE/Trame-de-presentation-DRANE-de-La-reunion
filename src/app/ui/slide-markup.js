@@ -125,9 +125,13 @@
     const bloomMeta = getBloomMeta(slide.bloomLevel);
     const logoSources = getSlideLogoSources(opts);
     const slideMedia = getSlideMedia(slide, opts);
-    const bullets = (slide.bullets || []).filter((item) => item && item.trim());
-    const mainBullets = bullets.slice(0, 3);
-    const extraBullets = bullets.slice(3);
+    const bullets = Array.isArray(slide.bullets) ? slide.bullets : [];
+    const mainBullets = bullets
+      .slice(0, 3)
+      .filter((item) => item && item.trim());
+    const extraBullets = bullets
+      .slice(3)
+      .filter((item) => item && item.trim());
     const bulletMarkup = mainBullets.length
       ? mainBullets.map((item) => `<li>${utils.escapeHtml(item)}</li>`).join("")
       : "<li>Ajoutez un point clé pour structurer la slide.</li>";
