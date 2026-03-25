@@ -41,13 +41,14 @@
     const selectedSlideId = slides.some((slide) => slide.id === input.selectedSlideId)
       ? input.selectedSlideId
       : slides[0].id;
+    const hasFooterValue = Boolean(input.settings) && typeof input.settings.footer === "string";
 
     return {
       view: viewOptions.includes(input.view) ? input.view : fallbackState.view,
       settings: {
         title: utils.clampText(input.settings && input.settings.title, 60) || fallbackState.settings.title,
         subtitle: utils.clampText(input.settings && input.settings.subtitle, 90) || fallbackState.settings.subtitle,
-        footer: utils.clampText(input.settings && input.settings.footer, 50) || fallbackState.settings.footer,
+        footer: hasFooterValue ? utils.clampText(input.settings.footer, 50) : fallbackState.settings.footer,
         theme: themeOptions.includes(input.settings && input.settings.theme) ? input.settings.theme : fallbackState.settings.theme,
       },
       mediaLibrary: Array.isArray(input.mediaLibrary)
