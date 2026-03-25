@@ -153,7 +153,7 @@
         return {
           provider: "apps-education",
           id: parts[1],
-          embedUrl: `${parsed.origin}/videos/embed/${parts[1]}`,
+          embedUrl: cleanAppsEducationEmbedUrl(parsed),
           thumbnailUrl: "",
           name: `Vidéo ${parts[1]}`,
         };
@@ -167,7 +167,7 @@
         return {
           provider: "apps-education",
           id: videoId,
-          embedUrl: `${parsed.origin}/videos/embed/${videoId}`,
+          embedUrl: cleanAppsEducationEmbedUrl(parsed),
           thumbnailUrl: "",
           name: parts[1].replace(/-/g, " "),
         };
@@ -177,7 +177,7 @@
         return {
           provider: "apps-education",
           id: parts[2],
-          embedUrl: `${parsed.origin}/videos/embed/${parts[2]}`,
+          embedUrl: cleanAppsEducationEmbedUrl(parsed),
           thumbnailUrl: "",
           name: `Vidéo ${parts[2]}`,
         };
@@ -187,6 +187,12 @@
     }
 
     return null;
+  }
+
+  function cleanAppsEducationEmbedUrl(parsedUrl) {
+    const url = new URL(parsedUrl.toString());
+    url.hash = "";
+    return url.toString();
   }
 
   function extractEmbedMeta(url) {
