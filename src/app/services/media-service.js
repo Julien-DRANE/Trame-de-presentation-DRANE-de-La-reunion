@@ -110,7 +110,7 @@
       if (!/^https?:$/i.test(parsed.protocol)) {
         return false;
       }
-      if (extractYouTubeId(url)) {
+      if (extractEmbedMeta(url)) {
         return false;
       }
       return true;
