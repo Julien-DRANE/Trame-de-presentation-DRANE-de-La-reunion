@@ -99,8 +99,22 @@
     return "";
   }
 
+  function normalizeMediaInput(value) {
+    const rawValue = String(value || "").trim();
+    if (!rawValue) {
+      return "";
+    }
+
+    const iframeMatch = rawValue.match(/<iframe[^>]+src=["']([^"']+)["']/i);
+    if (iframeMatch && iframeMatch[1]) {
+      return iframeMatch[1].trim();
+    }
+
+    return rawValue;
+  }
+
   function isDirectMediaUrl(url) {
-    const value = String(url || "").trim();
+    const value = normalizeMediaInput(url);
     if (/^data:(image|video)\//i.test(value)) {
       return true;
     }
@@ -121,7 +135,7 @@
 
   function extractYouTubeId(url) {
     try {
-      const parsed = new URL(String(url || "").trim());
+      const parsed = new URL(normalizeMediaInput(url));
       if (parsed.hostname.includes("youtu.be")) {
         return parsed.pathname.replace(/^\/+/, "").split("/")[0] || "";
       }
@@ -143,7 +157,7 @@
 
   function extractAppsEducationEmbed(url) {
     try {
-      const parsed = new URL(String(url || "").trim());
+      const parsed = new URL(normalizeMediaInput(url));
       const hostname = parsed.hostname.toLowerCase();
       if (!hostname.endsWith(".apps.education.fr")) {
         return null;
@@ -220,7 +234,7 @@
   }
 
   function createExternalMedia(url) {
-    const cleanUrl = String(url || "").trim();
+    const cleanUrl = normalizeMediaInput(url);
     if (!cleanUrl) {
       return null;
     }
@@ -256,7 +270,7 @@
   }
 
   function createEmbedMedia(url) {
-    const cleanUrl = String(url || "").trim();
+    const cleanUrl = normalizeMediaInput(url);
     const embedMeta = extractEmbedMeta(cleanUrl);
     if (!embedMeta) {
       return null;
@@ -546,6 +560,7 @@
 
   ns.services.media = {
     sanitizeMediaItem,
+    normalizeMediaInput,
     createExternalMedia,
     createEmbedMedia,
     isDirectMediaUrl,

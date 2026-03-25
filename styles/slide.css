@@ -261,6 +261,22 @@
   border: 0;
 }
 
+.slide-media-external-link {
+  display: block;
+  width: 100%;
+}
+
+.slide-media-external-link .slide-media-image {
+  cursor: pointer;
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.slide-media-external-link:hover .slide-media-image,
+.slide-media-external-link:focus-visible .slide-media-image {
+  transform: scale(1.02);
+  box-shadow: 0 12px 30px rgba(18, 32, 51, 0.18);
+}
+
 .slide-footer {
   display: flex;
   align-items: flex-end;

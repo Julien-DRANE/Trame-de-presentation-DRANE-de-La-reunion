@@ -349,7 +349,7 @@
         : null;
 
     if (!mediaItem) {
-      refs.mediaLinkFeedback.textContent = "Utilise un lien http/https, un data URL image/vidéo, ou un lien YouTube.";
+      refs.mediaLinkFeedback.textContent = "Utilise un lien http/https, un code iframe, un data URL image/vidéo, ou un lien vidéo reconnu.";
       return;
     }
 
