@@ -2,7 +2,7 @@
   const ns = (window.StudioSlides = window.StudioSlides || {});
   ns.services = ns.services || {};
 
-  const themeOptions = ["mix", "circles", "waves", "clean"];
+  const themeOptions = ["random", "mix", "circles", "waves", "clean"];
   const viewOptions = ["engineering", "presentation"];
 
   function safeRead(key) {
@@ -45,6 +45,7 @@
 
     return {
       view: viewOptions.includes(input.view) ? input.view : fallbackState.view,
+      uiNightMode: Boolean(input.uiNightMode),
       settings: {
         title: utils.clampText(input.settings && input.settings.title, 60) || fallbackState.settings.title,
         subtitle: utils.clampText(input.settings && input.settings.subtitle, 90) || fallbackState.settings.subtitle,
@@ -69,6 +70,9 @@
     while (bullets.length < 3) {
       bullets.push("");
     }
+    const table = sanitizeTable(slide.table);
+    const freeLinks = sanitizeFreeLinks(slide.freeLinks);
+    const freeMediaIds = sanitizeFreeMediaIds(slide.freeMediaIds);
 
     const principleIds = utils.uniqueStrings(slide.principleIds || []).filter((id) => allowedPrincipleIds.includes(id));
 
@@ -76,6 +80,12 @@
       id: typeof slide.id === "string" && slide.id ? slide.id : utils.createId("slide"),
       label: utils.clampText(slide.label, 24) || `Slide ${index + 1}`,
       number: utils.clampText(slide.number, 8) || String(index + 1).padStart(2, "0"),
+      contentType: slide.contentType === "table" ? "table" : slide.contentType === "free" ? "free" : "bullets",
+      bulletsNumbered: Boolean(slide.bulletsNumbered),
+      table,
+      freeBody: utils.clampText(slide.freeBody, 1600),
+      freeLinks,
+      freeMediaIds,
       mediaId: utils.clampText(slide.mediaId, 80),
       bloomLevel: allowedBloomIds.includes(slide.bloomLevel) ? slide.bloomLevel : allowedBloomIds[0],
       objective: utils.clampText(slide.objective, 180),
@@ -86,6 +96,56 @@
       bullets: bullets.map((item) => utils.clampText(item, 140)),
       note: utils.clampText(slide.note, 180),
     };
+  }
+
+  function sanitizeTable(input) {
+    const utils = ns.utils;
+    const rows = Array.isArray(input) ? input.slice(0, 8) : [];
+    const sanitizedRows = rows
+      .map((row) => Array.isArray(row) ? row.slice(0, 6).map((cell) => utils.clampText(cell, 120)) : null)
+      .filter(Boolean);
+
+    const rowCount = Math.max(2, sanitizedRows.length);
+    const colCount = Math.max(2, sanitizedRows.reduce((max, row) => Math.max(max, row.length), 0));
+    while (sanitizedRows.length < rowCount) {
+      sanitizedRows.push([]);
+    }
+    sanitizedRows.forEach((row) => {
+      while (row.length < colCount) {
+        row.push("");
+      }
+    });
+    return sanitizedRows;
+  }
+
+  function sanitizeFreeLinks(input) {
+    const utils = ns.utils;
+    if (!Array.isArray(input)) {
+      return [];
+    }
+
+    return input
+      .slice(0, 12)
+      .map((item) => {
+        if (!item || typeof item !== "object") {
+          return null;
+        }
+        const label = utils.clampText(item.label, 80);
+        const url = utils.clampText(item.url, 500);
+        if (!url) {
+          return null;
+        }
+        return { label, url };
+      })
+      .filter(Boolean);
+  }
+
+  function sanitizeFreeMediaIds(input) {
+    const utils = ns.utils;
+    if (!Array.isArray(input)) {
+      return [];
+    }
+    return utils.uniqueStrings(input.map((id) => utils.clampText(id, 80)).filter(Boolean)).slice(0, 12);
   }
 
   function loadState(key) {

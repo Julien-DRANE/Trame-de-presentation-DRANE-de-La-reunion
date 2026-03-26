@@ -172,6 +172,18 @@ h2 {
   color: var(--ink);
 }
 
+#toggle-night-mode.button-soft {
+  border-color: rgba(20, 26, 42, 0.22);
+  background: rgba(18, 32, 51, 0.1);
+  color: var(--ink);
+}
+
+#toggle-night-mode.button-soft.is-active {
+  border-color: rgba(125, 167, 234, 0.28);
+  background: rgba(24, 34, 56, 0.9);
+  color: #eef4ff;
+}
+
 #add-slide.button-soft {
   border-color: rgba(44, 115, 218, 0.2);
   background: rgba(44, 115, 218, 0.12);
@@ -509,6 +521,47 @@ select {
   gap: 0.6rem;
 }
 
+.free-links-panel {
+  display: grid;
+  gap: 0.75rem;
+  padding: 0.95rem;
+  border-radius: var(--radius-lg);
+  background: rgba(18, 32, 51, 0.04);
+}
+
+.free-links-panel .media-link-row {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr) auto;
+}
+
+.free-links-list {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.free-link-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.6rem;
+  align-items: start;
+}
+
+.free-link-meta {
+  display: grid;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.free-link-meta strong {
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.free-link-meta a {
+  color: var(--blue-deep);
+  font-size: 0.84rem;
+  overflow-wrap: anywhere;
+}
+
 .extra-bullets-panel {
   display: grid;
   gap: 0.75rem;
@@ -532,9 +585,48 @@ select {
   gap: 0.6rem;
 }
 
+.bullet-editor-row.is-drop-target {
+  border-radius: var(--radius-sm);
+  box-shadow: 0 0 0 3px rgba(44, 115, 218, 0.14);
+}
+
+.bullet-editor-row.is-dragging {
+  opacity: 0.56;
+}
+
+.bullet-drag-handle {
+  display: grid;
+  place-items: center;
+  width: 2.1rem;
+  height: 2.1rem;
+  padding: 0;
+  border: 1px solid rgba(18, 32, 51, 0.12);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.88);
+  color: var(--blue-deep);
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  cursor: grab;
+  transition:
+    transform 0.18s ease,
+    background 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+.bullet-drag-handle:hover,
+.bullet-drag-handle:focus-visible {
+  transform: translateY(-1px) scale(1.04);
+  background: rgba(44, 115, 218, 0.12);
+  box-shadow: 0 10px 20px rgba(44, 115, 218, 0.14);
+}
+
+.bullet-editor-row.is-dragging .bullet-drag-handle {
+  cursor: grabbing;
+}
+
 .extra-bullet-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   gap: 0.6rem;
   align-items: center;
 }
@@ -543,6 +635,51 @@ select {
   color: var(--muted);
   font-size: 0.84rem;
   line-height: 1.4;
+}
+
+.slide-content-mode {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.inline-checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-weight: 700;
+}
+
+.inline-checkbox input {
+  width: 1rem;
+  height: 1rem;
+  margin: 0;
+}
+
+.slide-content-mode.is-collapsed {
+  display: none;
+}
+
+.table-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.table-editor-grid {
+  overflow-x: auto;
+}
+
+.table-editor-matrix {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.table-editor-cell {
+  min-width: 8.5rem;
+}
+
+.table-editor-cell.is-header {
+  font-weight: 800;
 }
 
 .media-upload-input {
@@ -734,6 +871,194 @@ select {
   font-size: 0.82rem;
   font-weight: 700;
   color: var(--muted);
+}
+
+.app-shell[data-view="presentation"][data-ui-theme="night"] .topbar,
+.app-shell[data-view="presentation"][data-ui-theme="night"] .panel {
+  border-color: rgba(180, 201, 236, 0.24);
+  background: rgba(10, 16, 28, 0.84);
+  box-shadow:
+    0 18px 48px rgba(0, 0, 0, 0.28),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.03);
+}
+
+.app-shell[data-view="presentation"][data-ui-theme="night"] .brand-kicker,
+.app-shell[data-view="presentation"][data-ui-theme="night"] .panel-kicker,
+.app-shell[data-view="presentation"][data-ui-theme="night"] .guidance-title,
+.app-shell[data-view="presentation"][data-ui-theme="night"] .pedagogy-box h4,
+.app-shell[data-view="presentation"][data-ui-theme="night"] label,
+.app-shell[data-view="presentation"][data-ui-theme="night"] .extra-bullets-header,
+.app-shell[data-view="presentation"][data-ui-theme="night"] .thumb-caption {
+  color: #b9ccef;
+}
+
+.app-shell[data-view="presentation"][data-ui-theme="night"] .topbar-subtitle,
+.app-shell[data-view="presentation"][data-ui-theme="night"] .guidance ul,
+.app-shell[data-view="presentation"][data-ui-theme="night"] .field-meta,
+.app-shell[data-view="presentation"][data-ui-theme="night"] .preview-hint,
+.app-shell[data-view="presentation"][data-ui-theme="night"] .slide-subline,
+.app-shell[data-view="presentation"][data-ui-theme="night"] .taxonomy-summary,
+.app-shell[data-view="presentation"][data-ui-theme="night"] .media-subline,
+.app-shell[data-view="presentation"][data-ui-theme="night"] .pedagogy-line,
+.app-shell[data-view="presentation"][data-ui-theme="night"] .principle-summary,
+.app-shell[data-view="presentation"][data-ui-theme="night"] .principle-detail,
+.app-shell[data-view="presentation"][data-ui-theme="night"] .extra-bullets-empty {
+  color: #93a7c8;
+}
+
+.app-shell[data-view="presentation"][data-ui-theme="night"] h1,
+.app-shell[data-view="presentation"][data-ui-theme="night"] h2,
+.app-shell[data-view="presentation"][data-ui-theme="night"] h3,
+.app-shell[data-view="presentation"][data-ui-theme="night"] h4,
+.app-shell[data-view="presentation"][data-ui-theme="night"] .slide-title,
+.app-shell[data-view="presentation"][data-ui-theme="night"] .media-title,
+.app-shell[data-view="presentation"][data-ui-theme="night"] .principle-title,
+.app-shell[data-view="presentation"][data-ui-theme="night"] .add-slide-option,
+.app-shell[data-view="presentation"][data-ui-theme="night"] .taxonomy-title,
+.app-shell[data-view="presentation"][data-ui-theme="night"] .slide-media-selection {
+  color: #ff9a3d;
+}
+
+.app-shell[data-view="presentation"][data-ui-theme="night"] .slide-title,
+.app-shell[data-view="presentation"][data-ui-theme="night"] .media-title,
+.app-shell[data-view="presentation"][data-ui-theme="night"] .principle-title,
+.app-shell[data-view="presentation"][data-ui-theme="night"] .taxonomy-title,
+.app-shell[data-view="presentation"][data-ui-theme="night"] h1,
+.app-shell[data-view="presentation"][data-ui-theme="night"] h2,
+.app-shell[data-view="presentation"][data-ui-theme="night"] h3,
+.app-shell[data-view="presentation"][data-ui-theme="night"] h4 {
+  font-weight: 800;
+}
+
+.app-shell[data-view="presentation"][data-ui-theme="night"] .button-soft,
+.app-shell[data-view="presentation"][data-ui-theme="night"] .button-ghost,
+.app-shell[data-view="presentation"][data-ui-theme="night"] .icon-button,
+.app-shell[data-view="presentation"][data-ui-theme="night"] .app-tab,
+.app-shell[data-view="presentation"][data-ui-theme="night"] .add-slide-menu,
+.app-shell[data-view="presentation"][data-ui-theme="night"] .media-card,
+.app-shell[data-view="presentation"][data-ui-theme="night"] .slide-item,
+.app-shell[data-view="presentation"][data-ui-theme="night"] .thumb-card,
+.app-shell[data-view="presentation"][data-ui-theme="night"] .pedagogy-brief,
+.app-shell[data-view="presentation"][data-ui-theme="night"] .slide-media-panel,
+.app-shell[data-view="presentation"][data-ui-theme="night"] .extra-bullets-panel,
+.app-shell[data-view="presentation"][data-ui-theme="night"] .guidance {
+  border-color: rgba(180, 201, 236, 0.2);
+  background: rgba(16, 24, 40, 0.8);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.025);
+  color: #eef4ff;
+}
+
+.app-shell[data-view="presentation"][data-ui-theme="night"] input,
+.app-shell[data-view="presentation"][data-ui-theme="night"] textarea,
+.app-shell[data-view="presentation"][data-ui-theme="night"] select,
+.app-shell[data-view="presentation"][data-ui-theme="night"] .table-editor-cell {
+  border-color: rgba(180, 201, 236, 0.24);
+  background: rgba(12, 19, 31, 0.92);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.03);
+  color: #eef4ff;
+}
+
+.app-shell[data-view="presentation"][data-ui-theme="night"] input::placeholder,
+.app-shell[data-view="presentation"][data-ui-theme="night"] textarea::placeholder {
+  color: #7286a6;
+}
+
+.app-shell[data-view="presentation"][data-ui-theme="night"] .slide-item.is-active,
+.app-shell[data-view="presentation"][data-ui-theme="night"] .media-card.is-active,
+.app-shell[data-view="presentation"][data-ui-theme="night"] .thumb-card.is-active {
+  border-color: rgba(125, 167, 234, 0.34);
+  background: linear-gradient(145deg, rgba(34, 58, 95, 0.88), rgba(12, 19, 31, 0.94));
+}
+
+.app-shell[data-view="presentation"][data-ui-theme="night"] .slide-order,
+.app-shell[data-view="presentation"][data-ui-theme="night"] .add-slide-option-number,
+.app-shell[data-view="presentation"][data-ui-theme="night"] .bullet-drag-handle {
+  background: rgba(61, 100, 163, 0.42);
+  color: #dceafe;
+}
+
+.app-shell[data-view="presentation"][data-ui-theme="night"] .stage-wrap {
+  background: linear-gradient(180deg, rgba(9, 14, 25, 0.92), rgba(18, 29, 49, 0.88));
+  box-shadow: inset 0 0 0 1px rgba(180, 201, 236, 0.18);
+}
+
+.app-shell[data-view="presentation"][data-ui-theme="night"] .stage .deck-slide,
+.app-shell[data-view="presentation"][data-ui-theme="night"] .thumb-card .deck-slide {
+  background: linear-gradient(155deg, #0f1728, #1b2940 68%);
+  color: #eef4ff;
+}
+
+.app-shell[data-view="presentation"][data-ui-theme="night"] .stage .deck-slide.theme-circles::before,
+.app-shell[data-view="presentation"][data-ui-theme="night"] .stage .deck-slide.theme-mix::before,
+.app-shell[data-view="presentation"][data-ui-theme="night"] .thumb-card .deck-slide.theme-circles::before,
+.app-shell[data-view="presentation"][data-ui-theme="night"] .thumb-card .deck-slide.theme-mix::before {
+  background:
+    radial-gradient(circle at 45% 40%, rgba(255, 255, 255, 0.16) 0 18%, transparent 19%),
+    radial-gradient(circle at center, rgba(83, 137, 225, 0.22) 0 56%, rgba(83, 137, 225, 0.07) 57% 74%, transparent 75%);
+}
+
+.app-shell[data-view="presentation"][data-ui-theme="night"] .stage .deck-slide.theme-circles::after,
+.app-shell[data-view="presentation"][data-ui-theme="night"] .stage .deck-slide.theme-mix::after,
+.app-shell[data-view="presentation"][data-ui-theme="night"] .thumb-card .deck-slide.theme-circles::after,
+.app-shell[data-view="presentation"][data-ui-theme="night"] .thumb-card .deck-slide.theme-mix::after {
+  background:
+    radial-gradient(circle at center, rgba(83, 137, 225, 0.14) 0 56%, rgba(83, 137, 225, 0.05) 57% 72%, transparent 73%);
+}
+
+.app-shell[data-view="presentation"][data-ui-theme="night"] .stage .slide-wave,
+.app-shell[data-view="presentation"][data-ui-theme="night"] .thumb-card .slide-wave {
+  background:
+    linear-gradient(180deg, rgba(83, 137, 225, 0.12), rgba(83, 137, 225, 0.24)),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.14), transparent);
+}
+
+.app-shell[data-view="presentation"][data-ui-theme="night"] .stage .slide-wave::before,
+.app-shell[data-view="presentation"][data-ui-theme="night"] .stage .slide-wave::after,
+.app-shell[data-view="presentation"][data-ui-theme="night"] .thumb-card .slide-wave::before,
+.app-shell[data-view="presentation"][data-ui-theme="night"] .thumb-card .slide-wave::after {
+  background: rgba(83, 137, 225, 0.08);
+}
+
+.app-shell[data-view="presentation"][data-ui-theme="night"] .stage .slide-headline,
+.app-shell[data-view="presentation"][data-ui-theme="night"] .thumb-card .slide-headline,
+.app-shell[data-view="presentation"][data-ui-theme="night"] .stage .slide-bloom-pill,
+.app-shell[data-view="presentation"][data-ui-theme="night"] .thumb-card .slide-bloom-pill,
+.app-shell[data-view="presentation"][data-ui-theme="night"] .stage .slide-number-badge,
+.app-shell[data-view="presentation"][data-ui-theme="night"] .thumb-card .slide-number-badge,
+.app-shell[data-view="presentation"][data-ui-theme="night"] .stage .slide-signature,
+.app-shell[data-view="presentation"][data-ui-theme="night"] .thumb-card .slide-signature {
+  color: #eef4ff;
+}
+
+.app-shell[data-view="presentation"][data-ui-theme="night"] .stage .slide-subtitle-text,
+.app-shell[data-view="presentation"][data-ui-theme="night"] .thumb-card .slide-subtitle-text,
+.app-shell[data-view="presentation"][data-ui-theme="night"] .stage .slide-note,
+.app-shell[data-view="presentation"][data-ui-theme="night"] .thumb-card .slide-note {
+  color: #c7d6ef;
+}
+
+.app-shell[data-view="presentation"][data-ui-theme="night"] .stage .slide-note,
+.app-shell[data-view="presentation"][data-ui-theme="night"] .thumb-card .slide-note {
+  background: rgba(18, 28, 46, 0.84);
+  border: 1px solid rgba(180, 201, 236, 0.18);
+}
+
+.app-shell[data-view="presentation"][data-ui-theme="night"] {
+  color: #eef4ff;
+}
+
+.app-shell[data-view="presentation"][data-ui-theme="night"] .panel-heading,
+.app-shell[data-view="presentation"][data-ui-theme="night"] .slide-media-header,
+.app-shell[data-view="presentation"][data-ui-theme="night"] .extra-bullets-header {
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid rgba(180, 201, 236, 0.16);
+}
+
+.app-shell[data-view="presentation"][data-ui-theme="night"] .table-editor-grid,
+.app-shell[data-view="presentation"][data-ui-theme="night"] .media-library,
+.app-shell[data-view="presentation"][data-ui-theme="night"] .slide-list,
+.app-shell[data-view="presentation"][data-ui-theme="night"] .thumb-strip {
+  position: relative;
 }
 
 @media (max-width: 860px) {

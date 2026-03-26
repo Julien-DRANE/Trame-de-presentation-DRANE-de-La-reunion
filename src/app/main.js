@@ -18,6 +18,7 @@
     exportJson: document.querySelector("#export-json"),
     importJson: document.querySelector("#import-json"),
     importJsonInput: document.querySelector("#import-json-input"),
+    toggleNightMode: document.querySelector("#toggle-night-mode"),
     deckTitle: document.querySelector("#deck-title"),
     deckSubtitle: document.querySelector("#deck-subtitle"),
     deckFooter: document.querySelector("#deck-footer"),
@@ -47,11 +48,28 @@
     slideEvidence: document.querySelector("#slide-evidence"),
     slideTitle: document.querySelector("#slide-title"),
     slideSubtitle: document.querySelector("#slide-subtitle"),
+    slideContentType: document.querySelector("#slide-content-type"),
+    slideBulletsEditor: document.querySelector("#slide-bullets-editor"),
+    slideTableEditor: document.querySelector("#slide-table-editor"),
+    slideFreeEditor: document.querySelector("#slide-free-editor"),
+    slideNoteEditor: document.querySelector("#slide-note-editor"),
+    slideBulletsNumbered: document.querySelector("#slide-bullets-numbered"),
     slideBullet1: document.querySelector("#slide-bullet-1"),
     slideBullet2: document.querySelector("#slide-bullet-2"),
     slideBullet3: document.querySelector("#slide-bullet-3"),
     addBullet: document.querySelector("#add-bullet"),
     extraBulletsList: document.querySelector("#extra-bullets-list"),
+    addTableRow: document.querySelector("#add-table-row"),
+    removeTableRow: document.querySelector("#remove-table-row"),
+    addTableColumn: document.querySelector("#add-table-column"),
+    removeTableColumn: document.querySelector("#remove-table-column"),
+    tableEditorGrid: document.querySelector("#table-editor-grid"),
+    slideFreeBody: document.querySelector("#slide-free-body"),
+    freeBodyMeta: document.querySelector("#free-body-meta"),
+    freeLinkLabel: document.querySelector("#free-link-label"),
+    freeLinkUrl: document.querySelector("#free-link-url"),
+    addFreeLink: document.querySelector("#add-free-link"),
+    freeLinksList: document.querySelector("#free-links-list"),
     slideNote: document.querySelector("#slide-note"),
     titleMeta: document.querySelector("#title-meta"),
     subtitleMeta: document.querySelector("#subtitle-meta"),
@@ -63,7 +81,10 @@
   let state = ns.services.storage.loadState(STORAGE_KEY);
   let draggedSlideId = null;
   let draggedListSlideId = null;
+  let draggedBulletIndex = null;
   let isAddSlideMenuOpen = false;
+  let pendingBulletFocus = null;
+  let pendingTableFocus = null;
   const isPresentationMode = new URLSearchParams(window.location.search).get("present") === "1";
 
   if (isPresentationMode) {
@@ -78,6 +99,24 @@
   function render() {
     ns.ui.renderDashboard({ state, refs });
     ns.services.storage.saveState(STORAGE_KEY, state);
+    if (pendingBulletFocus) {
+      const input = refs.extraBulletsList.querySelector(`[data-extra-bullet-index="${pendingBulletFocus.index}"]`);
+      if (input) {
+        input.focus();
+        const caret = Math.min(pendingBulletFocus.caret, input.value.length);
+        input.setSelectionRange(caret, caret);
+      }
+      pendingBulletFocus = null;
+    }
+    if (pendingTableFocus) {
+      const input = refs.tableEditorGrid.querySelector(`[data-table-cell="${pendingTableFocus.row}-${pendingTableFocus.column}"]`);
+      if (input) {
+        input.focus();
+        const caret = Math.min(pendingTableFocus.caret, input.value.length);
+        input.setSelectionRange(caret, caret);
+      }
+      pendingTableFocus = null;
+    }
   }
 
   async function hydrateMediaLibrary() {
@@ -110,6 +149,11 @@
     render();
   }
 
+  function toggleNightMode() {
+    state.uiNightMode = !state.uiNightMode;
+    render();
+  }
+
   function updateSelectedSlide(patch) {
     state.slides = state.slides.map((slide) => {
       if (slide.id !== state.selectedSlideId) {
@@ -118,6 +162,51 @@
       return Object.assign({}, slide, patch);
     });
     render();
+  }
+
+  function updateSelectedTableCell(rowIndex, columnIndex, value) {
+    state.slides = state.slides.map((slide) => {
+      if (slide.id !== state.selectedSlideId) {
+        return slide;
+      }
+      const table = normalizeTable(slide.table);
+      table[rowIndex][columnIndex] = value;
+      return Object.assign({}, slide, { table });
+    });
+    render();
+  }
+
+  function resizeSelectedTable(nextRows, nextCols) {
+    state.slides = state.slides.map((slide) => {
+      if (slide.id !== state.selectedSlideId) {
+        return slide;
+      }
+      const table = normalizeTable(slide.table, nextRows, nextCols);
+      return Object.assign({}, slide, { table });
+    });
+    render();
+  }
+
+  function normalizeTable(tableInput, minRows, minCols) {
+    const rowTarget = Math.max(2, Math.min(8, minRows || (Array.isArray(tableInput) ? tableInput.length : 2)));
+    const colTarget = Math.max(2, Math.min(6, minCols || getTableColumnCount(tableInput) || 2));
+    const table = Array.isArray(tableInput) ? tableInput.slice(0, rowTarget).map((row) => Array.isArray(row) ? row.slice(0, colTarget) : []) : [];
+    while (table.length < rowTarget) {
+      table.push([]);
+    }
+    table.forEach((row) => {
+      while (row.length < colTarget) {
+        row.push("");
+      }
+    });
+    return table;
+  }
+
+  function getTableColumnCount(tableInput) {
+    if (!Array.isArray(tableInput)) {
+      return 0;
+    }
+    return tableInput.reduce((max, row) => Math.max(max, Array.isArray(row) ? row.length : 0), 0);
   }
 
   function assignMediaToSelectedSlide(mediaId) {
@@ -164,6 +253,86 @@
       while (bullets.length < 3) {
         bullets.push("");
       }
+      return Object.assign({}, slide, { bullets });
+    });
+    render();
+  }
+
+  function updateSelectedFreeBody(value) {
+    updateSelectedSlide({ freeBody: ns.utils.clampText(value, 1600) });
+  }
+
+  function addSelectedFreeLink(label, url) {
+    const trimmedUrl = ns.utils.clampText(url, 500).trim();
+    if (!trimmedUrl) {
+      return;
+    }
+
+    state.slides = state.slides.map((slide) => {
+      if (slide.id !== state.selectedSlideId) {
+        return slide;
+      }
+      const freeLinks = Array.isArray(slide.freeLinks) ? slide.freeLinks.slice(0, 12) : [];
+      freeLinks.push({
+        label: ns.utils.clampText(label, 80),
+        url: trimmedUrl,
+      });
+      return Object.assign({}, slide, { freeLinks: freeLinks.slice(0, 12) });
+    });
+    render();
+  }
+
+  function removeSelectedFreeLink(index) {
+    state.slides = state.slides.map((slide) => {
+      if (slide.id !== state.selectedSlideId) {
+        return slide;
+      }
+      const freeLinks = Array.isArray(slide.freeLinks) ? slide.freeLinks.slice() : [];
+      if (index < 0 || index >= freeLinks.length) {
+        return slide;
+      }
+      freeLinks.splice(index, 1);
+      return Object.assign({}, slide, { freeLinks });
+    });
+    render();
+  }
+
+  function toggleSelectedFreeMedia(mediaId) {
+    state.slides = state.slides.map((slide) => {
+      if (slide.id !== state.selectedSlideId) {
+        return slide;
+      }
+      const freeMediaIds = Array.isArray(slide.freeMediaIds) ? slide.freeMediaIds.slice() : [];
+      const index = freeMediaIds.indexOf(mediaId);
+      if (index >= 0) {
+        freeMediaIds.splice(index, 1);
+      } else {
+        freeMediaIds.push(mediaId);
+      }
+      return Object.assign({}, slide, { freeMediaIds: ns.utils.uniqueStrings(freeMediaIds).slice(0, 12) });
+    });
+    render();
+  }
+
+  function moveSelectedBullet(fromIndex, toIndex) {
+    if (fromIndex === toIndex || fromIndex < 0 || toIndex < 0) {
+      return;
+    }
+
+    state.slides = state.slides.map((slide) => {
+      if (slide.id !== state.selectedSlideId) {
+        return slide;
+      }
+      const bullets = Array.isArray(slide.bullets) ? slide.bullets.slice() : ["", "", ""];
+      while (bullets.length < 3) {
+        bullets.push("");
+      }
+      if (fromIndex >= bullets.length || toIndex >= bullets.length) {
+        return slide;
+      }
+
+      const moved = bullets.splice(fromIndex, 1)[0];
+      bullets.splice(toIndex, 0, moved);
       return Object.assign({}, slide, { bullets });
     });
     render();
@@ -293,6 +462,12 @@
     });
   }
 
+  function clearBulletDropState() {
+    refs.slideBulletsEditor.querySelectorAll(".bullet-editor-row.is-drop-target, .bullet-editor-row.is-dragging").forEach((row) => {
+      row.classList.remove("is-drop-target", "is-dragging");
+    });
+  }
+
   function selectSlide(id) {
     closeAddSlideMenu();
     if (!state.slides.some((slide) => slide.id === id)) {
@@ -340,20 +515,62 @@
   refs.slideEvidence.addEventListener("input", (event) => updateSelectedSlide({ evidence: ns.utils.clampText(event.target.value, 120) }));
   refs.slideTitle.addEventListener("input", (event) => updateSelectedSlide({ title: ns.utils.clampText(event.target.value, 72) }));
   refs.slideSubtitle.addEventListener("input", (event) => updateSelectedSlide({ subtitle: ns.utils.clampText(event.target.value, 170) }));
+  refs.slideContentType.addEventListener("change", (event) => updateSelectedSlide({
+    contentType: event.target.value === "table" ? "table" : event.target.value === "free" ? "free" : "bullets",
+  }));
+  refs.slideBulletsNumbered.addEventListener("change", (event) => updateSelectedSlide({
+    bulletsNumbered: Boolean(event.target.checked),
+  }));
   refs.slideBullet1.addEventListener("input", (event) => updateSelectedBullet(0, ns.utils.clampText(event.target.value, 140)));
   refs.slideBullet2.addEventListener("input", (event) => updateSelectedBullet(1, ns.utils.clampText(event.target.value, 140)));
   refs.slideBullet3.addEventListener("input", (event) => updateSelectedBullet(2, ns.utils.clampText(event.target.value, 140)));
   refs.addBullet.addEventListener("click", addSelectedBullet);
+  refs.slideFreeBody.addEventListener("input", (event) => updateSelectedFreeBody(event.target.value));
+  refs.addFreeLink.addEventListener("click", () => {
+    addSelectedFreeLink(refs.freeLinkLabel.value, refs.freeLinkUrl.value);
+    refs.freeLinkLabel.value = "";
+    refs.freeLinkUrl.value = "";
+  });
   refs.slideNote.addEventListener("input", (event) => updateSelectedSlide({ note: ns.utils.clampText(event.target.value, 180) }));
   refs.extraBulletsList.addEventListener("input", (event) => {
     const input = event.target.closest("[data-extra-bullet-index]");
     if (!input) {
       return;
     }
+    pendingBulletFocus = {
+      index: Number(input.getAttribute("data-extra-bullet-index")),
+      caret: input.selectionStart || 0,
+    };
     updateSelectedBullet(Number(input.getAttribute("data-extra-bullet-index")), ns.utils.clampText(input.value, 140));
+  });
+  refs.tableEditorGrid.addEventListener("input", (event) => {
+    const input = event.target.closest("[data-table-cell]");
+    if (!input) {
+      return;
+    }
+    const [rowIndex, columnIndex] = input.getAttribute("data-table-cell").split("-").map(Number);
+    pendingTableFocus = { row: rowIndex, column: columnIndex, caret: input.selectionStart || 0 };
+    updateSelectedTableCell(rowIndex, columnIndex, ns.utils.clampText(input.value, 120));
+  });
+  refs.addTableRow.addEventListener("click", () => {
+    const slide = getSelectedSlide();
+    resizeSelectedTable((slide.table || []).length + 1, getTableColumnCount(slide.table));
+  });
+  refs.removeTableRow.addEventListener("click", () => {
+    const slide = getSelectedSlide();
+    resizeSelectedTable(Math.max(2, (slide.table || []).length - 1), getTableColumnCount(slide.table));
+  });
+  refs.addTableColumn.addEventListener("click", () => {
+    const slide = getSelectedSlide();
+    resizeSelectedTable((slide.table || []).length, getTableColumnCount(slide.table) + 1);
+  });
+  refs.removeTableColumn.addEventListener("click", () => {
+    const slide = getSelectedSlide();
+    resizeSelectedTable((slide.table || []).length, Math.max(2, getTableColumnCount(slide.table) - 1));
   });
   refs.mediaUploadTrigger.addEventListener("click", () => refs.mediaUpload.click());
   refs.importJson.addEventListener("click", () => refs.importJsonInput.click());
+  refs.toggleNightMode.addEventListener("click", toggleNightMode);
   refs.importJsonInput.addEventListener("change", async (event) => {
     const file = event.target.files && event.target.files[0];
     if (!file) {
@@ -429,6 +646,8 @@
     const mediaAssignTrigger = event.target.closest("[data-assign-media]");
     const mediaDeleteTrigger = event.target.closest("[data-delete-media]");
     const removeBulletTrigger = event.target.closest("[data-remove-bullet]");
+    const removeFreeLinkTrigger = event.target.closest("[data-remove-free-link]");
+    const toggleFreeMediaTrigger = event.target.closest("[data-toggle-free-media]");
     const addSlideTrigger = event.target.closest("[data-add-slide-bloom]");
     const bloomTrigger = event.target.closest("[data-set-bloom]");
 
@@ -446,6 +665,11 @@
       return;
     }
 
+    if (toggleFreeMediaTrigger) {
+      toggleSelectedFreeMedia(toggleFreeMediaTrigger.getAttribute("data-toggle-free-media"));
+      return;
+    }
+
     if (mediaDeleteTrigger) {
       const mediaId = mediaDeleteTrigger.getAttribute("data-delete-media");
       state.mediaLibrary = state.mediaLibrary.filter((item) => item.id !== mediaId);
@@ -459,6 +683,11 @@
 
     if (removeBulletTrigger) {
       removeSelectedBullet(Number(removeBulletTrigger.getAttribute("data-remove-bullet")));
+      return;
+    }
+
+    if (removeFreeLinkTrigger) {
+      removeSelectedFreeLink(Number(removeFreeLinkTrigger.getAttribute("data-remove-free-link")));
       return;
     }
 
@@ -595,6 +824,55 @@
     }
     clearListDropState();
     draggedListSlideId = null;
+  });
+
+  refs.slideBulletsEditor.addEventListener("dragstart", (event) => {
+    const handle = event.target.closest("[data-bullet-drag-handle]");
+    if (!handle) {
+      return;
+    }
+
+    draggedBulletIndex = Number(handle.getAttribute("data-bullet-drag-handle"));
+    const row = handle.closest("[data-bullet-row]");
+    if (row) {
+      row.classList.add("is-dragging");
+    }
+    if (event.dataTransfer) {
+      event.dataTransfer.effectAllowed = "move";
+      event.dataTransfer.setData("text/plain", String(draggedBulletIndex));
+    }
+  });
+
+  refs.slideBulletsEditor.addEventListener("dragover", (event) => {
+    const row = event.target.closest("[data-bullet-row]");
+    if (!row || draggedBulletIndex === null) {
+      return;
+    }
+
+    event.preventDefault();
+    clearBulletDropState();
+    const targetIndex = Number(row.getAttribute("data-bullet-row"));
+    if (targetIndex !== draggedBulletIndex) {
+      row.classList.add("is-drop-target");
+    }
+  });
+
+  refs.slideBulletsEditor.addEventListener("drop", (event) => {
+    const row = event.target.closest("[data-bullet-row]");
+    if (!row || draggedBulletIndex === null) {
+      return;
+    }
+
+    event.preventDefault();
+    const targetIndex = Number(row.getAttribute("data-bullet-row"));
+    clearBulletDropState();
+    moveSelectedBullet(draggedBulletIndex, targetIndex);
+    draggedBulletIndex = null;
+  });
+
+  refs.slideBulletsEditor.addEventListener("dragend", () => {
+    clearBulletDropState();
+    draggedBulletIndex = null;
   });
 
   document.addEventListener("keydown", (event) => {

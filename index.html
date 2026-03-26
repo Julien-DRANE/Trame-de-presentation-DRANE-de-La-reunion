@@ -7,7 +7,7 @@
       name="description"
       content="Outil évolutif de création d'ingénierie de formation et de slides avec taxonomie de Bloom et principes cognitifs."
     />
-    <title>Studio Ingenierie Formation</title>
+    <title>Studio Ingénierie Formation</title>
     <link rel="stylesheet" href="styles/base.css" />
     <link rel="stylesheet" href="styles/layout.css" />
     <link rel="stylesheet" href="styles/components.css" />
@@ -32,7 +32,7 @@
           <div class="brand-mark">IF</div>
           <div>
             <p class="brand-kicker">Arborescence évolutive</p>
-            <h1>Studio Ingenierie Formation</h1>
+            <h1>Studio Ingénierie Formation</h1>
             <p class="topbar-subtitle">
               Création de slides et structuration d'un parcours au regard de Bloom et des principes cognitifs.
             </p>
@@ -54,9 +54,9 @@
         </div>
       </header>
 
-      <nav class="app-tabs" aria-label="Phases de creation">
+      <nav class="app-tabs" aria-label="Phases de création">
         <button id="tab-engineering" class="app-tab" type="button" data-switch-view="engineering" aria-pressed="true">
-          Ingenierie de formation
+          Ingénierie de formation
         </button>
         <button id="tab-presentation" class="app-tab" type="button" data-switch-view="presentation" aria-pressed="false">
           Création de la présentation
@@ -73,6 +73,7 @@
               </div>
               <div class="panel-heading-actions">
                 <input id="import-json-input" class="media-upload-input" type="file" accept=".json,application/json" />
+                <button id="toggle-night-mode" class="button button-soft" type="button" aria-pressed="false">Mode nuit</button>
                 <button id="import-json" class="button button-ghost" type="button">Importer JSON</button>
                 <button id="export-json" class="button button-ghost" type="button">Exporter JSON</button>
               </div>
@@ -94,6 +95,7 @@
               <label>
                 Habillage
                 <select id="deck-theme">
+                  <option value="random">Mixte aléatoire</option>
                   <option value="mix">Ronds bleus + vagues</option>
                   <option value="circles">Ronds bleus</option>
                   <option value="waves">Vagues</option>
@@ -195,7 +197,7 @@
             <div class="panel-heading">
               <div>
                 <p class="panel-kicker">Contenu de slide</p>
-                <h2>Modèle répétitif</h2>
+                <h2>Modèle</h2>
               </div>
               <button id="delete-slide-inline" class="icon-button icon-button-danger" type="button" aria-label="Supprimer la slide">
                 x
@@ -215,18 +217,49 @@
                 <span id="subtitle-meta" class="field-meta"></span>
               </label>
 
+              <div class="form-grid">
+                <label>
+                  Type de contenu
+                  <select id="slide-content-type">
+                    <option value="bullets">Points</option>
+                    <option value="table">Tableau</option>
+                    <option value="free">Libre</option>
+                  </select>
+                </label>
+              </div>
+
+              <div id="slide-bullets-editor" class="slide-content-mode">
+              <label class="inline-checkbox">
+                <input id="slide-bullets-numbered" type="checkbox" />
+                <span>Numéroter les points</span>
+              </label>
               <div class="bullet-grid">
                 <label>
                   Point 1
-                  <input id="slide-bullet-1" type="text" maxlength="140" />
+                  <div class="bullet-editor-row" data-bullet-row="0">
+                    <button class="bullet-drag-handle" type="button" draggable="true" data-bullet-drag-handle="0" aria-label="Glisser le point 1" title="Glisser pour réordonner">
+                      ::
+                    </button>
+                    <input id="slide-bullet-1" type="text" maxlength="140" />
+                  </div>
                 </label>
                 <label>
                   Point 2
-                  <input id="slide-bullet-2" type="text" maxlength="140" />
+                  <div class="bullet-editor-row" data-bullet-row="1">
+                    <button class="bullet-drag-handle" type="button" draggable="true" data-bullet-drag-handle="1" aria-label="Glisser le point 2" title="Glisser pour réordonner">
+                      ::
+                    </button>
+                    <input id="slide-bullet-2" type="text" maxlength="140" />
+                  </div>
                 </label>
                 <label>
                   Point 3
-                  <input id="slide-bullet-3" type="text" maxlength="140" />
+                  <div class="bullet-editor-row" data-bullet-row="2">
+                    <button class="bullet-drag-handle" type="button" draggable="true" data-bullet-drag-handle="2" aria-label="Glisser le point 3" title="Glisser pour réordonner">
+                      ::
+                    </button>
+                    <input id="slide-bullet-3" type="text" maxlength="140" />
+                  </div>
                 </label>
               </div>
 
@@ -237,12 +270,45 @@
                 </div>
                 <div id="extra-bullets-list" class="extra-bullets-list"></div>
               </div>
+              </div>
 
+              <div id="slide-table-editor" class="slide-content-mode" hidden>
+                <div class="table-controls">
+                  <button id="add-table-row" class="button button-ghost" type="button">Ajouter une ligne</button>
+                  <button id="remove-table-row" class="button button-soft" type="button">Retirer une ligne</button>
+                  <button id="add-table-column" class="button button-ghost" type="button">Ajouter une colonne</button>
+                  <button id="remove-table-column" class="button button-soft" type="button">Retirer une colonne</button>
+                </div>
+                <div id="table-editor-grid" class="table-editor-grid"></div>
+              </div>
+
+              <div id="slide-free-editor" class="slide-content-mode" hidden>
+                <label>
+                  Texte libre
+                  <textarea id="slide-free-body" rows="8" maxlength="1600"></textarea>
+                  <span id="free-body-meta" class="field-meta"></span>
+                </label>
+
+                <div class="free-links-panel">
+                  <div class="extra-bullets-header">
+                    <span>Liens cliquables</span>
+                  </div>
+                  <div class="media-link-row">
+                    <input id="free-link-label" type="text" maxlength="80" placeholder="Libellé du lien" />
+                    <input id="free-link-url" type="url" maxlength="500" placeholder="https://..." />
+                    <button id="add-free-link" class="button button-soft" type="button">Ajouter</button>
+                  </div>
+                  <div id="free-links-list" class="free-links-list"></div>
+                </div>
+              </div>
+
+              <div id="slide-note-editor" class="slide-content-mode">
               <label>
                 Note de fermeture
                 <input id="slide-note" type="text" maxlength="180" />
                 <span id="note-meta" class="field-meta"></span>
               </label>
+              </div>
 
               <div class="slide-media-panel">
                 <div class="slide-media-header">
@@ -305,3 +371,4 @@
     </div>
   </body>
 </html>
+

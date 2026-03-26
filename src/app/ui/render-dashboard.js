@@ -1,4 +1,4 @@
-(function () {
+﻿(function () {
   const ns = (window.StudioSlides = window.StudioSlides || {});
   ns.ui = ns.ui || {};
 
@@ -17,6 +17,10 @@
     refs.slideCount.textContent = `${state.slides.length} slides`;
     refs.taxonomyCount.textContent = `${bloomLevels.length} niveaux`;
     refs.appShell.setAttribute("data-view", state.view || "engineering");
+    refs.appShell.setAttribute("data-ui-theme", state.uiNightMode && (state.view || "engineering") === "presentation" ? "night" : "day");
+    refs.toggleNightMode.classList.toggle("is-active", Boolean(state.uiNightMode));
+    refs.toggleNightMode.setAttribute("aria-pressed", state.uiNightMode ? "true" : "false");
+    refs.toggleNightMode.textContent = state.uiNightMode ? "Mode clair" : "Mode nuit";
 
     refs.tabs.forEach((tab) => {
       const isActive = tab.getAttribute("data-switch-view") === (state.view || "engineering");
@@ -56,25 +60,44 @@
     refs.slideEvidence.value = selectedSlide.evidence;
     refs.slideTitle.value = selectedSlide.title;
     refs.slideSubtitle.value = selectedSlide.subtitle;
+    refs.slideContentType.value = selectedSlide.contentType || "bullets";
+    refs.slideBulletsNumbered.checked = Boolean(selectedSlide.bulletsNumbered);
     refs.slideBullet1.value = selectedSlide.bullets[0] || "";
     refs.slideBullet2.value = selectedSlide.bullets[1] || "";
     refs.slideBullet3.value = selectedSlide.bullets[2] || "";
     refs.extraBulletsList.innerHTML = renderExtraBullets(selectedSlide);
+    refs.tableEditorGrid.innerHTML = renderTableEditor(selectedSlide);
+    refs.slideFreeBody.value = selectedSlide.freeBody || "";
+    refs.freeLinksList.innerHTML = renderFreeLinks(selectedSlide);
     refs.slideNote.value = selectedSlide.note;
+    const isTableMode = (selectedSlide.contentType || "bullets") === "table";
+    const isFreeMode = (selectedSlide.contentType || "bullets") === "free";
+    refs.slideBulletsEditor.hidden = isTableMode || isFreeMode;
+    refs.slideTableEditor.hidden = !isTableMode;
+    refs.slideFreeEditor.hidden = !isFreeMode;
+    refs.slideNoteEditor.hidden = isTableMode || isFreeMode;
+    refs.slideBulletsEditor.classList.toggle("is-collapsed", isTableMode || isFreeMode);
+    refs.slideTableEditor.classList.toggle("is-collapsed", !isTableMode);
+    refs.slideFreeEditor.classList.toggle("is-collapsed", !isFreeMode);
+    refs.clearSlideMedia.hidden = isFreeMode;
 
-    refs.titleMeta.textContent = `${selectedSlide.title.length}/72 caracteres`;
-    refs.subtitleMeta.textContent = `${selectedSlide.subtitle.length}/170 caracteres`;
-    refs.noteMeta.textContent = `${selectedSlide.note.length}/180 caracteres`;
-    refs.objectiveMeta.textContent = `${selectedSlide.objective.length}/180 caracteres`;
-    refs.evidenceMeta.textContent = `${selectedSlide.evidence.length}/120 caracteres`;
+    refs.titleMeta.textContent = `${selectedSlide.title.length}/72 caractères`;
+    refs.subtitleMeta.textContent = `${selectedSlide.subtitle.length}/170 caractères`;
+    refs.noteMeta.textContent = `${selectedSlide.note.length}/180 caractères`;
+    refs.freeBodyMeta.textContent = `${(selectedSlide.freeBody || "").length}/1600 caractères`;
+    refs.objectiveMeta.textContent = `${selectedSlide.objective.length}/180 caractères`;
+    refs.evidenceMeta.textContent = `${selectedSlide.evidence.length}/120 caractères`;
 
     refs.densityBadge.className = density.className;
     refs.densityBadge.textContent = density.label;
-    refs.slideHint.textContent = "Modèle répétitif : un niveau Bloom, une idée forte, trois points maximum.";
-    refs.slideMediaSelection.textContent = selectedSlide.mediaId
-      ? getMediaSelectionText(selectedSlide, state.mediaLibrary)
-      : "Aucun média affecté à cette slide.";
-
+    refs.slideHint.textContent = isFreeMode
+      ? "Mode libre : texte long, liens et plusieurs médias pour les annexes."
+      : "Modèle : un niveau Bloom, une idée forte, trois points maximum.";
+    refs.slideMediaSelection.textContent = isFreeMode
+      ? `${(selectedSlide.freeMediaIds || []).length} média(x) dans l'annexe libre.`
+      : selectedSlide.mediaId
+        ? getMediaSelectionText(selectedSlide, state.mediaLibrary)
+        : "Aucun média affecté à cette slide.";
     refs.slideList.innerHTML = renderSlideList(state, selectedSlide.id);
     refs.taxonomyRoadmap.innerHTML = renderTaxonomyRoadmap(state, selectedSlide.bloomLevel);
     refs.principlesList.innerHTML = renderPrinciplesList(selectedSlide, principles);
@@ -84,7 +107,7 @@
       mediaUrls: ns.services.media.getUrlMap(),
     });
     refs.pedagogyBrief.innerHTML = renderPedagogyBrief(selectedSlide, principles);
-    refs.mediaLibrary.innerHTML = renderMediaLibrary(state.mediaLibrary, selectedSlide.mediaId);
+    refs.mediaLibrary.innerHTML = renderMediaLibrary(state.mediaLibrary, selectedSlide);
     refs.thumbStrip.innerHTML = renderThumbStrip(state, selectedSlide.id);
   }
 
@@ -97,7 +120,6 @@
     const kindLabel = mediaItem.kind === "embed" ? "Embed" : mediaItem.kind === "video" ? "Vidéo" : "Image";
     return `${kindLabel} sélectionnée : ${mediaItem.name}`;
   }
-
   function renderSlideList(state, activeId) {
     return state.slides
       .map((slide, index) => {
@@ -232,24 +254,27 @@
       .join("");
   }
 
-  function renderMediaLibrary(mediaItems, selectedMediaId) {
+  function renderMediaLibrary(mediaItems, selectedSlide) {
     if (!mediaItems || mediaItems.length === 0) {
       return '<p class="media-empty">Importez une image ou une vidéo pour commencer.</p>';
     }
 
     const mediaUrls = ns.services.media.getUrlMap();
+    const isFreeMode = (selectedSlide.contentType || "bullets") === "free";
+    const freeMediaIds = Array.isArray(selectedSlide.freeMediaIds) ? selectedSlide.freeMediaIds : [];
 
     return mediaItems
       .map((item) => {
-        const activeClass = item.id === selectedMediaId ? " is-active" : "";
+        const activeClass = isFreeMode ? (freeMediaIds.includes(item.id) ? " is-active" : "") : (item.id === selectedSlide.mediaId ? " is-active" : "");
         const preview = item.kind === "video"
           ? `<video class="media-thumb-preview" src="${ns.utils.escapeHtml(mediaUrls[item.id] || "")}" muted preload="metadata"></video>`
           : `<img class="media-thumb-preview" src="${ns.utils.escapeHtml(mediaUrls[item.id] || "")}" alt="${ns.utils.escapeHtml(item.name)}" />`;
         const typeLabel = item.kind === "embed" ? "Embed YouTube" : item.kind === "video" ? "Vidéo" : "Image";
+        const actionAttr = isFreeMode ? `data-toggle-free-media="${ns.utils.escapeHtml(item.id)}"` : `data-assign-media="${ns.utils.escapeHtml(item.id)}"`;
 
         return `
           <article class="media-card${activeClass}">
-            <button class="media-card-select" type="button" data-assign-media="${ns.utils.escapeHtml(item.id)}">
+            <button class="media-card-select" type="button" ${actionAttr}>
               <span class="media-thumb">${preview}</span>
               <span class="media-meta">
                 <span class="media-title">${ns.utils.escapeHtml(item.name)}</span>
@@ -270,6 +295,27 @@
       .join("");
   }
 
+  function renderFreeLinks(selectedSlide) {
+    const freeLinks = Array.isArray(selectedSlide.freeLinks) ? selectedSlide.freeLinks : [];
+    if (freeLinks.length === 0) {
+      return '<p class="extra-bullets-empty">Aucun lien ajouté.</p>';
+    }
+
+    return freeLinks
+      .map((item, index) => `
+        <div class="free-link-row">
+          <div class="free-link-meta">
+            <strong>${ns.utils.escapeHtml(item.label || item.url)}</strong>
+            <a href="${ns.utils.escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer">${ns.utils.escapeHtml(item.url)}</a>
+          </div>
+          <button class="icon-button icon-button-danger" type="button" data-remove-free-link="${index}" aria-label="Supprimer le lien ${index + 1}">
+            x
+          </button>
+        </div>
+      `)
+      .join("");
+  }
+
   function renderExtraBullets(selectedSlide) {
     const extraBullets = (selectedSlide.bullets || []).slice(3);
     if (extraBullets.length === 0) {
@@ -280,7 +326,17 @@
       .map((bullet, index) => {
         const actualIndex = index + 3;
         return `
-          <div class="extra-bullet-row">
+          <div class="extra-bullet-row bullet-editor-row" data-bullet-row="${actualIndex}">
+            <button
+              class="bullet-drag-handle"
+              type="button"
+              draggable="true"
+              data-bullet-drag-handle="${actualIndex}"
+              aria-label="Glisser le point ${actualIndex + 1}"
+              title="Glisser pour réordonner"
+            >
+              ::
+            </button>
             <input
               type="text"
               maxlength="140"
@@ -300,6 +356,51 @@
         `;
       })
       .join("");
+  }
+
+  function renderTableEditor(selectedSlide) {
+    const table = normalizeTable(selectedSlide.table);
+    const rows = table
+      .map((row, rowIndex) => {
+        return row.map((cell, columnIndex) => {
+          const headerClass = rowIndex === 0 || columnIndex === 0 ? " is-header" : "";
+          return `
+            <input
+              class="table-editor-cell${headerClass}"
+              type="text"
+              maxlength="120"
+              value="${ns.utils.escapeHtml(cell || "")}"
+              data-table-cell="${rowIndex}-${columnIndex}"
+              placeholder="Cellule"
+            />
+          `;
+        }).join("");
+      })
+      .join("");
+
+    return `
+      <div
+        class="table-editor-matrix"
+        style="grid-template-columns: repeat(${table[0].length}, minmax(0, 1fr));"
+      >
+        ${rows}
+      </div>
+    `;
+  }
+
+  function normalizeTable(tableInput) {
+    const rows = Array.isArray(tableInput) ? tableInput.slice(0, 8).map((row) => Array.isArray(row) ? row.slice(0, 6) : []) : [];
+    const rowCount = Math.max(2, rows.length);
+    const colCount = Math.max(2, rows.reduce((max, row) => Math.max(max, row.length), 0));
+    while (rows.length < rowCount) {
+      rows.push([]);
+    }
+    rows.forEach((row) => {
+      while (row.length < colCount) {
+        row.push("");
+      }
+    });
+    return rows;
   }
 
   ns.ui.renderDashboard = renderDashboard;
