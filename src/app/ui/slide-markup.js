@@ -1,4 +1,4 @@
-(function () {
+﻿(function () {
   const ns = (window.StudioSlides = window.StudioSlides || {});
   ns.ui = ns.ui || {};
 
@@ -13,7 +13,7 @@
 
     return {
       region: logoSources.region || "assets/images/8K 18_logo_REGIONS ACA_REUNION fb.png",
-      drane: logoSources.drane || "assets/images/LOGO_DRANE.jpg",
+      drane: logoSources.drane || "assets/images/LOGO_DRANE.png",
     };
   }
 
@@ -30,6 +30,71 @@
       hash = ((hash * 31) + seedSource.charCodeAt(index)) >>> 0;
     }
     return variants[hash % variants.length];
+  }
+
+  function getColorPalette(paletteId) {
+    const palettes = (ns.data && ns.data.colorPalettes) || [];
+    return palettes.find((item) => item.id === paletteId) || palettes[0] || {
+      id: "ocean",
+      bgStart: "#ffffff",
+      bgEnd: "#eef5fd",
+      accent: "#2c73da",
+      accentStrong: "#17478b",
+      accentSoft: "rgba(44, 115, 218, 0.22)",
+      accentSofter: "rgba(44, 115, 218, 0.08)",
+      accentWave: "rgba(44, 115, 218, 0.2)",
+      accentWaveSoft: "rgba(44, 115, 218, 0.08)",
+      accentDeepSoft: "rgba(23, 71, 139, 0.14)",
+      surface: "rgba(255, 255, 255, 0.72)",
+      surfaceStrong: "rgba(255, 255, 255, 0.76)",
+      text: "#122033",
+      textMuted: "#5d6c81",
+      textSoft: "rgba(18, 32, 51, 0.44)",
+      line: "rgba(18, 32, 51, 0.12)",
+    };
+  }
+
+  function getSlidePalette(slide, settings) {
+    return getColorPalette((slide && slide.paletteOverride) || (settings && settings.palette) || "ocean");
+  }
+
+  function getFontOption(fontId) {
+    const fonts = (ns.data && ns.data.fontOptions) || [];
+    return fonts.find((item) => item.id === fontId) || fonts[0] || {
+      id: "studio",
+      body: '"Aptos", "Segoe UI", "Trebuchet MS", sans-serif',
+      heading: '"Iowan Old Style", "Georgia", serif',
+      pptBody: "Aptos",
+      pptHeading: "Georgia",
+    };
+  }
+
+  function getDeckFont(settings) {
+    return getFontOption((settings && settings.font) || "studio");
+  }
+
+  function createSlidePaletteStyle(slide, settings) {
+    const palette = getSlidePalette(slide, settings);
+    const font = getDeckFont(settings);
+    return [
+      `--slide-bg-start:${palette.bgStart}`,
+      `--slide-bg-end:${palette.bgEnd}`,
+      `--slide-accent:${palette.accent}`,
+      `--slide-accent-strong:${palette.accentStrong}`,
+      `--slide-accent-soft:${palette.accentSoft}`,
+      `--slide-accent-softer:${palette.accentSofter}`,
+      `--slide-accent-wave:${palette.accentWave}`,
+      `--slide-accent-wave-soft:${palette.accentWaveSoft}`,
+      `--slide-accent-deep-soft:${palette.accentDeepSoft}`,
+      `--slide-surface:${palette.surface}`,
+      `--slide-surface-strong:${palette.surfaceStrong}`,
+      `--slide-text:${palette.text}`,
+      `--slide-text-muted:${palette.textMuted}`,
+      `--slide-text-soft:${palette.textSoft}`,
+      `--slide-line:${palette.line}`,
+      `--slide-font-body:${font.body}`,
+      `--slide-font-heading:${font.heading}`,
+    ].join(";");
   }
 
   function normalizeTable(tableInput) {
@@ -96,7 +161,7 @@
       return `
         <div class="slide-media-print-card">
           <img class="slide-media-image" src="${utils.escapeHtml(media.src)}" alt="${utils.escapeHtml(media.name)}" />
-          ${media.pdfLinkHref ? `<a class="slide-media-link" href="${utils.escapeHtml(media.pdfLinkHref)}" target="_blank" rel="noopener noreferrer">Ouvrir la vidéo</a>` : ""}
+          ${media.pdfLinkHref ? `<a class="slide-media-link" href="${utils.escapeHtml(media.pdfLinkHref)}" target="_blank" rel="noopener noreferrer">Ouvrir la vidÃ©o</a>` : ""}
         </div>
       `;
     }
@@ -106,11 +171,11 @@
       return `
         <div class="slide-media-print-card">
           ${linkHref ? `
-            <a class="slide-media-external-link" href="${utils.escapeHtml(linkHref)}" target="_blank" rel="noopener noreferrer" aria-label="Ouvrir la vidéo ${utils.escapeHtml(media.name)}">
+            <a class="slide-media-external-link" href="${utils.escapeHtml(linkHref)}" target="_blank" rel="noopener noreferrer" aria-label="Ouvrir la vidÃ©o ${utils.escapeHtml(media.name)}">
               <img class="slide-media-image" src="${utils.escapeHtml(media.src)}" alt="${utils.escapeHtml(media.name)}" />
             </a>
           ` : `<img class="slide-media-image" src="${utils.escapeHtml(media.src)}" alt="${utils.escapeHtml(media.name)}" />`}
-          ${linkHref ? `<a class="slide-media-link" href="${utils.escapeHtml(linkHref)}" target="_blank" rel="noopener noreferrer">Ouvrir la vidéo</a>` : ""}
+          ${linkHref ? `<a class="slide-media-link" href="${utils.escapeHtml(linkHref)}" target="_blank" rel="noopener noreferrer">Ouvrir la vidÃ©o</a>` : ""}
         </div>
       `;
     }
@@ -134,7 +199,7 @@
     if (media.kind === "video") {
       return `
         <video class="slide-media-video" src="${utils.escapeHtml(media.src)}" ${isCompact ? 'muted playsinline preload="metadata"' : 'controls preload="metadata"'}>
-          Votre navigateur ne peut pas lire cette vidéo.
+          Votre navigateur ne peut pas lire cette vidÃ©o.
         </video>
       `;
     }
@@ -152,6 +217,7 @@
     const numbered = Boolean(opts.numbered);
     const startAt = Math.max(1, Number(opts.startAt) || 1);
     const className = opts.className || "slide-bullets";
+    const progressive = Boolean(opts.progressive);
 
     return `
       <ul class="${className}${numbered ? " is-numbered" : ""}">
@@ -160,7 +226,10 @@
             const marker = numbered
               ? `<span class="slide-bullet-marker">${String(startAt + index).padStart(2, "0")}</span>`
               : "";
-            return `<li>${marker}<span class="slide-bullet-text">${utils.escapeHtml(item)}</span></li>`;
+            const revealAttrs = progressive
+              ? ` data-reveal-step="${startAt + index}" class="slide-reveal-item"`
+              : "";
+            return `<li${revealAttrs}>${marker}<span class="slide-bullet-text">${utils.escapeHtml(item)}</span></li>`;
           })
           .join("")}
       </ul>
@@ -217,7 +286,7 @@
       .filter(Boolean);
     const bodyMarkup = bodyLines.length
       ? bodyLines.map((line) => `<p>${utils.escapeHtml(line)}</p>`).join("")
-      : "<p>Ajoutez un texte plus développé pour cette annexe.</p>";
+      : "<p>Ajoutez un texte plus dÃ©veloppÃ© pour cette annexe.</p>";
     const freeLinks = Array.isArray(slide.freeLinks) ? slide.freeLinks : [];
     const linksMarkup = freeLinks.length
       ? `
@@ -263,21 +332,37 @@
     const slideMedia = getSlideMedia(slide, opts);
     const isTableMode = slide.contentType === "table";
     const isFreeMode = slide.contentType === "free";
+    const allBullets = Array.isArray(slide.bullets)
+      ? slide.bullets.filter((item) => item && item.trim())
+      : [];
     const bulletColumns = splitBulletsForLayout(slide.bullets);
     const mainBullets = bulletColumns.mainBullets;
     const extraBullets = bulletColumns.extraBullets;
     const bulletsNumbered = Boolean(slide.bulletsNumbered);
+    const bulletsProgressive = Boolean(slide.bulletsProgressive) && !opts.compact && !isFreeMode && !isTableMode;
+    const canKeepMediaWithExtendedBullets = Boolean(slideMedia) && allBullets.length > 3 && allBullets.length <= 6;
     const bulletMarkup = mainBullets.length
       ? createBulletListMarkup(mainBullets, {
           className: "slide-bullets",
           numbered: bulletsNumbered,
           startAt: 1,
+          progressive: bulletsProgressive,
         })
       : createBulletListMarkup(["Ajoutez un point cle pour structurer la slide."], {
           className: "slide-bullets",
           numbered: false,
           startAt: 1,
+          progressive: false,
         });
+    const extendedBulletMarkup = createBulletListMarkup(
+      allBullets.length ? allBullets : ["Ajoutez un point cle pour structurer la slide."],
+      {
+        className: "slide-bullets",
+        numbered: allBullets.length ? bulletsNumbered : false,
+        startAt: 1,
+        progressive: allBullets.length ? bulletsProgressive : false,
+      }
+    );
     const compactClass = opts.compact ? " deck-slide-compact" : "";
     const bloomPill = opts.compact ? `<span class="slide-bloom-pill">${utils.escapeHtml(bloomMeta.title)}</span>` : "";
     const sideMarkup = extraBullets.length
@@ -285,6 +370,7 @@
           className: "slide-side-bullets",
           numbered: bulletsNumbered,
           startAt: mainBullets.length + 1,
+          progressive: bulletsProgressive,
         })
       : createSlideMediaMarkup(slide, opts);
     const subtitle = slide.subtitle ? `<p class="slide-subtitle-text">${utils.escapeHtml(slide.subtitle)}</p>` : "";
@@ -299,6 +385,8 @@
       contentMarkup = createFreeMarkup(slide, opts);
     } else if (isTableMode) {
       contentMarkup = createTableMarkup(slide.table);
+    } else if (canKeepMediaWithExtendedBullets) {
+      contentMarkup = extendedBulletMarkup;
     } else if (extraBullets.length) {
       contentMarkup = `
         <div class="slide-bullets-row slide-bullets-row-extra">
@@ -311,9 +399,10 @@
     }
 
     const themeName = resolveThemeName(slide, settings);
+    const paletteStyle = createSlidePaletteStyle(slide, settings);
 
     return `
-      <article class="deck-slide theme-${utils.escapeHtml(themeName)}${compactClass}">
+      <article class="deck-slide theme-${utils.escapeHtml(themeName)}${compactClass}" data-progressive-bullets="${bulletsProgressive ? "true" : "false"}" style="${utils.escapeHtml(paletteStyle)}">
         <div class="slide-wave" aria-hidden="true"></div>
         <img class="slide-logo slide-logo-region" src="${utils.escapeHtml(logoSources.region)}" alt="Logo region academique" />
         <img class="slide-logo slide-logo-drane" src="${utils.escapeHtml(logoSources.drane)}" alt="Logo Drane" />
@@ -324,13 +413,13 @@
               <span class="slide-number-badge">${utils.escapeHtml(slide.number || "")}</span>
             </div>
           </div>
-          <div class="${slideMedia && (!extraBullets.length || isTableMode) && !isFreeMode ? "slide-body" : "slide-body slide-body-no-media"}">
+          <div class="${slideMedia && (!extraBullets.length || isTableMode || canKeepMediaWithExtendedBullets) && !isFreeMode ? "slide-body" : "slide-body slide-body-no-media"}">
             <div class="slide-main">
-              <h3 class="slide-headline">${utils.escapeHtml(slide.title || "Titre à compléter")}</h3>
+              <h3 class="slide-headline">${utils.escapeHtml(slide.title || "Titre Ã  complÃ©ter")}</h3>
               ${subtitle}
               ${contentMarkup}
             </div>
-            ${slideMedia && (!extraBullets.length || isTableMode) && !isFreeMode ? `<aside class="slide-media-slot">${mediaMarkup}</aside>` : ""}
+            ${slideMedia && (!extraBullets.length || isTableMode || canKeepMediaWithExtendedBullets) && !isFreeMode ? `<aside class="slide-media-slot">${mediaMarkup}</aside>` : ""}
           </div>
           <div class="slide-footer">
             ${footerNoteMarkup}

@@ -145,14 +145,32 @@
       }
       .slide-screen.is-active { display: flex; }
       .deck-slide {
+        --slide-bg-start: #ffffff;
+        --slide-bg-end: #eef5fd;
+        --slide-accent: #2c73da;
+        --slide-accent-strong: #17478b;
+        --slide-accent-soft: rgba(44,115,218,0.22);
+        --slide-accent-softer: rgba(44,115,218,0.08);
+        --slide-accent-wave: rgba(44,115,218,0.2);
+        --slide-accent-wave-soft: rgba(44,115,218,0.08);
+        --slide-accent-deep-soft: rgba(23,71,139,0.14);
+        --slide-surface: rgba(255,255,255,0.72);
+        --slide-surface-strong: rgba(255,255,255,0.76);
+        --slide-text: var(--ink);
+        --slide-text-muted: var(--muted);
+        --slide-text-soft: rgba(18,32,51,0.44);
+        --slide-line: rgba(18,32,51,0.12);
+        --slide-font-body: Aptos, "Segoe UI", "Trebuchet MS", sans-serif;
+        --slide-font-heading: "Iowan Old Style", Georgia, serif;
         position: relative;
         overflow: hidden;
         width: min(1280px, calc(100vw - 3rem));
         aspect-ratio: 16 / 9;
         padding: clamp(1.15rem, 2vw, 1.8rem);
         border-radius: 26px;
-        background: linear-gradient(155deg, #ffffff, #eef5fd 68%);
-        color: var(--ink);
+        background: linear-gradient(155deg, var(--slide-bg-start), var(--slide-bg-end) 68%);
+        color: var(--slide-text);
+        font-family: var(--slide-font-body);
         box-shadow: 0 20px 44px rgba(11, 22, 42, 0.2);
       }
       main:fullscreen {
@@ -185,14 +203,14 @@
       .deck-slide::after { content: ""; position: absolute; pointer-events: none; }
       .deck-slide.theme-circles::before,
       .deck-slide.theme-mix::before {
-        top: -8%;
-        right: -2%;
-        width: 28%;
+        top: -11%;
+        right: calc(-5% - 1cm);
+        width: 31%;
         aspect-ratio: 1;
         border-radius: 50%;
         background:
           radial-gradient(circle at 45% 40%, rgba(255,255,255,0.9) 0 18%, transparent 19%),
-          radial-gradient(circle at center, rgba(44,115,218,0.22) 0 56%, rgba(44,115,218,0.06) 57% 74%, transparent 75%);
+          radial-gradient(circle at center, var(--slide-accent-soft) 0 56%, var(--slide-accent-softer) 57% 74%, transparent 75%);
       }
       .deck-slide.theme-circles::after,
       .deck-slide.theme-mix::after {
@@ -202,7 +220,7 @@
         aspect-ratio: 1;
         border-radius: 50%;
         background:
-          radial-gradient(circle at center, rgba(23,71,139,0.14) 0 56%, rgba(23,71,139,0.05) 57% 72%, transparent 73%);
+          radial-gradient(circle at center, var(--slide-accent-deep-soft) 0 56%, var(--slide-accent-softer) 57% 72%, transparent 73%);
       }
       .slide-wave {
         position: absolute;
@@ -213,7 +231,7 @@
         display: none;
         border-top-left-radius: 100% 100%;
         background:
-          linear-gradient(180deg, rgba(44,115,218,0.08), rgba(44,115,218,0.2)),
+          linear-gradient(180deg, var(--slide-accent-softer), var(--slide-accent-wave)),
           linear-gradient(90deg, rgba(255,255,255,0.64), transparent);
       }
       .slide-wave::before,
@@ -225,13 +243,13 @@
         height: 60%;
         border-top-left-radius: 100% 100%;
         border-top-right-radius: 18% 50%;
-        background: rgba(44,115,218,0.08);
+        background: var(--slide-accent-wave-soft);
       }
       .slide-wave::after {
         bottom: 42%;
         left: 12%;
         width: 72%;
-        background: rgba(23,71,139,0.06);
+        background: var(--slide-accent-softer);
       }
       .deck-slide.theme-waves .slide-wave,
       .deck-slide.theme-mix .slide-wave { display: block; }
@@ -284,8 +302,8 @@
         text-transform: uppercase;
       }
       .slide-label-pill {
-        background: rgba(44,115,218,0.1);
-        color: var(--blue-deep);
+        background: var(--slide-accent-softer);
+        color: var(--slide-accent-strong);
       }
       .slide-meta-right {
         display: flex;
@@ -297,11 +315,11 @@
         justify-content: flex-end;
       }
       .slide-bloom-pill {
-        background: rgba(18,32,51,0.08);
-        color: var(--ink);
+        background: var(--slide-line);
+        color: var(--slide-text);
       }
       .slide-number-badge {
-        color: rgba(18,32,51,0.44);
+        color: var(--slide-text-soft);
         font-size: 0.86rem;
         font-weight: 800;
         letter-spacing: 0.14em;
@@ -310,7 +328,7 @@
       .slide-headline {
         margin-top: 1rem;
         max-width: 16ch;
-        font-family: "Iowan Old Style", Georgia, serif;
+        font-family: var(--slide-font-heading);
         font-size: clamp(1.65rem, 3vw, 2.8rem);
         line-height: 1.02;
       }
@@ -342,7 +360,7 @@
       .slide-subtitle-text {
         max-width: 54ch;
         margin-top: 0.75rem;
-        color: var(--muted);
+        color: var(--slide-text-muted);
         font-size: clamp(1.12rem, 1.7vw, 1.38rem);
         line-height: 1.62;
       }
@@ -368,8 +386,31 @@
         height: 0.8rem;
         margin-top: 0.35rem;
         border-radius: 50%;
-        background: linear-gradient(145deg, var(--blue), #7dabee);
-        box-shadow: 0 0 0 6px rgba(44,115,218,0.08);
+        background: linear-gradient(145deg, var(--slide-accent), var(--slide-accent-strong));
+        box-shadow: 0 0 0 6px var(--slide-accent-softer);
+      }
+      .slide-bullets.is-numbered li::before,
+      .slide-side-bullets.is-numbered li::before {
+        content: none;
+        display: none;
+      }
+      .slide-bullet-marker {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 2rem;
+        min-height: 2rem;
+        padding: 0.2rem 0.45rem;
+        border-radius: 999px;
+        background: var(--slide-accent-softer);
+        color: var(--slide-accent-strong);
+        font-size: 0.82rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        line-height: 1;
+      }
+      .slide-bullet-text {
+        min-width: 0;
       }
       .slide-bullets.is-numbered li::before,
       .slide-side-bullets.is-numbered li::before {
@@ -400,7 +441,7 @@
         margin-top: 1.3rem;
         margin-inline: auto;
         width: min(100%, 64rem);
-        border: 1px solid rgba(18,32,51,0.12);
+        border: 1px solid var(--slide-line);
         border-radius: 8px;
         overflow: hidden;
       }
@@ -411,9 +452,9 @@
       .slide-table-cell {
         min-height: 3rem;
         padding: 0.68rem 0.8rem;
-        border-right: 1px solid rgba(18,32,51,0.12);
-        border-bottom: 1px solid rgba(18,32,51,0.12);
-        background: rgba(255,255,255,0.72);
+        border-right: 1px solid var(--slide-line);
+        border-bottom: 1px solid var(--slide-line);
+        background: var(--slide-surface);
         line-height: 1.4;
         overflow-wrap: anywhere;
       }
@@ -452,7 +493,7 @@
       }
       .slide-free-body p {
         margin: 0;
-        color: var(--muted);
+        color: var(--slide-text-muted);
         line-height: 1.58;
       }
       .slide-free-links {
@@ -466,8 +507,8 @@
         min-height: 2.1rem;
         padding: 0.42rem 0.75rem;
         border-radius: 999px;
-        background: rgba(44,115,218,0.1);
-        color: var(--blue-deep);
+        background: var(--slide-accent-softer);
+        color: var(--slide-accent-strong);
         font-size: 0.92rem;
         font-weight: 700;
         text-decoration: none;
@@ -481,9 +522,9 @@
       .slide-free-gallery-item {
         min-width: 0;
         padding: 0.35rem;
-        border: 1px solid rgba(18,32,51,0.08);
+        border: 1px solid var(--slide-line);
         border-radius: 16px;
-        background: rgba(255,255,255,0.76);
+        background: var(--slide-surface-strong);
       }
       .slide-free-gallery-item .slide-media-image,
       .slide-free-gallery-item .slide-media-video,
@@ -500,9 +541,9 @@
         min-height: clamp(14.25rem, 34vh, 19.8rem);
         margin-top: 1rem;
         padding: 0.6rem;
-        border: 1px solid rgba(18,32,51,0.08);
+        border: 1px solid var(--slide-line);
         border-radius: 22px;
-        background: rgba(255,255,255,0.72);
+        background: var(--slide-surface);
         overflow: hidden;
       }
       .slide-media-image,
@@ -513,7 +554,7 @@
         max-height: clamp(13.2rem, 32vh, 18.7rem);
         border-radius: 16px;
         object-fit: contain;
-        background: rgba(18,32,51,0.08);
+        background: var(--slide-line);
       }
       .slide-media-slot .slide-media-image,
       .slide-free-gallery-item .slide-media-image {
@@ -533,7 +574,7 @@
         aspect-ratio: 16 / 9;
         border-radius: 16px;
         overflow: hidden;
-        background: rgba(18,32,51,0.08);
+        background: var(--slide-line);
       }
       .slide-media-embed {
         width: 100%;
@@ -578,8 +619,8 @@
         height: 0.75rem;
         margin-top: 0.35rem;
         border-radius: 50%;
-        background: linear-gradient(145deg, var(--blue), #7dabee);
-        box-shadow: 0 0 0 5px rgba(44,115,218,0.08);
+        background: linear-gradient(145deg, var(--slide-accent), var(--slide-accent-strong));
+        box-shadow: 0 0 0 5px var(--slide-accent-softer);
       }
       .slide-media-link {
         display: block;
@@ -587,6 +628,90 @@
         font-size: 0.8rem;
         line-height: 1.35;
         text-decoration: underline;
+      }
+      .presentation-reveal-hidden {
+        opacity: 0;
+        transform: translateY(0.6rem);
+        visibility: hidden;
+      }
+      .presentation-reveal-visible {
+        opacity: 1;
+        transform: translateY(0);
+        visibility: visible;
+        transition: opacity 220ms ease, transform 220ms ease;
+      }
+      .deck-slide.is-transitioning {
+        pointer-events: none;
+      }
+      .deck-slide.transition-fade-out {
+        animation: deckFadeOut 220ms ease both;
+      }
+      .deck-slide.transition-fade-in {
+        animation: deckFadeIn 260ms ease both;
+      }
+      .deck-slide.transition-slide-out.direction-next {
+        animation: deckSlideOutNext 260ms ease both;
+      }
+      .deck-slide.transition-slide-in.direction-next {
+        animation: deckSlideInNext 300ms ease both;
+      }
+      .deck-slide.transition-slide-out.direction-prev {
+        animation: deckSlideOutPrev 260ms ease both;
+      }
+      .deck-slide.transition-slide-in.direction-prev {
+        animation: deckSlideInPrev 300ms ease both;
+      }
+      .deck-slide.transition-zoom-out {
+        animation: deckZoomOut 240ms ease both;
+      }
+      .deck-slide.transition-zoom-in {
+        animation: deckZoomIn 300ms ease both;
+      }
+      .deck-slide.transition-rise-out {
+        animation: deckRiseOut 220ms ease both;
+      }
+      .deck-slide.transition-rise-in {
+        animation: deckRiseIn 280ms ease both;
+      }
+      @keyframes deckFadeOut {
+        from { opacity: 1; }
+        to { opacity: 0; }
+      }
+      @keyframes deckFadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+      }
+      @keyframes deckSlideOutNext {
+        from { opacity: 1; transform: translateX(0); }
+        to { opacity: 0; transform: translateX(-4rem); }
+      }
+      @keyframes deckSlideInNext {
+        from { opacity: 0; transform: translateX(4rem); }
+        to { opacity: 1; transform: translateX(0); }
+      }
+      @keyframes deckSlideOutPrev {
+        from { opacity: 1; transform: translateX(0); }
+        to { opacity: 0; transform: translateX(4rem); }
+      }
+      @keyframes deckSlideInPrev {
+        from { opacity: 0; transform: translateX(-4rem); }
+        to { opacity: 1; transform: translateX(0); }
+      }
+      @keyframes deckZoomOut {
+        from { opacity: 1; transform: scale(1); }
+        to { opacity: 0; transform: scale(0.94); }
+      }
+      @keyframes deckZoomIn {
+        from { opacity: 0; transform: scale(1.06); }
+        to { opacity: 1; transform: scale(1); }
+      }
+      @keyframes deckRiseOut {
+        from { opacity: 1; transform: translateY(0); }
+        to { opacity: 0; transform: translateY(-2rem); }
+      }
+      @keyframes deckRiseIn {
+        from { opacity: 0; transform: translateY(2rem); }
+        to { opacity: 1; transform: translateY(0); }
       }
       .image-lightbox {
         position: fixed;
@@ -661,8 +786,8 @@
         max-width: 64ch;
         padding: 0.75rem 0.95rem;
         border-radius: 18px;
-        background: rgba(255,255,255,0.74);
-        color: var(--muted);
+        background: var(--slide-surface);
+        color: var(--slide-text-muted);
         font-size: 1.08rem;
         line-height: 1.58;
       }
@@ -700,7 +825,7 @@
       }
     </style>
   </head>
-  <body>
+  <body data-transition="${ns.utils.escapeHtml(state.settings.transition || "fade")}">
     <div class="deck-shell">
       <header class="deck-topbar">
         <div class="deck-meta">
@@ -735,6 +860,80 @@
       const lightboxImage = document.querySelector("#image-lightbox-image");
       const lightboxClose = document.querySelector("#image-lightbox-close");
       let currentIndex = 0;
+      let isTransitioning = false;
+
+      function getTransitionName() {
+        return document.body.getAttribute("data-transition") || "fade";
+      }
+
+      function getDirection(nextIndex) {
+        if (screens.length <= 1) {
+          return "next";
+        }
+        if ((currentIndex === screens.length - 1 && nextIndex === 0) || nextIndex > currentIndex) {
+          return "next";
+        }
+        return "prev";
+      }
+
+      function clearTransitionClasses(slideNode) {
+        if (!slideNode) {
+          return;
+        }
+        slideNode.classList.remove(
+          "is-transitioning",
+          "transition-fade-out",
+          "transition-fade-in",
+          "transition-slide-out",
+          "transition-slide-in",
+          "transition-zoom-out",
+          "transition-zoom-in",
+          "transition-rise-out",
+          "transition-rise-in",
+          "direction-next",
+          "direction-prev"
+        );
+      }
+
+      function getActiveScreen() {
+        return screens[currentIndex] || null;
+      }
+
+      function resetSlideReveals(screen) {
+        if (!screen) {
+          return;
+        }
+        const slide = screen.querySelector(".deck-slide");
+        const revealItems = Array.from(screen.querySelectorAll("[data-reveal-step]"));
+        if (!slide || slide.getAttribute("data-progressive-bullets") !== "true") {
+          revealItems.forEach((item) => {
+            item.classList.remove("presentation-reveal-hidden", "presentation-reveal-visible");
+          });
+          return;
+        }
+        revealItems.forEach((item) => {
+          item.classList.add("presentation-reveal-hidden");
+          item.classList.remove("presentation-reveal-visible");
+        });
+      }
+
+      function revealNextItemInCurrentSlide() {
+        const screen = getActiveScreen();
+        if (!screen) {
+          return false;
+        }
+        const slide = screen.querySelector(".deck-slide");
+        if (!slide || slide.getAttribute("data-progressive-bullets") !== "true") {
+          return false;
+        }
+        const nextHiddenItem = screen.querySelector("[data-reveal-step].presentation-reveal-hidden");
+        if (!nextHiddenItem) {
+          return false;
+        }
+        nextHiddenItem.classList.remove("presentation-reveal-hidden");
+        nextHiddenItem.classList.add("presentation-reveal-visible");
+        return true;
+      }
 
       function updateFullscreenScale() {
         if (document.fullscreenElement !== main) {
@@ -747,11 +946,52 @@
       }
 
       function showSlide(nextIndex) {
-        currentIndex = (nextIndex + screens.length) % screens.length;
-        screens.forEach((screen, index) => {
-          screen.classList.toggle("is-active", index === currentIndex);
-        });
-        updateFullscreenScale();
+        if (isTransitioning || screens.length === 0) {
+          return;
+        }
+        const normalizedIndex = (nextIndex + screens.length) % screens.length;
+        const hasActiveScreen = screens.some((screen) => screen.classList.contains("is-active"));
+        if (normalizedIndex === currentIndex && hasActiveScreen) {
+          return;
+        }
+        const transitionName = getTransitionName();
+        const outgoingScreen = getActiveScreen();
+        const incomingScreen = screens[normalizedIndex];
+
+        if (!outgoingScreen || transitionName === "none") {
+          currentIndex = normalizedIndex;
+          screens.forEach((screen, index) => {
+            screen.classList.toggle("is-active", index === currentIndex);
+          });
+          resetSlideReveals(getActiveScreen());
+          updateFullscreenScale();
+          return;
+        }
+
+        const direction = getDirection(normalizedIndex);
+        const outgoingSlide = outgoingScreen.querySelector(".deck-slide");
+        const incomingSlide = incomingScreen.querySelector(".deck-slide");
+        isTransitioning = true;
+
+        clearTransitionClasses(outgoingSlide);
+        clearTransitionClasses(incomingSlide);
+        outgoingSlide.classList.add("is-transitioning", "transition-" + transitionName + "-out", "direction-" + direction);
+
+        setTimeout(() => {
+          outgoingScreen.classList.remove("is-active");
+          clearTransitionClasses(outgoingSlide);
+          currentIndex = normalizedIndex;
+          incomingScreen.classList.add("is-active");
+          resetSlideReveals(incomingScreen);
+          clearTransitionClasses(incomingSlide);
+          incomingSlide.classList.add("is-transitioning", "transition-" + transitionName + "-in", "direction-" + direction);
+          updateFullscreenScale();
+
+          setTimeout(() => {
+            clearTransitionClasses(incomingSlide);
+            isTransitioning = false;
+          }, 320);
+        }, 240);
       }
 
       function openImageLightbox(image) {
@@ -779,6 +1019,9 @@
       prevButton.addEventListener("click", () => showSlide(currentIndex - 1));
       nextButton.addEventListener("click", () => showSlide(currentIndex + 1));
       main.addEventListener("click", (event) => {
+        if (isTransitioning) {
+          return;
+        }
         const slideImage = event.target.closest(".slide-media-image");
         if (slideImage && !event.target.closest(".slide-media-print-card")) {
           openImageLightbox(slideImage);
@@ -788,6 +1031,9 @@
           event.target.closest("a, button, video, iframe") ||
           event.target.closest(".slide-media-link")
         ) {
+          return;
+        }
+        if (revealNextItemInCurrentSlide()) {
           return;
         }
         showSlide(currentIndex + 1);
@@ -821,6 +1067,9 @@
       window.addEventListener("resize", updateFullscreenScale);
       printButton.addEventListener("click", () => window.print());
       document.addEventListener("keydown", (event) => {
+        if (isTransitioning && event.key !== "Escape") {
+          return;
+        }
         if (event.key === "Escape" && lightbox.classList.contains("is-open")) {
           closeImageLightbox();
           return;
@@ -829,6 +1078,9 @@
         if (event.key === "ArrowLeft" || event.key === "PageUp") showSlide(currentIndex - 1);
         if (event.key === " " || event.code === "Space") {
           event.preventDefault();
+          if (revealNextItemInCurrentSlide()) {
+            return;
+          }
           showSlide(currentIndex + 1);
         }
       });
@@ -915,6 +1167,14 @@
 
   function getMediaItemById(items, id) {
     return (items || []).find((item) => item.id === id) || null;
+  }
+
+  function getDeckFontOption(settings) {
+    const fonts = (ns.data && ns.data.fontOptions) || [];
+    return fonts.find((item) => item.id === (settings && settings.font)) || fonts[0] || {
+      pptBody: "Aptos",
+      pptHeading: "Georgia",
+    };
   }
 
   function buildVideoLink(mediaItem, mediaLinks) {
@@ -1015,9 +1275,10 @@
     pptx.subject = state.settings.subtitle || state.settings.title || "Presentation";
     pptx.title = state.settings.title || "Presentation";
     pptx.lang = "fr-FR";
+    const deckFont = getDeckFontOption(state.settings);
     pptx.theme = {
-      headFontFace: "Aptos",
-      bodyFontFace: "Aptos",
+      headFontFace: deckFont.pptHeading || deckFont.pptBody || "Aptos",
+      bodyFontFace: deckFont.pptBody || "Aptos",
       lang: "fr-FR",
     };
 
@@ -1054,7 +1315,7 @@
           y: 4.92,
           w: 3.78,
           h: 0.32,
-          fontFace: "Aptos",
+          fontFace: deckFont.pptBody || "Aptos",
           fontSize: 8,
           color: "17478B",
           underline: { color: "17478B" },

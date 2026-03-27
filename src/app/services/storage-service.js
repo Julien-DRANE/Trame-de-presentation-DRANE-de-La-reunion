@@ -4,6 +4,9 @@
 
   const themeOptions = ["random", "mix", "circles", "waves", "clean"];
   const viewOptions = ["engineering", "presentation"];
+  const paletteOptions = ((ns.data && ns.data.colorPalettes) || []).map((item) => item.id);
+  const fontOptions = ((ns.data && ns.data.fontOptions) || []).map((item) => item.id);
+  const transitionOptions = ["fade", "slide", "zoom", "rise", "none"];
 
   function safeRead(key) {
     try {
@@ -51,6 +54,9 @@
         subtitle: utils.clampText(input.settings && input.settings.subtitle, 90) || fallbackState.settings.subtitle,
         footer: hasFooterValue ? utils.clampText(input.settings.footer, 50) : fallbackState.settings.footer,
         theme: themeOptions.includes(input.settings && input.settings.theme) ? input.settings.theme : fallbackState.settings.theme,
+        palette: paletteOptions.includes(input.settings && input.settings.palette) ? input.settings.palette : fallbackState.settings.palette,
+        font: fontOptions.includes(input.settings && input.settings.font) ? input.settings.font : fallbackState.settings.font,
+        transition: transitionOptions.includes(input.settings && input.settings.transition) ? input.settings.transition : fallbackState.settings.transition,
       },
       mediaLibrary: Array.isArray(input.mediaLibrary)
         ? input.mediaLibrary.map((item) => ns.services.media.sanitizeMediaItem(item)).filter(Boolean)
@@ -82,6 +88,8 @@
       number: utils.clampText(slide.number, 8) || String(index + 1).padStart(2, "0"),
       contentType: slide.contentType === "table" ? "table" : slide.contentType === "free" ? "free" : "bullets",
       bulletsNumbered: Boolean(slide.bulletsNumbered),
+      bulletsProgressive: Boolean(slide.bulletsProgressive),
+      paletteOverride: paletteOptions.includes(slide.paletteOverride) ? slide.paletteOverride : "",
       table,
       freeBody: utils.clampText(slide.freeBody, 1600),
       freeLinks,

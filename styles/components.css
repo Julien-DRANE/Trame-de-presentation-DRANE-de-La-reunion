@@ -540,9 +540,9 @@ select {
 
 .free-link-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   gap: 0.6rem;
-  align-items: start;
+  align-items: center;
 }
 
 .free-link-meta {

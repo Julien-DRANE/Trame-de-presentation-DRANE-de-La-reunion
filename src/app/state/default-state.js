@@ -1,4 +1,4 @@
-(function () {
+﻿(function () {
   const ns = (window.StudioSlides = window.StudioSlides || {});
   ns.stateFactory = ns.stateFactory || {};
 
@@ -18,6 +18,8 @@
       number: String(index + 1).padStart(2, "0"),
       contentType: "bullets",
       bulletsNumbered: false,
+      bulletsProgressive: false,
+      paletteOverride: "",
       table: [
         ["", ""],
         ["", ""],
@@ -52,6 +54,8 @@
       number: String(index).padStart(2, "0"),
       contentType: "bullets",
       bulletsNumbered: false,
+      bulletsProgressive: false,
+      paletteOverride: "",
       table: [
         ["", ""],
         ["", ""],
@@ -81,6 +85,9 @@
         subtitle: "Deck structuré selon Bloom et principes cognitifs.",
         footer: "Équipe projet",
         theme: "mix",
+        palette: "ocean",
+        font: "studio",
+        transition: "fade",
       },
       mediaLibrary: [],
       selectedSlideId: slides[0] ? slides[0].id : null,

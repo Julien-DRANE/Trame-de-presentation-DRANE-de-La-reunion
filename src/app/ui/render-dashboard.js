@@ -7,6 +7,8 @@
     const refs = payload.refs;
     const selectedSlide = state.slides.find((slide) => slide.id === state.selectedSlideId) || state.slides[0];
     const bloomLevels = ns.data.bloomLevels || [];
+    const colorPalettes = ns.data.colorPalettes || [];
+    const fontOptions = ns.data.fontOptions || [];
     const principles = ns.data.cognitivePrinciples || [];
     const density = ns.ui.computeDensity(selectedSlide);
 
@@ -14,6 +16,15 @@
     refs.deckSubtitle.value = state.settings.subtitle;
     refs.deckFooter.value = state.settings.footer;
     refs.deckTheme.value = state.settings.theme;
+    refs.deckPalette.innerHTML = colorPalettes
+      .map((palette) => `<option value="${ns.utils.escapeHtml(palette.id)}">${ns.utils.escapeHtml(palette.label)}</option>`)
+      .join("");
+    refs.deckPalette.value = state.settings.palette || "ocean";
+    refs.deckFont.innerHTML = fontOptions
+      .map((font) => `<option value="${ns.utils.escapeHtml(font.id)}">${ns.utils.escapeHtml(font.label)}</option>`)
+      .join("");
+    refs.deckFont.value = state.settings.font || "studio";
+    refs.deckTransition.value = state.settings.transition || "fade";
     refs.slideCount.textContent = `${state.slides.length} slides`;
     refs.taxonomyCount.textContent = `${bloomLevels.length} niveaux`;
     refs.appShell.setAttribute("data-view", state.view || "engineering");
@@ -61,7 +72,13 @@
     refs.slideTitle.value = selectedSlide.title;
     refs.slideSubtitle.value = selectedSlide.subtitle;
     refs.slideContentType.value = selectedSlide.contentType || "bullets";
+    refs.slidePaletteOverride.innerHTML = [
+      '<option value="">Palette du diaporama</option>',
+      ...colorPalettes.map((palette) => `<option value="${ns.utils.escapeHtml(palette.id)}">${ns.utils.escapeHtml(palette.label)}</option>`),
+    ].join("");
+    refs.slidePaletteOverride.value = selectedSlide.paletteOverride || "";
     refs.slideBulletsNumbered.checked = Boolean(selectedSlide.bulletsNumbered);
+    refs.slideBulletsProgressive.checked = Boolean(selectedSlide.bulletsProgressive);
     refs.slideBullet1.value = selectedSlide.bullets[0] || "";
     refs.slideBullet2.value = selectedSlide.bullets[1] || "";
     refs.slideBullet3.value = selectedSlide.bullets[2] || "";
@@ -303,7 +320,17 @@
 
     return freeLinks
       .map((item, index) => `
-        <div class="free-link-row">
+        <div class="free-link-row bullet-editor-row" data-free-link-row="${index}">
+          <button
+            class="bullet-drag-handle"
+            type="button"
+            draggable="true"
+            data-free-link-drag-handle="${index}"
+            aria-label="Glisser le lien ${index + 1}"
+            title="Glisser pour réordonner"
+          >
+            ::
+          </button>
           <div class="free-link-meta">
             <strong>${ns.utils.escapeHtml(item.label || item.url)}</strong>
             <a href="${ns.utils.escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer">${ns.utils.escapeHtml(item.url)}</a>

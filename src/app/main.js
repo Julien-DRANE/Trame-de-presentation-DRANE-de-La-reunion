@@ -1,4 +1,4 @@
-(function () {
+﻿(function () {
   const ns = (window.StudioSlides = window.StudioSlides || {});
   const STORAGE_KEY = "studio-ingenierie-formation-v2";
 
@@ -23,6 +23,9 @@
     deckSubtitle: document.querySelector("#deck-subtitle"),
     deckFooter: document.querySelector("#deck-footer"),
     deckTheme: document.querySelector("#deck-theme"),
+    deckPalette: document.querySelector("#deck-palette"),
+    deckFont: document.querySelector("#deck-font"),
+    deckTransition: document.querySelector("#deck-transition"),
     taxonomyCount: document.querySelector("#taxonomy-count"),
     taxonomyRoadmap: document.querySelector("#taxonomy-roadmap"),
     slideCount: document.querySelector("#slide-count"),
@@ -49,11 +52,13 @@
     slideTitle: document.querySelector("#slide-title"),
     slideSubtitle: document.querySelector("#slide-subtitle"),
     slideContentType: document.querySelector("#slide-content-type"),
+    slidePaletteOverride: document.querySelector("#slide-palette-override"),
     slideBulletsEditor: document.querySelector("#slide-bullets-editor"),
     slideTableEditor: document.querySelector("#slide-table-editor"),
     slideFreeEditor: document.querySelector("#slide-free-editor"),
     slideNoteEditor: document.querySelector("#slide-note-editor"),
     slideBulletsNumbered: document.querySelector("#slide-bullets-numbered"),
+    slideBulletsProgressive: document.querySelector("#slide-bullets-progressive"),
     slideBullet1: document.querySelector("#slide-bullet-1"),
     slideBullet2: document.querySelector("#slide-bullet-2"),
     slideBullet3: document.querySelector("#slide-bullet-3"),
@@ -82,6 +87,7 @@
   let draggedSlideId = null;
   let draggedListSlideId = null;
   let draggedBulletIndex = null;
+  let draggedFreeLinkIndex = null;
   let isAddSlideMenuOpen = false;
   let pendingBulletFocus = null;
   let pendingTableFocus = null;
@@ -338,6 +344,27 @@
     render();
   }
 
+  function moveSelectedFreeLink(fromIndex, toIndex) {
+    if (fromIndex === toIndex || fromIndex < 0 || toIndex < 0) {
+      return;
+    }
+
+    state.slides = state.slides.map((slide) => {
+      if (slide.id !== state.selectedSlideId) {
+        return slide;
+      }
+      const freeLinks = Array.isArray(slide.freeLinks) ? slide.freeLinks.slice() : [];
+      if (fromIndex >= freeLinks.length || toIndex >= freeLinks.length) {
+        return slide;
+      }
+
+      const moved = freeLinks.splice(fromIndex, 1)[0];
+      freeLinks.splice(toIndex, 0, moved);
+      return Object.assign({}, slide, { freeLinks });
+    });
+    render();
+  }
+
   function reindexSlides() {
     state.slides = state.slides.map((slide, index) => {
       return Object.assign({}, slide, {
@@ -506,6 +533,9 @@
   refs.deckTitle.addEventListener("input", (event) => updateSettings("title", event.target.value, 60));
   refs.deckSubtitle.addEventListener("input", (event) => updateSettings("subtitle", event.target.value, 90));
   refs.deckFooter.addEventListener("input", (event) => updateSettings("footer", event.target.value, 50));
+  refs.deckPalette.addEventListener("change", (event) => updateSettings("palette", event.target.value, 24));
+  refs.deckFont.addEventListener("change", (event) => updateSettings("font", event.target.value, 24));
+  refs.deckTransition.addEventListener("change", (event) => updateSettings("transition", event.target.value, 12));
   refs.deckTheme.addEventListener("change", (event) => updateSettings("theme", event.target.value, 12));
 
   refs.slideBloomLevel.addEventListener("change", (event) => updateSelectedSlide({ bloomLevel: event.target.value }));
@@ -518,8 +548,14 @@
   refs.slideContentType.addEventListener("change", (event) => updateSelectedSlide({
     contentType: event.target.value === "table" ? "table" : event.target.value === "free" ? "free" : "bullets",
   }));
+  refs.slidePaletteOverride.addEventListener("change", (event) => updateSelectedSlide({
+    paletteOverride: event.target.value,
+  }));
   refs.slideBulletsNumbered.addEventListener("change", (event) => updateSelectedSlide({
     bulletsNumbered: Boolean(event.target.checked),
+  }));
+  refs.slideBulletsProgressive.addEventListener("change", (event) => updateSelectedSlide({
+    bulletsProgressive: Boolean(event.target.checked),
   }));
   refs.slideBullet1.addEventListener("input", (event) => updateSelectedBullet(0, ns.utils.clampText(event.target.value, 140)));
   refs.slideBullet2.addEventListener("input", (event) => updateSelectedBullet(1, ns.utils.clampText(event.target.value, 140)));
@@ -873,6 +909,58 @@
   refs.slideBulletsEditor.addEventListener("dragend", () => {
     clearBulletDropState();
     draggedBulletIndex = null;
+  });
+
+  refs.freeLinksList.addEventListener("dragstart", (event) => {
+    const handle = event.target.closest("[data-free-link-drag-handle]");
+    if (!handle) {
+      return;
+    }
+    draggedFreeLinkIndex = Number(handle.getAttribute("data-free-link-drag-handle"));
+    const row = handle.closest("[data-free-link-row]");
+    if (row) {
+      row.classList.add("is-dragging");
+    }
+    if (event.dataTransfer) {
+      event.dataTransfer.effectAllowed = "move";
+      event.dataTransfer.setData("text/plain", String(draggedFreeLinkIndex));
+    }
+  });
+
+  refs.freeLinksList.addEventListener("dragover", (event) => {
+    const row = event.target.closest("[data-free-link-row]");
+    if (!row || draggedFreeLinkIndex === null) {
+      return;
+    }
+    event.preventDefault();
+    refs.freeLinksList.querySelectorAll(".bullet-editor-row.is-drop-target").forEach((item) => {
+      if (item !== row) {
+        item.classList.remove("is-drop-target");
+      }
+    });
+    row.classList.add("is-drop-target");
+  });
+
+  refs.freeLinksList.addEventListener("drop", (event) => {
+    const row = event.target.closest("[data-free-link-row]");
+    if (!row || draggedFreeLinkIndex === null) {
+      return;
+    }
+
+    event.preventDefault();
+    const targetIndex = Number(row.getAttribute("data-free-link-row"));
+    refs.freeLinksList.querySelectorAll(".bullet-editor-row.is-drop-target, .bullet-editor-row.is-dragging").forEach((item) => {
+      item.classList.remove("is-drop-target", "is-dragging");
+    });
+    moveSelectedFreeLink(draggedFreeLinkIndex, targetIndex);
+    draggedFreeLinkIndex = null;
+  });
+
+  refs.freeLinksList.addEventListener("dragend", () => {
+    refs.freeLinksList.querySelectorAll(".bullet-editor-row.is-drop-target, .bullet-editor-row.is-dragging").forEach((item) => {
+      item.classList.remove("is-drop-target", "is-dragging");
+    });
+    draggedFreeLinkIndex = null;
   });
 
   document.addEventListener("keydown", (event) => {
