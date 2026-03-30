@@ -19,7 +19,10 @@
       contentType: "bullets",
       bulletsNumbered: false,
       bulletsProgressive: false,
+      tableProgressive: false,
+      tableProgressiveOrder: "row",
       paletteOverride: "",
+      tableHighlights: { rows: {}, columns: {} },
       table: [
         ["", ""],
         ["", ""],
@@ -27,6 +30,7 @@
       freeBody: "",
       freeLinks: [],
       freeMediaIds: [],
+      subBullets: {},
       mediaId: "",
       bloomLevel: level.id,
       objective: `Amener le groupe à ${level.verbs[0]} et formaliser une preuve exploitable.`,
@@ -55,7 +59,10 @@
       contentType: "bullets",
       bulletsNumbered: false,
       bulletsProgressive: false,
+      tableProgressive: false,
+      tableProgressiveOrder: "row",
       paletteOverride: "",
+      tableHighlights: { rows: {}, columns: {} },
       table: [
         ["", ""],
         ["", ""],
@@ -63,6 +70,7 @@
       freeBody: "",
       freeLinks: [],
       freeMediaIds: [],
+      subBullets: {},
       mediaId: "",
       bloomLevel: fallbackLevel ? fallbackLevel.id : "identify",
       objective: "Formuler l'objectif d'apprentissage visé par cette slide.",
@@ -80,6 +88,7 @@
     return {
       view: "engineering",
       uiNightMode: false,
+      uiMediaPanelCollapsed: false,
       settings: {
         title: "Ingénierie de formation",
         subtitle: "Deck structuré selon Bloom et principes cognitifs.",

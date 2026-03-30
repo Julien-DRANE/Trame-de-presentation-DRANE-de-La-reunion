@@ -49,6 +49,7 @@
     return {
       view: viewOptions.includes(input.view) ? input.view : fallbackState.view,
       uiNightMode: Boolean(input.uiNightMode),
+      uiMediaPanelCollapsed: Boolean(input.uiMediaPanelCollapsed),
       settings: {
         title: utils.clampText(input.settings && input.settings.title, 60) || fallbackState.settings.title,
         subtitle: utils.clampText(input.settings && input.settings.subtitle, 90) || fallbackState.settings.subtitle,
@@ -77,8 +78,10 @@
       bullets.push("");
     }
     const table = sanitizeTable(slide.table);
+    const tableHighlights = sanitizeTableHighlights(slide.tableHighlights, table);
     const freeLinks = sanitizeFreeLinks(slide.freeLinks);
     const freeMediaIds = sanitizeFreeMediaIds(slide.freeMediaIds);
+    const subBullets = sanitizeSubBullets(slide.subBullets);
 
     const principleIds = utils.uniqueStrings(slide.principleIds || []).filter((id) => allowedPrincipleIds.includes(id));
 
@@ -89,11 +92,15 @@
       contentType: slide.contentType === "table" ? "table" : slide.contentType === "free" ? "free" : "bullets",
       bulletsNumbered: Boolean(slide.bulletsNumbered),
       bulletsProgressive: Boolean(slide.bulletsProgressive),
+      tableProgressive: Boolean(slide.tableProgressive),
+      tableProgressiveOrder: slide.tableProgressiveOrder === "column" ? "column" : "row",
       paletteOverride: paletteOptions.includes(slide.paletteOverride) ? slide.paletteOverride : "",
+      tableHighlights,
       table,
-      freeBody: utils.clampText(slide.freeBody, 1600),
+      freeBody: utils.sanitizeRichText(slide.freeBody, 1600),
       freeLinks,
       freeMediaIds,
+      subBullets,
       mediaId: utils.clampText(slide.mediaId, 80),
       bloomLevel: allowedBloomIds.includes(slide.bloomLevel) ? slide.bloomLevel : allowedBloomIds[0],
       objective: utils.clampText(slide.objective, 180),
@@ -101,7 +108,7 @@
       principleIds,
       title: utils.clampText(slide.title, 72),
       subtitle: utils.clampText(slide.subtitle, 170),
-      bullets: bullets.map((item) => utils.clampText(item, 140)),
+      bullets: bullets.map((item) => utils.clampText(item, 220)),
       note: utils.clampText(slide.note, 180),
     };
   }
@@ -124,6 +131,56 @@
       }
     });
     return sanitizedRows;
+  }
+
+  function sanitizeTableHighlights(input, table) {
+    const rowCount = Array.isArray(table) ? table.length : 0;
+    const colCount = Array.isArray(table) && table[0] ? table[0].length : 0;
+    const sanitizeMap = (mapInput, maxIndex) => {
+      const result = {};
+      if (!mapInput || typeof mapInput !== "object") {
+        return result;
+      }
+      Object.keys(mapInput).forEach((key) => {
+        const index = Number(key);
+        const value = typeof mapInput[key] === "string" ? mapInput[key].trim() : "";
+        if (!Number.isInteger(index) || index < 0 || index >= maxIndex) {
+          return;
+        }
+        if (!/^#[0-9a-fA-F]{6}$/.test(value)) {
+          return;
+        }
+        result[String(index)] = value.toLowerCase();
+      });
+      return result;
+    };
+
+    return {
+      rows: sanitizeMap(input && input.rows, rowCount),
+      columns: sanitizeMap(input && input.columns, colCount),
+    };
+  }
+
+  function sanitizeSubBullets(input) {
+    const utils = ns.utils;
+    const result = {};
+    if (!input || typeof input !== "object") {
+      return result;
+    }
+
+    Object.keys(input).forEach((key) => {
+      const index = Number(key);
+      if (!Number.isInteger(index) || index < 0 || index > 11) {
+        return;
+      }
+      const items = Array.isArray(input[key]) ? input[key].slice(0, 6) : [];
+      const sanitized = items.map((item) => utils.clampText(item, 180)).filter(Boolean);
+      if (sanitized.length) {
+        result[String(index)] = sanitized;
+      }
+    });
+
+    return result;
   }
 
   function sanitizeFreeLinks(input) {

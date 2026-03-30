@@ -79,12 +79,29 @@
     refs.slidePaletteOverride.value = selectedSlide.paletteOverride || "";
     refs.slideBulletsNumbered.checked = Boolean(selectedSlide.bulletsNumbered);
     refs.slideBulletsProgressive.checked = Boolean(selectedSlide.bulletsProgressive);
+    refs.slideTableProgressive.checked = Boolean(selectedSlide.tableProgressive);
+    refs.slideTableProgressiveOrder.value = selectedSlide.tableProgressiveOrder === "column" ? "column" : "row";
     refs.slideBullet1.value = selectedSlide.bullets[0] || "";
     refs.slideBullet2.value = selectedSlide.bullets[1] || "";
     refs.slideBullet3.value = selectedSlide.bullets[2] || "";
+    refs.subBulletLists.forEach((container, index) => {
+      container.innerHTML = renderSubBulletEditor(selectedSlide, index);
+    });
     refs.extraBulletsList.innerHTML = renderExtraBullets(selectedSlide);
     refs.tableEditorGrid.innerHTML = renderTableEditor(selectedSlide);
-    refs.slideFreeBody.value = selectedSlide.freeBody || "";
+    const currentFillTarget = refs.tableFillTarget.value === "column" ? "column" : "row";
+    const currentFillIndex = refs.tableFillIndex.value;
+    refs.tableFillTarget.value = currentFillTarget;
+    refs.tableFillIndex.innerHTML = renderTableFillIndexOptions(selectedSlide, currentFillTarget);
+    if (refs.tableFillIndex.querySelector(`option[value="${ns.utils.escapeHtml(currentFillIndex)}"]`)) {
+      refs.tableFillIndex.value = currentFillIndex;
+    }
+    refs.tableFillColor.value = getDefaultTableFillColor(selectedSlide, currentFillTarget, refs.tableFillIndex.value);
+    refs.tableFillList.innerHTML = renderTableFillList(selectedSlide);
+    const sanitizedFreeBody = ns.utils.sanitizeRichText(selectedSlide.freeBody || "", 1600);
+    if (document.activeElement !== refs.slideFreeBody || refs.slideFreeBody.innerHTML !== sanitizedFreeBody) {
+      refs.slideFreeBody.innerHTML = sanitizedFreeBody;
+    }
     refs.freeLinksList.innerHTML = renderFreeLinks(selectedSlide);
     refs.slideNote.value = selectedSlide.note;
     const isTableMode = (selectedSlide.contentType || "bullets") === "table";
@@ -92,16 +109,22 @@
     refs.slideBulletsEditor.hidden = isTableMode || isFreeMode;
     refs.slideTableEditor.hidden = !isTableMode;
     refs.slideFreeEditor.hidden = !isFreeMode;
-    refs.slideNoteEditor.hidden = isTableMode || isFreeMode;
+    refs.slideNoteEditor.hidden = false;
     refs.slideBulletsEditor.classList.toggle("is-collapsed", isTableMode || isFreeMode);
     refs.slideTableEditor.classList.toggle("is-collapsed", !isTableMode);
     refs.slideFreeEditor.classList.toggle("is-collapsed", !isFreeMode);
     refs.clearSlideMedia.hidden = isFreeMode;
+    refs.slideMediaPanelBody.hidden = Boolean(state.uiMediaPanelCollapsed);
+    refs.toggleMediaPanel.textContent = state.uiMediaPanelCollapsed ? "Déplier" : "Replier";
+    refs.toggleMediaPanel.setAttribute("aria-expanded", state.uiMediaPanelCollapsed ? "false" : "true");
+    const table = normalizeTable(selectedSlide.table);
+    const isTwoColumnTable = Boolean(table[0] && table[0].length === 2);
+    refs.slideTableProgressiveOrderWrap.hidden = !isTableMode || !selectedSlide.tableProgressive || !isTwoColumnTable;
 
     refs.titleMeta.textContent = `${selectedSlide.title.length}/72 caractères`;
     refs.subtitleMeta.textContent = `${selectedSlide.subtitle.length}/170 caractères`;
     refs.noteMeta.textContent = `${selectedSlide.note.length}/180 caractères`;
-    refs.freeBodyMeta.textContent = `${(selectedSlide.freeBody || "").length}/1600 caractères`;
+    refs.freeBodyMeta.textContent = `${ns.utils.richTextLength(selectedSlide.freeBody || "")}/1600 caractères`;
     refs.objectiveMeta.textContent = `${selectedSlide.objective.length}/180 caractères`;
     refs.evidenceMeta.textContent = `${selectedSlide.evidence.length}/120 caractères`;
 
@@ -332,8 +355,20 @@
             ::
           </button>
           <div class="free-link-meta">
-            <strong>${ns.utils.escapeHtml(item.label || item.url)}</strong>
-            <a href="${ns.utils.escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer">${ns.utils.escapeHtml(item.url)}</a>
+            <input
+              type="text"
+              maxlength="80"
+              value="${ns.utils.escapeHtml(item.label || "")}"
+              data-free-link-label="${index}"
+              placeholder="Libellé du lien"
+            />
+            <input
+              type="url"
+              maxlength="500"
+              value="${ns.utils.escapeHtml(item.url || "")}"
+              data-free-link-url="${index}"
+              placeholder="https://..."
+            />
           </div>
           <button class="icon-button icon-button-danger" type="button" data-remove-free-link="${index}" aria-label="Supprimer le lien ${index + 1}">
             x
@@ -341,6 +376,40 @@
         </div>
       `)
       .join("");
+  }
+
+  function renderSubBulletEditor(selectedSlide, bulletIndex) {
+    const subBullets = selectedSlide.subBullets && Array.isArray(selectedSlide.subBullets[bulletIndex])
+      ? selectedSlide.subBullets[bulletIndex]
+      : [];
+
+    return `
+      <div class="sub-bullets-panel">
+        <div class="sub-bullets-header">
+          <span>Sous-points</span>
+          <button class="button button-ghost" type="button" data-add-sub-bullet="${bulletIndex}">Ajouter</button>
+        </div>
+        <div class="sub-bullets-list">
+          ${subBullets.length
+            ? subBullets.map((item, subIndex) => `
+              <div class="sub-bullet-row">
+                <input
+                  type="text"
+                  maxlength="180"
+                  value="${ns.utils.escapeHtml(item || "")}"
+                  data-sub-bullet-parent="${bulletIndex}"
+                  data-sub-bullet-index="${subIndex}"
+                  placeholder="Sous-point ${subIndex + 1}"
+                />
+                <button class="icon-button icon-button-danger" type="button" data-remove-sub-bullet="${bulletIndex}-${subIndex}" aria-label="Supprimer le sous-point ${subIndex + 1}">
+                  x
+                </button>
+              </div>
+            `).join("")
+            : '<p class="extra-bullets-empty">Aucun sous-point.</p>'}
+        </div>
+      </div>
+    `;
   }
 
   function renderExtraBullets(selectedSlide) {
@@ -366,7 +435,7 @@
             </button>
             <input
               type="text"
-              maxlength="140"
+              maxlength="220"
               value="${ns.utils.escapeHtml(bullet || "")}"
               data-extra-bullet-index="${actualIndex}"
               placeholder="Point ${actualIndex + 1}"
@@ -379,6 +448,9 @@
             >
               x
             </button>
+            <div class="extra-bullet-subpoints">
+              ${renderSubBulletEditor(selectedSlide, actualIndex)}
+            </div>
           </div>
         `;
       })
@@ -387,10 +459,12 @@
 
   function renderTableEditor(selectedSlide) {
     const table = normalizeTable(selectedSlide.table);
+    const highlights = selectedSlide.tableHighlights || {};
     const rows = table
       .map((row, rowIndex) => {
         return row.map((cell, columnIndex) => {
           const headerClass = rowIndex === 0 || columnIndex === 0 ? " is-header" : "";
+          const fillStyle = getTableCellFillStyle(highlights, rowIndex, columnIndex);
           return `
             <input
               class="table-editor-cell${headerClass}"
@@ -399,6 +473,7 @@
               value="${ns.utils.escapeHtml(cell || "")}"
               data-table-cell="${rowIndex}-${columnIndex}"
               placeholder="Cellule"
+              style="${fillStyle}"
             />
           `;
         }).join("");
@@ -428,6 +503,73 @@
       }
     });
     return rows;
+  }
+
+  function renderTableFillIndexOptions(selectedSlide, target) {
+    const table = normalizeTable(selectedSlide.table);
+    const count = target === "column"
+      ? (table[0] ? table[0].length : 0)
+      : table.length;
+
+    return Array.from({ length: count }, (unused, index) => {
+      const label = target === "column" ? `Colonne ${index + 1}` : `Ligne ${index + 1}`;
+      return `<option value="${index}">${ns.utils.escapeHtml(label)}</option>`;
+    }).join("");
+  }
+
+  function getDefaultTableFillColor(selectedSlide, target, indexValue) {
+    const key = target === "column" ? "columns" : "rows";
+    const index = Number(indexValue);
+    const tableHighlights = selectedSlide.tableHighlights || {};
+    const existing = tableHighlights[key] && tableHighlights[key][String(index)];
+    return existing || "#dcecff";
+  }
+
+  function renderTableFillList(selectedSlide) {
+    const tableHighlights = selectedSlide.tableHighlights || {};
+    const entries = [
+      ...Object.keys(tableHighlights.rows || {}).map((key) => ({
+        target: "row",
+        index: Number(key),
+        color: tableHighlights.rows[key],
+      })),
+      ...Object.keys(tableHighlights.columns || {}).map((key) => ({
+        target: "column",
+        index: Number(key),
+        color: tableHighlights.columns[key],
+      })),
+    ].sort((a, b) => {
+      if (a.target !== b.target) {
+        return a.target.localeCompare(b.target);
+      }
+      return a.index - b.index;
+    });
+
+    if (!entries.length) {
+      return '<p class="table-fill-empty">Aucun remplissage actif.</p>';
+    }
+
+    return entries.map((entry) => `
+      <div class="table-fill-item">
+        <span class="table-fill-swatch" style="background:${ns.utils.escapeHtml(entry.color)};"></span>
+        <span class="table-fill-label">${entry.target === "column" ? "Colonne" : "Ligne"} ${entry.index + 1}</span>
+        <button
+          class="icon-button icon-button-danger"
+          type="button"
+          data-remove-table-fill="${entry.target}-${entry.index}"
+          aria-label="Retirer la couleur de ${entry.target === "column" ? "la colonne" : "la ligne"} ${entry.index + 1}"
+        >
+          x
+        </button>
+      </div>
+    `).join("");
+  }
+
+  function getTableCellFillStyle(tableHighlights, rowIndex, columnIndex) {
+    const rowColor = tableHighlights && tableHighlights.rows ? tableHighlights.rows[String(rowIndex)] : "";
+    const columnColor = tableHighlights && tableHighlights.columns ? tableHighlights.columns[String(columnIndex)] : "";
+    const color = rowColor || columnColor;
+    return color ? `background:${ns.utils.escapeHtml(color)};` : "";
   }
 
   ns.ui.renderDashboard = renderDashboard;

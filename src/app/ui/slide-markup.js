@@ -223,25 +223,45 @@
       <ul class="${className}${numbered ? " is-numbered" : ""}">
         ${items
           .map((item, index) => {
+            const bulletItem = typeof item === "string" ? { text: item, children: [] } : item;
             const marker = numbered
               ? `<span class="slide-bullet-marker">${String(startAt + index).padStart(2, "0")}</span>`
               : "";
             const revealAttrs = progressive
               ? ` data-reveal-step="${startAt + index}" class="slide-reveal-item"`
               : "";
-            return `<li${revealAttrs}>${marker}<span class="slide-bullet-text">${utils.escapeHtml(item)}</span></li>`;
+            const childrenMarkup = Array.isArray(bulletItem.children) && bulletItem.children.length
+              ? `
+                <ul class="slide-sub-bullets">
+                  ${bulletItem.children.map((child) => `<li>${utils.escapeHtml(child)}</li>`).join("")}
+                </ul>
+              `
+              : "";
+            return `<li${revealAttrs}>${marker}<div class="slide-bullet-text">${utils.escapeHtml(bulletItem.text || "")}${childrenMarkup}</div></li>`;
           })
           .join("")}
       </ul>
     `;
   }
 
-  function splitBulletsForLayout(bulletsInput) {
-    const bullets = Array.isArray(bulletsInput)
-      ? bulletsInput.filter((item) => item && item.trim())
+  function buildBulletItems(slide) {
+    const bullets = Array.isArray(slide && slide.bullets)
+      ? slide.bullets.filter((item) => item && item.trim())
       : [];
+    const subBullets = slide && slide.subBullets && typeof slide.subBullets === "object"
+      ? slide.subBullets
+      : {};
 
-    if (bullets.length > 6) {
+    return bullets.map((text, index) => ({
+      text,
+      children: Array.isArray(subBullets[index]) ? subBullets[index].filter((item) => item && item.trim()) : [],
+    }));
+  }
+
+  function splitBulletsForLayout(bulletsInput) {
+    const bullets = Array.isArray(bulletsInput) ? bulletsInput : [];
+
+    if (bullets.length > 3) {
       const leftCount = Math.ceil(bullets.length / 2);
       return {
         mainBullets: bullets.slice(0, leftCount),
@@ -255,8 +275,20 @@
     };
   }
 
-  function createTableMarkup(tableInput) {
+  function getTableCellFillStyle(tableHighlights, rowIndex, columnIndex) {
+    const rowColor = tableHighlights && tableHighlights.rows ? tableHighlights.rows[String(rowIndex)] : "";
+    const columnColor = tableHighlights && tableHighlights.columns ? tableHighlights.columns[String(columnIndex)] : "";
+    const color = rowColor || columnColor;
+    return color ? `background:${ns.utils.escapeHtml(color)};` : "";
+  }
+
+  function createTableMarkup(tableInput, tableHighlights, options) {
     const table = normalizeTable(tableInput);
+    const columnCount = table[0] ? table[0].length : 0;
+    const opts = options || {};
+    const progressive = Boolean(opts.progressive);
+    const progressiveOrder = opts.progressiveOrder === "column" ? "column" : "row";
+    const bodyRowCount = Math.max(0, table.length - 1);
     const densityClass = table.length >= 7
       ? " slide-table-dense-3"
       : table.length >= 6
@@ -267,10 +299,18 @@
     return `
       <div class="slide-table${densityClass}">
         ${table.map((row, rowIndex) => `
-          <div class="slide-table-row" style="grid-template-columns: repeat(${row.length}, minmax(0, 1fr));">
+          <div class="slide-table-row${progressive && rowIndex > 0 && columnCount > 2 ? " slide-reveal-item" : ""}" style="grid-template-columns: repeat(${row.length}, minmax(0, 1fr));"${progressive && rowIndex > 0 && columnCount > 2 ? ` data-reveal-step="${rowIndex}"` : ""}>
             ${row.map((cell, columnIndex) => {
-              const headerClass = rowIndex === 0 || columnIndex === 0 ? " slide-table-cell-header" : "";
-              return `<div class="slide-table-cell${headerClass}">${ns.utils.escapeHtml(cell || "")}</div>`;
+              const isHeaderCell = rowIndex === 0 || (columnCount > 2 && columnIndex === 0);
+              const headerClass = isHeaderCell ? " slide-table-cell-header" : "";
+              const fillStyle = getTableCellFillStyle(tableHighlights, rowIndex, columnIndex);
+              const revealStep = progressiveOrder === "column"
+                ? (columnIndex * bodyRowCount) + rowIndex
+                : ((rowIndex - 1) * columnCount) + columnIndex + 1;
+              const revealAttrs = progressive && rowIndex > 0 && columnCount <= 2
+                ? ` class="slide-table-cell${headerClass} slide-reveal-item" data-reveal-step="${revealStep}"`
+                : ` class="slide-table-cell${headerClass}"`;
+              return `<div${revealAttrs}${fillStyle ? ` style="${fillStyle}"` : ""}>${ns.utils.escapeHtml(cell || "")}</div>`;
             }).join("")}
           </div>
         `).join("")}
@@ -280,13 +320,7 @@
 
   function createFreeMarkup(slide, options) {
     const utils = ns.utils;
-    const bodyLines = String(slide.freeBody || "")
-      .split(/\r?\n/)
-      .map((line) => line.trim())
-      .filter(Boolean);
-    const bodyMarkup = bodyLines.length
-      ? bodyLines.map((line) => `<p>${utils.escapeHtml(line)}</p>`).join("")
-      : "<p>Ajoutez un texte plus dÃ©veloppÃ© pour cette annexe.</p>";
+    const bodyMarkup = utils.sanitizeRichText(slide.freeBody || "", 1600);
     const freeLinks = Array.isArray(slide.freeLinks) ? slide.freeLinks : [];
     const linksMarkup = freeLinks.length
       ? `
@@ -332,14 +366,14 @@
     const slideMedia = getSlideMedia(slide, opts);
     const isTableMode = slide.contentType === "table";
     const isFreeMode = slide.contentType === "free";
-    const allBullets = Array.isArray(slide.bullets)
-      ? slide.bullets.filter((item) => item && item.trim())
-      : [];
-    const bulletColumns = splitBulletsForLayout(slide.bullets);
+    const allBullets = buildBulletItems(slide);
+    const bulletColumns = splitBulletsForLayout(allBullets);
     const mainBullets = bulletColumns.mainBullets;
     const extraBullets = bulletColumns.extraBullets;
     const bulletsNumbered = Boolean(slide.bulletsNumbered);
     const bulletsProgressive = Boolean(slide.bulletsProgressive) && !opts.compact && !isFreeMode && !isTableMode;
+    const tableProgressive = Boolean(slide.tableProgressive) && !opts.compact && isTableMode;
+    const tableProgressiveOrder = slide.tableProgressiveOrder === "column" ? "column" : "row";
     const canKeepMediaWithExtendedBullets = Boolean(slideMedia) && allBullets.length > 3 && allBullets.length <= 6;
     const bulletMarkup = mainBullets.length
       ? createBulletListMarkup(mainBullets, {
@@ -375,16 +409,21 @@
       : createSlideMediaMarkup(slide, opts);
     const subtitle = slide.subtitle ? `<p class="slide-subtitle-text">${utils.escapeHtml(slide.subtitle)}</p>` : "";
     const signature = settings.footer ? `<span class="slide-signature">${utils.escapeHtml(settings.footer)}</span>` : "";
-    const note = slide.note ? `<div class="slide-note">${utils.escapeHtml(slide.note)}</div>` : "";
+    const note = slide.note
+      ? `<div class="slide-note">${utils.linkifyText(slide.note)}</div>`
+      : "";
 
     let contentMarkup = "";
-    let footerNoteMarkup = isTableMode || isFreeMode ? "" : note;
+    let footerNoteMarkup = note;
     const mediaMarkup = createSlideMediaMarkup(slide, opts);
 
     if (isFreeMode) {
       contentMarkup = createFreeMarkup(slide, opts);
     } else if (isTableMode) {
-      contentMarkup = createTableMarkup(slide.table);
+      contentMarkup = createTableMarkup(slide.table, slide.tableHighlights, {
+        progressive: tableProgressive,
+        progressiveOrder: tableProgressiveOrder,
+      });
     } else if (canKeepMediaWithExtendedBullets) {
       contentMarkup = extendedBulletMarkup;
     } else if (extraBullets.length) {
@@ -402,7 +441,7 @@
     const paletteStyle = createSlidePaletteStyle(slide, settings);
 
     return `
-      <article class="deck-slide theme-${utils.escapeHtml(themeName)}${compactClass}" data-progressive-bullets="${bulletsProgressive ? "true" : "false"}" style="${utils.escapeHtml(paletteStyle)}">
+      <article class="deck-slide theme-${utils.escapeHtml(themeName)}${compactClass}" data-progressive-content="${bulletsProgressive || tableProgressive ? "true" : "false"}" style="${utils.escapeHtml(paletteStyle)}">
         <div class="slide-wave" aria-hidden="true"></div>
         <img class="slide-logo slide-logo-region" src="${utils.escapeHtml(logoSources.region)}" alt="Logo region academique" />
         <img class="slide-logo slide-logo-drane" src="${utils.escapeHtml(logoSources.drane)}" alt="Logo Drane" />
@@ -437,7 +476,8 @@
       (slide.note || "").length +
       (slide.objective || "").length +
       (slide.evidence || "").length +
-      (slide.bullets || []).join("").length;
+      (slide.bullets || []).join("").length +
+      Object.values(slide.subBullets || {}).flat().join("").length;
     const bulletCount = (slide.bullets || []).filter((item) => item && item.trim()).length;
 
     if (totalChars > 420 || (slide.subtitle || "").length > 150 || (slide.objective || "").length > 160) {

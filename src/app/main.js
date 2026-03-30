@@ -12,6 +12,7 @@
     deleteSlide: document.querySelector("#delete-slide"),
     deleteSlideInline: document.querySelector("#delete-slide-inline"),
     openPresentation: document.querySelector("#open-presentation"),
+    openPresentationActive: document.querySelector("#open-presentation-active"),
     exportPdf: document.querySelector("#export-pdf"),
     exportPptx: document.querySelector("#export-pptx"),
     exportHtml: document.querySelector("#export-html"),
@@ -38,6 +39,8 @@
     pedagogyBrief: document.querySelector("#pedagogy-brief"),
     mediaUpload: document.querySelector("#media-upload"),
     mediaUploadTrigger: document.querySelector("#media-upload-trigger"),
+    toggleMediaPanel: document.querySelector("#toggle-media-panel"),
+    slideMediaPanelBody: document.querySelector("#slide-media-panel-body"),
     clearSlideMedia: document.querySelector("#clear-slide-media"),
     mediaLinkInput: document.querySelector("#media-link-input"),
     mediaLinkAdd: document.querySelector("#media-link-add"),
@@ -59,15 +62,28 @@
     slideNoteEditor: document.querySelector("#slide-note-editor"),
     slideBulletsNumbered: document.querySelector("#slide-bullets-numbered"),
     slideBulletsProgressive: document.querySelector("#slide-bullets-progressive"),
+    slideTableProgressive: document.querySelector("#slide-table-progressive"),
+    slideTableProgressiveOrderWrap: document.querySelector("#slide-table-progressive-order-wrap"),
+    slideTableProgressiveOrder: document.querySelector("#slide-table-progressive-order"),
     slideBullet1: document.querySelector("#slide-bullet-1"),
     slideBullet2: document.querySelector("#slide-bullet-2"),
     slideBullet3: document.querySelector("#slide-bullet-3"),
+    subBulletLists: [
+      document.querySelector("#sub-bullets-0"),
+      document.querySelector("#sub-bullets-1"),
+      document.querySelector("#sub-bullets-2"),
+    ],
     addBullet: document.querySelector("#add-bullet"),
     extraBulletsList: document.querySelector("#extra-bullets-list"),
     addTableRow: document.querySelector("#add-table-row"),
     removeTableRow: document.querySelector("#remove-table-row"),
     addTableColumn: document.querySelector("#add-table-column"),
     removeTableColumn: document.querySelector("#remove-table-column"),
+    tableFillTarget: document.querySelector("#table-fill-target"),
+    tableFillIndex: document.querySelector("#table-fill-index"),
+    tableFillColor: document.querySelector("#table-fill-color"),
+    addTableFill: document.querySelector("#add-table-fill"),
+    tableFillList: document.querySelector("#table-fill-list"),
     tableEditorGrid: document.querySelector("#table-editor-grid"),
     slideFreeBody: document.querySelector("#slide-free-body"),
     freeBodyMeta: document.querySelector("#free-body-meta"),
@@ -90,7 +106,9 @@
   let draggedFreeLinkIndex = null;
   let isAddSlideMenuOpen = false;
   let pendingBulletFocus = null;
+  let pendingSubBulletFocus = null;
   let pendingTableFocus = null;
+  let freeEditorRange = null;
   const isPresentationMode = new URLSearchParams(window.location.search).get("present") === "1";
 
   if (isPresentationMode) {
@@ -123,6 +141,17 @@
       }
       pendingTableFocus = null;
     }
+    if (pendingSubBulletFocus) {
+      const input = document.querySelector(
+        `[data-sub-bullet-parent="${pendingSubBulletFocus.parentIndex}"][data-sub-bullet-index="${pendingSubBulletFocus.subIndex}"]`
+      );
+      if (input) {
+        input.focus();
+        const caret = Math.min(pendingSubBulletFocus.caret, input.value.length);
+        input.setSelectionRange(caret, caret);
+      }
+      pendingSubBulletFocus = null;
+    }
   }
 
   async function hydrateMediaLibrary() {
@@ -146,6 +175,16 @@
     render();
   }
 
+  function refreshStageOnly() {
+    const selectedSlide = getSelectedSlide();
+    refs.stage.innerHTML = ns.ui.createSlideMarkup(selectedSlide, state.settings, {
+      compact: false,
+      mediaItems: state.mediaLibrary,
+      mediaUrls: ns.services.media.getUrlMap(),
+    });
+    ns.services.storage.saveState(STORAGE_KEY, state);
+  }
+
   function setView(view) {
     if (view !== "engineering" && view !== "presentation") {
       return;
@@ -157,6 +196,11 @@
 
   function toggleNightMode() {
     state.uiNightMode = !state.uiNightMode;
+    render();
+  }
+
+  function toggleMediaPanel() {
+    state.uiMediaPanelCollapsed = !state.uiMediaPanelCollapsed;
     render();
   }
 
@@ -188,7 +232,8 @@
         return slide;
       }
       const table = normalizeTable(slide.table, nextRows, nextCols);
-      return Object.assign({}, slide, { table });
+      const tableHighlights = sanitizeTableHighlightsForSize(slide.tableHighlights, table.length, table[0] ? table[0].length : 0);
+      return Object.assign({}, slide, { table, tableHighlights });
     });
     render();
   }
@@ -215,11 +260,83 @@
     return tableInput.reduce((max, row) => Math.max(max, Array.isArray(row) ? row.length : 0), 0);
   }
 
+  function sanitizeTableHighlightsForSize(tableHighlights, rowCount, colCount) {
+    const sanitizeMap = (input, max) => {
+      const result = {};
+      if (!input || typeof input !== "object") {
+        return result;
+      }
+      Object.keys(input).forEach((key) => {
+        const index = Number(key);
+        if (!Number.isInteger(index) || index < 0 || index >= max) {
+          return;
+        }
+        result[String(index)] = input[key];
+      });
+      return result;
+    };
+
+    return {
+      rows: sanitizeMap(tableHighlights && tableHighlights.rows, rowCount),
+      columns: sanitizeMap(tableHighlights && tableHighlights.columns, colCount),
+    };
+  }
+
+  function normalizeHexColor(value) {
+    return /^#[0-9a-fA-F]{6}$/.test(value || "") ? value.toLowerCase() : "#dcecff";
+  }
+
+  function getSelectedTableFillColor() {
+    const slide = getSelectedSlide();
+    const target = refs.tableFillTarget.value === "column" ? "columns" : "rows";
+    const index = Number(refs.tableFillIndex.value);
+    const tableHighlights = slide.tableHighlights || {};
+    return normalizeHexColor(tableHighlights[target] && tableHighlights[target][String(index)]);
+  }
+
+  function setSelectedTableFill(target, index, color) {
+    if ((target !== "row" && target !== "column") || !Number.isInteger(index) || index < 0 || !/^#[0-9a-fA-F]{6}$/.test(color || "")) {
+      return;
+    }
+    state.slides = state.slides.map((slide) => {
+      if (slide.id !== state.selectedSlideId) {
+        return slide;
+      }
+      const key = target === "row" ? "rows" : "columns";
+      const tableHighlights = {
+        rows: Object.assign({}, slide.tableHighlights && slide.tableHighlights.rows),
+        columns: Object.assign({}, slide.tableHighlights && slide.tableHighlights.columns),
+      };
+      tableHighlights[key][String(index)] = color.toLowerCase();
+      return Object.assign({}, slide, { tableHighlights });
+    });
+    render();
+  }
+
+  function removeSelectedTableFill(target, index) {
+    if ((target !== "row" && target !== "column") || !Number.isInteger(index) || index < 0) {
+      return;
+    }
+    state.slides = state.slides.map((slide) => {
+      if (slide.id !== state.selectedSlideId) {
+        return slide;
+      }
+      const key = target === "row" ? "rows" : "columns";
+      const tableHighlights = {
+        rows: Object.assign({}, slide.tableHighlights && slide.tableHighlights.rows),
+        columns: Object.assign({}, slide.tableHighlights && slide.tableHighlights.columns),
+      };
+      delete tableHighlights[key][String(index)];
+      return Object.assign({}, slide, { tableHighlights });
+    });
+    render();
+  }
+
   function assignMediaToSelectedSlide(mediaId) {
     updateSelectedSlide({ mediaId: mediaId || "" });
   }
 
-  function updateSelectedBullet(index, value) {
+  function updateSelectedBullet(index, value, rerender) {
     state.slides = state.slides.map((slide) => {
       if (slide.id !== state.selectedSlideId) {
         return slide;
@@ -231,6 +348,10 @@
       bullets[index] = value;
       return Object.assign({}, slide, { bullets });
     });
+    if (rerender === false) {
+      refreshStageOnly();
+      return;
+    }
     render();
   }
 
@@ -242,6 +363,58 @@
       const bullets = Array.isArray(slide.bullets) ? slide.bullets.slice() : ["", "", ""];
       bullets.push("");
       return Object.assign({}, slide, { bullets });
+    });
+    render();
+  }
+
+  function updateSelectedSubBullet(parentIndex, subIndex, value) {
+    state.slides = state.slides.map((slide) => {
+      if (slide.id !== state.selectedSlideId) {
+        return slide;
+      }
+      const subBullets = Object.assign({}, slide.subBullets || {});
+      const items = Array.isArray(subBullets[parentIndex]) ? subBullets[parentIndex].slice() : [];
+      while (items.length <= subIndex) {
+        items.push("");
+      }
+      items[subIndex] = value;
+      subBullets[parentIndex] = items;
+      return Object.assign({}, slide, { subBullets });
+    });
+    render();
+  }
+
+  function addSelectedSubBullet(parentIndex) {
+    state.slides = state.slides.map((slide) => {
+      if (slide.id !== state.selectedSlideId) {
+        return slide;
+      }
+      const subBullets = Object.assign({}, slide.subBullets || {});
+      const items = Array.isArray(subBullets[parentIndex]) ? subBullets[parentIndex].slice(0, 6) : [];
+      items.push("");
+      subBullets[parentIndex] = items.slice(0, 6);
+      return Object.assign({}, slide, { subBullets });
+    });
+    render();
+  }
+
+  function removeSelectedSubBullet(parentIndex, subIndex) {
+    state.slides = state.slides.map((slide) => {
+      if (slide.id !== state.selectedSlideId) {
+        return slide;
+      }
+      const subBullets = Object.assign({}, slide.subBullets || {});
+      const items = Array.isArray(subBullets[parentIndex]) ? subBullets[parentIndex].slice() : [];
+      if (subIndex < 0 || subIndex >= items.length) {
+        return slide;
+      }
+      items.splice(subIndex, 1);
+      if (items.length) {
+        subBullets[parentIndex] = items;
+      } else {
+        delete subBullets[parentIndex];
+      }
+      return Object.assign({}, slide, { subBullets });
     });
     render();
   }
@@ -259,13 +432,195 @@
       while (bullets.length < 3) {
         bullets.push("");
       }
-      return Object.assign({}, slide, { bullets });
+      const subBullets = Object.assign({}, slide.subBullets || {});
+      delete subBullets[index];
+      Object.keys(subBullets)
+        .map(Number)
+        .sort((a, b) => a - b)
+        .forEach((key) => {
+          if (key > index) {
+            subBullets[key - 1] = subBullets[key];
+            delete subBullets[key];
+          }
+        });
+      return Object.assign({}, slide, { bullets, subBullets });
     });
     render();
   }
 
   function updateSelectedFreeBody(value) {
-    updateSelectedSlide({ freeBody: ns.utils.clampText(value, 1600) });
+    state.slides = state.slides.map((slide) => {
+      if (slide.id !== state.selectedSlideId) {
+        return slide;
+      }
+      return Object.assign({}, slide, { freeBody: ns.utils.sanitizeRichText(value, 1600) });
+    });
+    ns.services.storage.saveState(STORAGE_KEY, state);
+  }
+
+  function updateFreeBodyPreview() {
+    const selectedSlide = getSelectedSlide();
+    refs.stage.innerHTML = ns.ui.createSlideMarkup(selectedSlide, state.settings, {
+      compact: false,
+      mediaItems: state.mediaLibrary,
+      mediaUrls: ns.services.media.getUrlMap(),
+    });
+    refs.freeBodyMeta.textContent = `${ns.utils.richTextLength(selectedSlide.freeBody || "")}/1600 caractères`;
+  }
+
+  function saveFreeEditorSelection() {
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) {
+      return;
+    }
+    const range = selection.getRangeAt(0);
+    if (!refs.slideFreeBody.contains(range.commonAncestorContainer)) {
+      return;
+    }
+    freeEditorRange = range.cloneRange();
+  }
+
+  function restoreFreeEditorSelection() {
+    const selection = window.getSelection();
+    if (!selection || !freeEditorRange) {
+      return false;
+    }
+    selection.removeAllRanges();
+    selection.addRange(freeEditorRange);
+    return true;
+  }
+
+  function normalizeFreeEditorMarkup(assignToEditor) {
+    const sanitized = ns.utils.sanitizeRichText(refs.slideFreeBody.innerHTML, 1600);
+    if (assignToEditor) {
+      refs.slideFreeBody.innerHTML = sanitized;
+    }
+    updateSelectedFreeBody(sanitized);
+    updateFreeBodyPreview();
+  }
+
+  function applyFreeEditorFontSize(size) {
+    if (!restoreFreeEditorSelection()) {
+      refs.slideFreeBody.focus();
+      return;
+    }
+
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0 || selection.isCollapsed) {
+      return;
+    }
+
+    const range = selection.getRangeAt(0);
+    if (!refs.slideFreeBody.contains(range.commonAncestorContainer)) {
+      return;
+    }
+
+    const wrapper = document.createElement("span");
+    wrapper.setAttribute("style", `font-size:${size}%;`);
+    try {
+      const content = range.extractContents();
+      wrapper.appendChild(content);
+      range.insertNode(wrapper);
+      range.selectNodeContents(wrapper);
+      selection.removeAllRanges();
+      selection.addRange(range);
+      saveFreeEditorSelection();
+      normalizeFreeEditorMarkup(true);
+    } catch (error) {
+      return;
+    }
+  }
+
+  function applyFreeEditorInlineTag(tagName) {
+    if (!restoreFreeEditorSelection()) {
+      refs.slideFreeBody.focus();
+      return;
+    }
+
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0 || selection.isCollapsed) {
+      return;
+    }
+
+    const range = selection.getRangeAt(0);
+    if (!refs.slideFreeBody.contains(range.commonAncestorContainer)) {
+      return;
+    }
+
+    const formatAncestor = findFreeEditorFormatAncestor(range.commonAncestorContainer, tagName);
+    if (formatAncestor) {
+      unwrapFreeEditorFormat(formatAncestor);
+      saveFreeEditorSelection();
+      normalizeFreeEditorMarkup(true);
+      return;
+    }
+
+    const wrapper = document.createElement(tagName);
+    try {
+      const content = range.extractContents();
+      wrapper.appendChild(content);
+      range.insertNode(wrapper);
+      range.selectNodeContents(wrapper);
+      selection.removeAllRanges();
+      selection.addRange(range);
+      saveFreeEditorSelection();
+      normalizeFreeEditorMarkup(true);
+    } catch (error) {
+      return;
+    }
+  }
+
+  function findFreeEditorFormatAncestor(node, tagName) {
+    let current = node && node.nodeType === Node.ELEMENT_NODE ? node : node.parentNode;
+    while (current && current !== refs.slideFreeBody) {
+      if (current.nodeType === Node.ELEMENT_NODE && current.tagName.toLowerCase() === tagName) {
+        return current;
+      }
+      current = current.parentNode;
+    }
+    return null;
+  }
+
+  function unwrapFreeEditorFormat(element) {
+    if (!element || !element.parentNode) {
+      return;
+    }
+
+    const parent = element.parentNode;
+    while (element.firstChild) {
+      parent.insertBefore(element.firstChild, element);
+    }
+    parent.removeChild(element);
+  }
+
+  function insertFreeEditorLineBreak() {
+    if (!restoreFreeEditorSelection()) {
+      refs.slideFreeBody.focus();
+      return;
+    }
+
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) {
+      return;
+    }
+
+    const range = selection.getRangeAt(0);
+    if (!refs.slideFreeBody.contains(range.commonAncestorContainer)) {
+      return;
+    }
+
+    const br = document.createElement("br");
+    const spacer = document.createTextNode("");
+    range.deleteContents();
+    range.insertNode(br);
+    range.setStartAfter(br);
+    range.insertNode(spacer);
+    range.setStartAfter(spacer);
+    range.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(range);
+    saveFreeEditorSelection();
+    normalizeFreeEditorMarkup(false);
   }
 
   function addSelectedFreeLink(label, url) {
@@ -330,18 +685,45 @@
         return slide;
       }
       const bullets = Array.isArray(slide.bullets) ? slide.bullets.slice() : ["", "", ""];
+      const origins = bullets.map((unused, index) => index);
       while (bullets.length < 3) {
         bullets.push("");
+        origins.push(origins.length);
       }
       if (fromIndex >= bullets.length || toIndex >= bullets.length) {
         return slide;
       }
 
       const moved = bullets.splice(fromIndex, 1)[0];
+      const movedOrigin = origins.splice(fromIndex, 1)[0];
       bullets.splice(toIndex, 0, moved);
-      return Object.assign({}, slide, { bullets });
+      origins.splice(toIndex, 0, movedOrigin);
+      const sourceSubBullets = Object.assign({}, slide.subBullets || {});
+      const reorderedSubBullets = {};
+      origins.forEach((originIndex, index) => {
+        const items = sourceSubBullets[originIndex];
+        if (Array.isArray(items) && items.length) {
+          reorderedSubBullets[index] = items.slice();
+        }
+      });
+      return Object.assign({}, slide, { bullets, subBullets: reorderedSubBullets });
     });
     render();
+  }
+
+  function updateSelectedFreeLink(index, patch) {
+    state.slides = state.slides.map((slide) => {
+      if (slide.id !== state.selectedSlideId) {
+        return slide;
+      }
+      const freeLinks = Array.isArray(slide.freeLinks) ? slide.freeLinks.slice() : [];
+      if (index < 0 || index >= freeLinks.length) {
+        return slide;
+      }
+      freeLinks[index] = Object.assign({}, freeLinks[index], patch);
+      return Object.assign({}, slide, { freeLinks });
+    });
+    refreshStageOnly();
   }
 
   function moveSelectedFreeLink(fromIndex, toIndex) {
@@ -557,15 +939,85 @@
   refs.slideBulletsProgressive.addEventListener("change", (event) => updateSelectedSlide({
     bulletsProgressive: Boolean(event.target.checked),
   }));
-  refs.slideBullet1.addEventListener("input", (event) => updateSelectedBullet(0, ns.utils.clampText(event.target.value, 140)));
-  refs.slideBullet2.addEventListener("input", (event) => updateSelectedBullet(1, ns.utils.clampText(event.target.value, 140)));
-  refs.slideBullet3.addEventListener("input", (event) => updateSelectedBullet(2, ns.utils.clampText(event.target.value, 140)));
+  refs.slideTableProgressive.addEventListener("change", (event) => updateSelectedSlide({
+    tableProgressive: Boolean(event.target.checked),
+  }));
+  refs.slideTableProgressiveOrder.addEventListener("change", (event) => updateSelectedSlide({
+    tableProgressiveOrder: event.target.value === "column" ? "column" : "row",
+  }));
+  refs.slideBullet1.addEventListener("input", (event) => updateSelectedBullet(0, ns.utils.clampText(event.target.value, 220)));
+  refs.slideBullet2.addEventListener("input", (event) => updateSelectedBullet(1, ns.utils.clampText(event.target.value, 220)));
+  refs.slideBullet3.addEventListener("input", (event) => updateSelectedBullet(2, ns.utils.clampText(event.target.value, 220)));
   refs.addBullet.addEventListener("click", addSelectedBullet);
-  refs.slideFreeBody.addEventListener("input", (event) => updateSelectedFreeBody(event.target.value));
+  refs.slideFreeBody.addEventListener("input", () => {
+    saveFreeEditorSelection();
+    if (ns.utils.richTextLength(refs.slideFreeBody.innerHTML) > 1600) {
+      normalizeFreeEditorMarkup(true);
+      return;
+    }
+    normalizeFreeEditorMarkup(false);
+  });
+  refs.slideFreeBody.addEventListener("mousedown", () => {
+    freeEditorRange = null;
+  });
+  refs.slideFreeBody.addEventListener("keyup", saveFreeEditorSelection);
+  refs.slideFreeBody.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      insertFreeEditorLineBreak();
+    }
+  });
+  refs.slideFreeBody.addEventListener("mouseup", saveFreeEditorSelection);
+  refs.slideFreeBody.addEventListener("click", () => {
+    setTimeout(saveFreeEditorSelection, 0);
+  });
+  refs.slideFreeBody.addEventListener("blur", () => normalizeFreeEditorMarkup(true));
+  refs.slideFreeBody.addEventListener("paste", (event) => {
+    event.preventDefault();
+    const pastedText = event.clipboardData ? event.clipboardData.getData("text/plain") : "";
+    if (!pastedText) {
+      return;
+    }
+    restoreFreeEditorSelection();
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) {
+      return;
+    }
+    const range = selection.getRangeAt(0);
+    if (!refs.slideFreeBody.contains(range.commonAncestorContainer)) {
+      return;
+    }
+    range.deleteContents();
+    const textNode = document.createTextNode(pastedText);
+    range.insertNode(textNode);
+    range.setStartAfter(textNode);
+    range.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(range);
+    saveFreeEditorSelection();
+    normalizeFreeEditorMarkup(true);
+  });
   refs.addFreeLink.addEventListener("click", () => {
     addSelectedFreeLink(refs.freeLinkLabel.value, refs.freeLinkUrl.value);
     refs.freeLinkLabel.value = "";
     refs.freeLinkUrl.value = "";
+  });
+  refs.freeLinksList.addEventListener("input", (event) => {
+    const labelInput = event.target.closest("[data-free-link-label]");
+    if (labelInput) {
+      updateSelectedFreeLink(
+        Number(labelInput.getAttribute("data-free-link-label")),
+        { label: ns.utils.clampText(labelInput.value, 80) }
+      );
+      return;
+    }
+    const urlInput = event.target.closest("[data-free-link-url]");
+    if (urlInput) {
+      updateSelectedFreeLink(
+        Number(urlInput.getAttribute("data-free-link-url")),
+        { url: ns.utils.clampText(urlInput.value, 500) }
+      );
+    }
   });
   refs.slideNote.addEventListener("input", (event) => updateSelectedSlide({ note: ns.utils.clampText(event.target.value, 180) }));
   refs.extraBulletsList.addEventListener("input", (event) => {
@@ -577,7 +1029,23 @@
       index: Number(input.getAttribute("data-extra-bullet-index")),
       caret: input.selectionStart || 0,
     };
-    updateSelectedBullet(Number(input.getAttribute("data-extra-bullet-index")), ns.utils.clampText(input.value, 140));
+    updateSelectedBullet(Number(input.getAttribute("data-extra-bullet-index")), ns.utils.clampText(input.value, 220), false);
+  });
+  refs.slideBulletsEditor.addEventListener("input", (event) => {
+    const input = event.target.closest("[data-sub-bullet-index]");
+    if (!input) {
+      return;
+    }
+    pendingSubBulletFocus = {
+      parentIndex: Number(input.getAttribute("data-sub-bullet-parent")),
+      subIndex: Number(input.getAttribute("data-sub-bullet-index")),
+      caret: input.selectionStart || 0,
+    };
+    updateSelectedSubBullet(
+      Number(input.getAttribute("data-sub-bullet-parent")),
+      Number(input.getAttribute("data-sub-bullet-index")),
+      ns.utils.clampText(input.value, 180)
+    );
   });
   refs.tableEditorGrid.addEventListener("input", (event) => {
     const input = event.target.closest("[data-table-cell]");
@@ -587,6 +1055,13 @@
     const [rowIndex, columnIndex] = input.getAttribute("data-table-cell").split("-").map(Number);
     pendingTableFocus = { row: rowIndex, column: columnIndex, caret: input.selectionStart || 0 };
     updateSelectedTableCell(rowIndex, columnIndex, ns.utils.clampText(input.value, 120));
+  });
+  refs.tableFillTarget.addEventListener("change", () => render());
+  refs.tableFillIndex.addEventListener("change", () => {
+    refs.tableFillColor.value = getSelectedTableFillColor();
+  });
+  refs.tableFillColor.addEventListener("change", () => {
+    refs.tableFillColor.value = normalizeHexColor(refs.tableFillColor.value);
   });
   refs.addTableRow.addEventListener("click", () => {
     const slide = getSelectedSlide();
@@ -604,9 +1079,13 @@
     const slide = getSelectedSlide();
     resizeSelectedTable((slide.table || []).length, Math.max(2, getTableColumnCount(slide.table) - 1));
   });
+  refs.addTableFill.addEventListener("click", () => {
+    setSelectedTableFill(refs.tableFillTarget.value, Number(refs.tableFillIndex.value), normalizeHexColor(refs.tableFillColor.value));
+  });
   refs.mediaUploadTrigger.addEventListener("click", () => refs.mediaUpload.click());
   refs.importJson.addEventListener("click", () => refs.importJsonInput.click());
   refs.toggleNightMode.addEventListener("click", toggleNightMode);
+  refs.toggleMediaPanel.addEventListener("click", toggleMediaPanel);
   refs.importJsonInput.addEventListener("change", async (event) => {
     const file = event.target.files && event.target.files[0];
     if (!file) {
@@ -671,8 +1150,47 @@
     presentationUrl.searchParams.set("present", "1");
     window.open(presentationUrl.toString(), "_blank", "noopener");
   });
+  refs.openPresentationActive.addEventListener("click", () => {
+    ns.services.storage.saveState(STORAGE_KEY, state);
+    const presentationUrl = new URL(window.location.href);
+    presentationUrl.searchParams.set("present", "1");
+    presentationUrl.searchParams.set("start", state.selectedSlideId || "");
+    window.open(presentationUrl.toString(), "_blank", "noopener");
+  });
   refs.tabs.forEach((tab) => {
     tab.addEventListener("click", () => setView(tab.getAttribute("data-switch-view")));
+  });
+
+  document.querySelectorAll("[data-free-command]").forEach((button) => {
+    button.addEventListener("mousedown", (event) => event.preventDefault());
+    button.addEventListener("click", () => {
+      refs.slideFreeBody.focus();
+      const command = button.getAttribute("data-free-command");
+      if (command === "bold") {
+        applyFreeEditorInlineTag("strong");
+        return;
+      }
+      if (command === "underline") {
+        applyFreeEditorInlineTag("u");
+      }
+    });
+  });
+
+  document.querySelectorAll("[data-free-size]").forEach((button) => {
+    button.addEventListener("mousedown", (event) => {
+      event.preventDefault();
+      saveFreeEditorSelection();
+    });
+    button.addEventListener("click", () => {
+      refs.slideFreeBody.focus();
+      applyFreeEditorFontSize(button.getAttribute("data-free-size"));
+    });
+  });
+
+  document.addEventListener("selectionchange", () => {
+    if (document.activeElement === refs.slideFreeBody) {
+      saveFreeEditorSelection();
+    }
   });
 
   document.addEventListener("click", (event) => {
@@ -682,7 +1200,10 @@
     const mediaAssignTrigger = event.target.closest("[data-assign-media]");
     const mediaDeleteTrigger = event.target.closest("[data-delete-media]");
     const removeBulletTrigger = event.target.closest("[data-remove-bullet]");
+    const addSubBulletTrigger = event.target.closest("[data-add-sub-bullet]");
+    const removeSubBulletTrigger = event.target.closest("[data-remove-sub-bullet]");
     const removeFreeLinkTrigger = event.target.closest("[data-remove-free-link]");
+    const removeTableFillTrigger = event.target.closest("[data-remove-table-fill]");
     const toggleFreeMediaTrigger = event.target.closest("[data-toggle-free-media]");
     const addSlideTrigger = event.target.closest("[data-add-slide-bloom]");
     const bloomTrigger = event.target.closest("[data-set-bloom]");
@@ -722,8 +1243,25 @@
       return;
     }
 
+    if (addSubBulletTrigger) {
+      addSelectedSubBullet(Number(addSubBulletTrigger.getAttribute("data-add-sub-bullet")));
+      return;
+    }
+
+    if (removeSubBulletTrigger) {
+      const [parentIndex, subIndex] = removeSubBulletTrigger.getAttribute("data-remove-sub-bullet").split("-").map(Number);
+      removeSelectedSubBullet(parentIndex, subIndex);
+      return;
+    }
+
     if (removeFreeLinkTrigger) {
       removeSelectedFreeLink(Number(removeFreeLinkTrigger.getAttribute("data-remove-free-link")));
+      return;
+    }
+
+    if (removeTableFillTrigger) {
+      const [target, index] = removeTableFillTrigger.getAttribute("data-remove-table-fill").split("-");
+      removeSelectedTableFill(target, Number(index));
       return;
     }
 

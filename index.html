@@ -50,6 +50,7 @@
           <button id="duplicate-slide" class="button button-soft" type="button" data-view="presentation">Dupliquer</button>
           <button id="delete-slide" class="button button-soft" type="button" data-view="presentation">Supprimer</button>
           <button id="open-presentation" class="button button-soft" type="button" data-view="presentation">Présenter</button>
+          <button id="open-presentation-active" class="button button-soft" type="button" data-view="presentation">Présenter depuis la slide active</button>
           <button id="export-pdf" class="button button-soft" type="button" data-view="presentation">Exporter PDF</button>
           <button id="export-pptx" class="button button-soft" type="button" data-view="presentation">Exporter PPTX</button>
           <button id="export-html" class="button button-dark" type="button" data-view="presentation">Exporter HTML</button>
@@ -268,8 +269,9 @@
                     <button class="bullet-drag-handle" type="button" draggable="true" data-bullet-drag-handle="0" aria-label="Glisser le point 1" title="Glisser pour réordonner">
                       ::
                     </button>
-                    <input id="slide-bullet-1" type="text" maxlength="140" />
+                    <input id="slide-bullet-1" type="text" maxlength="220" />
                   </div>
+                  <div id="sub-bullets-0" class="sub-bullets-editor"></div>
                 </label>
                 <label>
                   Point 2
@@ -277,8 +279,9 @@
                     <button class="bullet-drag-handle" type="button" draggable="true" data-bullet-drag-handle="1" aria-label="Glisser le point 2" title="Glisser pour réordonner">
                       ::
                     </button>
-                    <input id="slide-bullet-2" type="text" maxlength="140" />
+                    <input id="slide-bullet-2" type="text" maxlength="220" />
                   </div>
+                  <div id="sub-bullets-1" class="sub-bullets-editor"></div>
                 </label>
                 <label>
                   Point 3
@@ -286,8 +289,9 @@
                     <button class="bullet-drag-handle" type="button" draggable="true" data-bullet-drag-handle="2" aria-label="Glisser le point 3" title="Glisser pour réordonner">
                       ::
                     </button>
-                    <input id="slide-bullet-3" type="text" maxlength="140" />
+                    <input id="slide-bullet-3" type="text" maxlength="220" />
                   </div>
+                  <div id="sub-bullets-2" class="sub-bullets-editor"></div>
                 </label>
               </div>
 
@@ -307,15 +311,54 @@
                   <button id="add-table-column" class="button button-ghost" type="button">Ajouter une colonne</button>
                   <button id="remove-table-column" class="button button-soft" type="button">Retirer une colonne</button>
                 </div>
+                <label class="inline-checkbox">
+                  <input id="slide-table-progressive" type="checkbox" />
+                  <span>Révéler les cases du tableau</span>
+                </label>
+                <label id="slide-table-progressive-order-wrap">
+                  Ordre de révélation
+                  <select id="slide-table-progressive-order">
+                    <option value="row">Ligne par ligne</option>
+                    <option value="column">Colonne 1 puis 2</option>
+                  </select>
+                </label>
+                <div class="table-fill-panel">
+                  <div class="table-fill-header">
+                    <span>Remplissage couleur</span>
+                  </div>
+                  <div class="table-fill-controls">
+                    <select id="table-fill-target">
+                      <option value="row">Ligne</option>
+                      <option value="column">Colonne</option>
+                    </select>
+                    <select id="table-fill-index"></select>
+                    <input id="table-fill-color" type="color" value="#dcecff" aria-label="Couleur de remplissage du tableau" />
+                    <button id="add-table-fill" class="button button-soft" type="button">Appliquer</button>
+                  </div>
+                  <div id="table-fill-list" class="table-fill-list"></div>
+                </div>
                 <div id="table-editor-grid" class="table-editor-grid"></div>
               </div>
 
               <div id="slide-free-editor" class="slide-content-mode" hidden>
-                <label>
-                  Texte libre
-                  <textarea id="slide-free-body" rows="8" maxlength="1600"></textarea>
+                <div class="free-editor-field">
+                  <span class="free-editor-label">Texte libre</span>
+                  <div class="free-editor-shell">
+                    <div class="free-editor-toolbar">
+                      <button class="button button-ghost free-editor-action" type="button" data-free-command="bold"><strong>G</strong></button>
+                      <button class="button button-ghost free-editor-action" type="button" data-free-command="underline"><u>S</u></button>
+                      <div class="free-editor-size-group" aria-label="Taille du texte">
+                        <button class="button button-ghost free-editor-size" type="button" data-free-size="100">100%</button>
+                        <button class="button button-ghost free-editor-size" type="button" data-free-size="110">110%</button>
+                        <button class="button button-ghost free-editor-size" type="button" data-free-size="120">120%</button>
+                        <button class="button button-ghost free-editor-size" type="button" data-free-size="130">130%</button>
+                        <button class="button button-ghost free-editor-size" type="button" data-free-size="140">140%</button>
+                      </div>
+                    </div>
+                    <div id="slide-free-body" class="free-editor" contenteditable="true"></div>
+                  </div>
                   <span id="free-body-meta" class="field-meta"></span>
-                </label>
+                </div>
 
                 <div class="free-links-panel">
                   <div class="extra-bullets-header">
@@ -345,6 +388,7 @@
                     <h3>Zone graphique constante</h3>
                   </div>
                   <div class="slide-media-actions">
+                    <button id="toggle-media-panel" class="button button-soft" type="button" aria-expanded="true">Replier</button>
                     <input
                       id="media-upload"
                       class="media-upload-input"
@@ -357,14 +401,16 @@
                   </div>
                 </div>
 
-                <div class="media-link-row">
-                  <input id="media-link-input" type="url" placeholder="Coller un lien image ou vidéo" />
-                  <button id="media-link-add" class="button button-soft" type="button">Ajouter le lien</button>
-                </div>
+                <div id="slide-media-panel-body" class="slide-media-panel-body">
+                  <div class="media-link-row">
+                    <input id="media-link-input" type="url" placeholder="Coller un lien image ou vidéo" />
+                    <button id="media-link-add" class="button button-soft" type="button">Ajouter le lien</button>
+                  </div>
 
-                <p id="media-link-feedback" class="field-meta"></p>
-                <p id="slide-media-selection" class="preview-hint"></p>
-                <div id="media-library" class="media-library" aria-label="Bibliothèque média"></div>
+                  <p id="media-link-feedback" class="field-meta"></p>
+                  <p id="slide-media-selection" class="preview-hint"></p>
+                  <div id="media-library" class="media-library" aria-label="Bibliothèque média"></div>
+                </div>
               </div>
             </form>
           </section>
