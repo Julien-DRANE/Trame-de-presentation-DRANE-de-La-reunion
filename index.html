@@ -8,6 +8,7 @@
       content="Outil évolutif de création d'ingénierie de formation et de slides avec taxonomie de Bloom et principes cognitifs."
     />
     <title>Studio Ingénierie Formation</title>
+    <link rel="icon" type="image/png" href="assets/images/icon.png" />
     <link rel="stylesheet" href="styles/base.css" />
     <link rel="stylesheet" href="styles/layout.css" />
     <link rel="stylesheet" href="styles/components.css" />
@@ -250,6 +251,8 @@
                 <label>
                   Palette de la slide
                   <select id="slide-palette-override"></select>
+                  <span class="field-label-secondary">Teinte decorative</span>
+                  <select id="slide-decorative-accent-override"></select>
                 </label>
               </div>
 
@@ -415,7 +418,7 @@
             </form>
           </section>
 
-          <section class="panel preview-panel" data-view="presentation">
+          <section id="preview-panel" class="panel preview-panel" data-view="presentation" tabindex="-1">
             <div class="panel-heading">
               <div>
                 <p class="panel-kicker">Aperçu</p>
@@ -426,6 +429,11 @@
 
             <div class="stage-wrap">
               <div id="stage" class="stage"></div>
+              <div
+                id="presentation-progress"
+                class="presentation-progress"
+                aria-label="Progression de la présentation"
+              ></div>
             </div>
 
             <div id="pedagogy-brief" class="pedagogy-brief"></div>

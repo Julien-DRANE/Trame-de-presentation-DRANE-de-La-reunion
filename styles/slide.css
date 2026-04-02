@@ -176,7 +176,7 @@
 }
 
 .slide-headline {
-  margin-top: 0.88rem;
+  margin-top: calc(0.88rem + 1cm);
   max-width: 16ch;
   font-family: var(--slide-font-heading);
   font-size: clamp(1.56rem, 2.82vw, 2.56rem);

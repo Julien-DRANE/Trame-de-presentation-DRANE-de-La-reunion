@@ -8,6 +8,7 @@
     const selectedSlide = state.slides.find((slide) => slide.id === state.selectedSlideId) || state.slides[0];
     const bloomLevels = ns.data.bloomLevels || [];
     const colorPalettes = ns.data.colorPalettes || [];
+    const decorativeAccents = ns.data.decorativeAccents || [];
     const fontOptions = ns.data.fontOptions || [];
     const principles = ns.data.cognitivePrinciples || [];
     const density = ns.ui.computeDensity(selectedSlide);
@@ -77,6 +78,11 @@
       ...colorPalettes.map((palette) => `<option value="${ns.utils.escapeHtml(palette.id)}">${ns.utils.escapeHtml(palette.label)}</option>`),
     ].join("");
     refs.slidePaletteOverride.value = selectedSlide.paletteOverride || "";
+    refs.slideDecorativeAccentOverride.innerHTML = [
+      '<option value="">Habillage de la slide</option>',
+      ...decorativeAccents.map((accent) => `<option value="${ns.utils.escapeHtml(accent.id)}">${ns.utils.escapeHtml(accent.label)}</option>`),
+    ].join("");
+    refs.slideDecorativeAccentOverride.value = selectedSlide.decorativeAccentOverride || "";
     refs.slideBulletsNumbered.checked = Boolean(selectedSlide.bulletsNumbered);
     refs.slideBulletsProgressive.checked = Boolean(selectedSlide.bulletsProgressive);
     refs.slideTableProgressive.checked = Boolean(selectedSlide.tableProgressive);
@@ -146,6 +152,7 @@
       mediaItems: state.mediaLibrary,
       mediaUrls: ns.services.media.getUrlMap(),
     });
+    refs.presentationProgress.innerHTML = renderPresentationProgress(state, selectedSlide.id);
     refs.pedagogyBrief.innerHTML = renderPedagogyBrief(selectedSlide, principles);
     refs.mediaLibrary.innerHTML = renderMediaLibrary(state.mediaLibrary, selectedSlide);
     refs.thumbStrip.innerHTML = renderThumbStrip(state, selectedSlide.id);
@@ -289,6 +296,29 @@
             })}
             <p class="thumb-caption">${ns.utils.escapeHtml(slide.number)} - ${ns.utils.escapeHtml(slide.label)}</p>
           </article>
+        `;
+      })
+      .join("");
+  }
+
+  function renderPresentationProgress(state, activeId) {
+    return state.slides
+      .map((slide, index) => {
+        const isActive = slide.id === activeId;
+        const activeClass = isActive ? " is-active" : "";
+        const slideNumber = slide.number || String(index + 1).padStart(2, "0");
+        const slideTitle = slide.title || `Slide ${slideNumber}`;
+        return `
+          <button
+            class="presentation-progress-step${activeClass}"
+            type="button"
+            data-select-slide="${ns.utils.escapeHtml(slide.id)}"
+            aria-label="Aller à la slide ${ns.utils.escapeHtml(slideNumber)} : ${ns.utils.escapeHtml(slideTitle)}"
+            ${isActive ? 'aria-current="step"' : ""}
+            title="${ns.utils.escapeHtml(slideNumber)} - ${ns.utils.escapeHtml(slideTitle)}"
+          >
+            <span class="presentation-progress-dot"></span>
+          </button>
         `;
       })
       .join("");

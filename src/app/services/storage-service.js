@@ -5,6 +5,7 @@
   const themeOptions = ["random", "mix", "circles", "waves", "clean"];
   const viewOptions = ["engineering", "presentation"];
   const paletteOptions = ((ns.data && ns.data.colorPalettes) || []).map((item) => item.id);
+  const decorativeAccentOptions = ((ns.data && ns.data.decorativeAccents) || []).map((item) => item.id);
   const fontOptions = ((ns.data && ns.data.fontOptions) || []).map((item) => item.id);
   const transitionOptions = ["fade", "slide", "zoom", "rise", "none"];
 
@@ -95,6 +96,7 @@
       tableProgressive: Boolean(slide.tableProgressive),
       tableProgressiveOrder: slide.tableProgressiveOrder === "column" ? "column" : "row",
       paletteOverride: paletteOptions.includes(slide.paletteOverride) ? slide.paletteOverride : "",
+      decorativeAccentOverride: decorativeAccentOptions.includes(slide.decorativeAccentOverride) ? slide.decorativeAccentOverride : "",
       tableHighlights,
       table,
       freeBody: utils.sanitizeRichText(slide.freeBody, 1600),

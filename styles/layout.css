@@ -90,6 +90,10 @@
 }
 
 .stage-wrap {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.9rem;
   padding: 0.5rem;
   border-radius: calc(var(--radius-xl) - 8px);
   background: linear-gradient(180deg, rgba(23, 71, 139, 0.08), rgba(255, 255, 255, 0.42));
@@ -118,6 +122,10 @@
 
   .form-grid,
   .bullet-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .stage-wrap {
     grid-template-columns: 1fr;
   }
 }

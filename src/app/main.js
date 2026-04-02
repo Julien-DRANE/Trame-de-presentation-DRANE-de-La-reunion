@@ -32,7 +32,9 @@
     slideCount: document.querySelector("#slide-count"),
     slideList: document.querySelector("#slide-list"),
     principlesList: document.querySelector("#principles-list"),
+    previewPanel: document.querySelector("#preview-panel"),
     stage: document.querySelector("#stage"),
+    presentationProgress: document.querySelector("#presentation-progress"),
     slideHint: document.querySelector("#slide-hint"),
     densityBadge: document.querySelector("#density-badge"),
     thumbStrip: document.querySelector("#thumb-strip"),
@@ -56,6 +58,7 @@
     slideSubtitle: document.querySelector("#slide-subtitle"),
     slideContentType: document.querySelector("#slide-content-type"),
     slidePaletteOverride: document.querySelector("#slide-palette-override"),
+    slideDecorativeAccentOverride: document.querySelector("#slide-decorative-accent-override"),
     slideBulletsEditor: document.querySelector("#slide-bullets-editor"),
     slideTableEditor: document.querySelector("#slide-table-editor"),
     slideFreeEditor: document.querySelector("#slide-free-editor"),
@@ -108,6 +111,7 @@
   let pendingBulletFocus = null;
   let pendingSubBulletFocus = null;
   let pendingTableFocus = null;
+  let pendingPreviewPanelFocus = false;
   let freeEditorRange = null;
   const isPresentationMode = new URLSearchParams(window.location.search).get("present") === "1";
 
@@ -152,6 +156,10 @@
       }
       pendingSubBulletFocus = null;
     }
+    if (pendingPreviewPanelFocus) {
+      refs.previewPanel.focus();
+      pendingPreviewPanelFocus = false;
+    }
   }
 
   async function hydrateMediaLibrary() {
@@ -192,6 +200,14 @@
     closeAddSlideMenu();
     state.view = view;
     render();
+  }
+
+  function isPreviewPanelTarget(target) {
+    if (!target || !(target instanceof HTMLElement)) {
+      return false;
+    }
+
+    return refs.previewPanel.contains(target);
   }
 
   function toggleNightMode() {
@@ -877,12 +893,16 @@
     });
   }
 
-  function selectSlide(id) {
+  function selectSlide(id, options) {
+    const opts = options || {};
     closeAddSlideMenu();
     if (!state.slides.some((slide) => slide.id === id)) {
       return;
     }
     state.selectedSlideId = id;
+    if (opts.focusPreviewPanel) {
+      pendingPreviewPanelFocus = true;
+    }
     render();
   }
 
@@ -932,6 +952,9 @@
   }));
   refs.slidePaletteOverride.addEventListener("change", (event) => updateSelectedSlide({
     paletteOverride: event.target.value,
+  }));
+  refs.slideDecorativeAccentOverride.addEventListener("change", (event) => updateSelectedSlide({
+    decorativeAccentOverride: event.target.value,
   }));
   refs.slideBulletsNumbered.addEventListener("change", (event) => updateSelectedSlide({
     bulletsNumbered: Boolean(event.target.checked),
@@ -1272,7 +1295,9 @@
     }
 
     if (slideTrigger) {
-      selectSlide(slideTrigger.getAttribute("data-select-slide"));
+      selectSlide(slideTrigger.getAttribute("data-select-slide"), {
+        focusPreviewPanel: refs.slideList.contains(slideTrigger),
+      });
     }
 
     if (moveTrigger) {
@@ -1502,6 +1527,23 @@
   });
 
   document.addEventListener("keydown", (event) => {
+    if ((event.key === "ArrowUp" || event.key === "ArrowDown") && isPreviewPanelTarget(event.target)) {
+      event.preventDefault();
+      const currentIndex = state.slides.findIndex((slide) => slide.id === state.selectedSlideId);
+      if (currentIndex < 0) {
+        return;
+      }
+      const nextIndex = event.key === "ArrowUp"
+        ? Math.max(0, currentIndex - 1)
+        : Math.min(state.slides.length - 1, currentIndex + 1);
+      const nextSlide = state.slides[nextIndex];
+      if (!nextSlide) {
+        return;
+      }
+      selectSlide(nextSlide.id, { focusPreviewPanel: true });
+      return;
+    }
+
     if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "d") {
       event.preventDefault();
       duplicateCurrentSlide();

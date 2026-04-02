@@ -58,6 +58,11 @@
     return getColorPalette((slide && slide.paletteOverride) || (settings && settings.palette) || "ocean");
   }
 
+  function getDecorativeAccent(accentId) {
+    const accents = (ns.data && ns.data.decorativeAccents) || [];
+    return accents.find((item) => item.id === accentId) || null;
+  }
+
   function getFontOption(fontId) {
     const fonts = (ns.data && ns.data.fontOptions) || [];
     return fonts.find((item) => item.id === fontId) || fonts[0] || {
@@ -75,17 +80,18 @@
 
   function createSlidePaletteStyle(slide, settings) {
     const palette = getSlidePalette(slide, settings);
+    const decorativeAccent = getDecorativeAccent(slide && slide.decorativeAccentOverride);
     const font = getDeckFont(settings);
     return [
       `--slide-bg-start:${palette.bgStart}`,
       `--slide-bg-end:${palette.bgEnd}`,
       `--slide-accent:${palette.accent}`,
       `--slide-accent-strong:${palette.accentStrong}`,
-      `--slide-accent-soft:${palette.accentSoft}`,
-      `--slide-accent-softer:${palette.accentSofter}`,
-      `--slide-accent-wave:${palette.accentWave}`,
-      `--slide-accent-wave-soft:${palette.accentWaveSoft}`,
-      `--slide-accent-deep-soft:${palette.accentDeepSoft}`,
+      `--slide-accent-soft:${decorativeAccent ? decorativeAccent.accentSoft : palette.accentSoft}`,
+      `--slide-accent-softer:${decorativeAccent ? decorativeAccent.accentSofter : palette.accentSofter}`,
+      `--slide-accent-wave:${decorativeAccent ? decorativeAccent.accentWave : palette.accentWave}`,
+      `--slide-accent-wave-soft:${decorativeAccent ? decorativeAccent.accentWaveSoft : palette.accentWaveSoft}`,
+      `--slide-accent-deep-soft:${decorativeAccent ? decorativeAccent.accentDeepSoft : palette.accentDeepSoft}`,
       `--slide-surface:${palette.surface}`,
       `--slide-surface-strong:${palette.surfaceStrong}`,
       `--slide-text:${palette.text}`,

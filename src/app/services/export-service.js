@@ -82,6 +82,23 @@
         })}</section>`;
       })
       .join("");
+    const progressMarkup = state.slides
+      .map((slide, index) => {
+        const slideNumber = slide.number || String(index + 1).padStart(2, "0");
+        const slideTitle = slide.title || `Slide ${slideNumber}`;
+        return `
+          <button
+            class="deck-progress-step"
+            type="button"
+            data-progress-index="${index}"
+            aria-label="Aller à la slide ${ns.utils.escapeHtml(slideNumber)} : ${ns.utils.escapeHtml(slideTitle)}"
+            title="${ns.utils.escapeHtml(slideNumber)} - ${ns.utils.escapeHtml(slideTitle)}"
+          >
+            <span class="deck-progress-dot"></span>
+          </button>
+        `;
+      })
+      .join("");
     const initialSlideIndex = Math.max(0, state.slides.findIndex((slide) => slide.id === startSlideId));
 
     return `<!doctype html>
@@ -90,6 +107,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>${ns.utils.escapeHtml(state.settings.title)}</title>
+    <link rel="icon" type="image/png" href="assets/images/icon.png" />
     <style>
       :root {
         --ink: #122033;
@@ -106,6 +124,7 @@
       }
       .deck-shell { min-height: 100vh; padding: 1.2rem; }
       main {
+        position: relative;
         display: block;
       }
       .deck-topbar {
@@ -200,6 +219,66 @@
       }
       body.deck-is-fullscreen .deck-topbar {
         display: none;
+      }
+      .deck-progress {
+        position: fixed;
+        top: 50%;
+        right: 1.1rem;
+        z-index: 25;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.45rem;
+        padding: 0.7rem 0.46rem;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.16);
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        backdrop-filter: blur(12px);
+        transform: translateY(-50%);
+        box-shadow: 0 10px 24px rgba(11, 22, 42, 0.08);
+      }
+      .deck-progress-step {
+        display: grid;
+        place-items: center;
+        width: 0.9rem;
+        height: 0.9rem;
+        padding: 0;
+        border: 0;
+        border-radius: 999px;
+        background: transparent;
+        cursor: pointer;
+      }
+      .deck-progress-dot {
+        width: 0.38rem;
+        height: 0.38rem;
+        border-radius: 999px;
+        background: rgba(23, 71, 139, 0.28);
+        transition:
+          width 0.18s ease,
+          height 0.18s ease,
+          border-radius 0.18s ease,
+          background 0.18s ease,
+          transform 0.18s ease;
+      }
+      .deck-progress-step:hover .deck-progress-dot,
+      .deck-progress-step:focus-visible .deck-progress-dot {
+        transform: scale(1.12);
+        background: rgba(23, 71, 139, 0.42);
+      }
+      .deck-progress-step:focus-visible {
+        outline: 2px solid rgba(44, 115, 218, 0.18);
+        outline-offset: 0.12rem;
+      }
+      .deck-progress-step.is-active {
+        width: 0.96rem;
+        height: 2.2rem;
+      }
+      .deck-progress-step.is-active .deck-progress-dot {
+        width: 0.34rem;
+        height: 1.5rem;
+        border-radius: 999px;
+        background: linear-gradient(180deg, rgba(44, 115, 218, 0.7), rgba(44, 115, 218, 0.42));
+        transform: none;
       }
       .deck-slide::before,
       .deck-slide::after { content: ""; position: absolute; pointer-events: none; }
@@ -328,7 +407,7 @@
         text-transform: uppercase;
       }
       .slide-headline {
-        margin-top: 0.88rem;
+        margin-top: calc(0.88rem + 1cm);
         max-width: 16ch;
         font-family: var(--slide-font-heading);
         font-size: clamp(1.56rem, 2.82vw, 2.56rem);
@@ -847,6 +926,7 @@
         html, body { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
         body { background: #ffffff; }
         .deck-topbar { display: none; }
+        .deck-progress { display: none; }
         .slide-screen {
           display: flex !important;
           width: 297mm;
@@ -867,6 +947,24 @@
           box-shadow: none;
         }
       }
+      @media (max-width: 960px) {
+        .deck-progress {
+          top: auto;
+          right: 50%;
+          bottom: 0.85rem;
+          flex-direction: row;
+          padding: 0.42rem 0.7rem;
+          transform: translateX(50%);
+        }
+        .deck-progress-step.is-active {
+          width: 2rem;
+          height: 0.96rem;
+        }
+        .deck-progress-step.is-active .deck-progress-dot {
+          width: 1.3rem;
+          height: 0.34rem;
+        }
+      }
     </style>
   </head>
   <body data-transition="${ns.utils.escapeHtml(state.settings.transition || "fade")}">
@@ -885,6 +983,9 @@
       </header>
       <main>
         ${slidesMarkup}
+        <div class="deck-progress" id="deck-progress" aria-label="Progression de la présentation">
+          ${progressMarkup}
+        </div>
         <div class="image-lightbox" id="image-lightbox" aria-hidden="true">
           <div class="image-lightbox-frame">
             <button class="image-lightbox-close" type="button" id="image-lightbox-close" aria-label="Fermer l’image">×</button>
@@ -903,6 +1004,7 @@
       const lightbox = document.querySelector("#image-lightbox");
       const lightboxImage = document.querySelector("#image-lightbox-image");
       const lightboxClose = document.querySelector("#image-lightbox-close");
+      const progressSteps = Array.from(document.querySelectorAll("[data-progress-index]"));
       let currentIndex = 0;
       let isTransitioning = false;
 
@@ -990,6 +1092,18 @@
         main.style.setProperty("--deck-fullscreen-scale", String(scale));
       }
 
+      function syncProgress() {
+        progressSteps.forEach((step, index) => {
+          const isActive = index === currentIndex;
+          step.classList.toggle("is-active", isActive);
+          if (isActive) {
+            step.setAttribute("aria-current", "step");
+          } else {
+            step.removeAttribute("aria-current");
+          }
+        });
+      }
+
       function showSlide(nextIndex) {
         if (isTransitioning || screens.length === 0) {
           return;
@@ -1009,6 +1123,7 @@
             screen.classList.toggle("is-active", index === currentIndex);
           });
           resetSlideReveals(getActiveScreen());
+          syncProgress();
           updateFullscreenScale();
           return;
         }
@@ -1028,6 +1143,7 @@
           currentIndex = normalizedIndex;
           incomingScreen.classList.add("is-active");
           resetSlideReveals(incomingScreen);
+          syncProgress();
           clearTransitionClasses(incomingSlide);
           incomingSlide.classList.add("is-transitioning", "transition-" + transitionName + "-in", "direction-" + direction);
           updateFullscreenScale();
@@ -1063,6 +1179,12 @@
 
       prevButton.addEventListener("click", () => showSlide(currentIndex - 1));
       nextButton.addEventListener("click", () => showSlide(currentIndex + 1));
+      progressSteps.forEach((step) => {
+        step.addEventListener("click", (event) => {
+          event.stopPropagation();
+          showSlide(Number(step.getAttribute("data-progress-index")));
+        });
+      });
       main.addEventListener("click", (event) => {
         if (isTransitioning) {
           return;
