@@ -240,6 +240,38 @@
     return createResolvedMediaMarkup(mediaItems[0] || getSlideMedia(slide, options), options);
   }
 
+  function createLinkBubbleListMarkup(urls, className, tagName) {
+    const links = Array.isArray(urls) ? urls.filter(Boolean) : [];
+    if (!links.length) {
+      return "";
+    }
+    const wrapperTag = tagName === "span" ? "span" : "div";
+
+    return `
+      <${wrapperTag} class="${className || "slide-link-bubbles"}">
+        ${links.map((url) => `
+          <a class="slide-free-link slide-link-bubble" href="${ns.utils.escapeHtml(url)}" target="_blank" rel="noopener noreferrer">
+            ${ns.utils.escapeHtml(ns.utils.formatUrlLabel(url))}
+          </a>
+        `).join("")}
+      </${wrapperTag}>
+    `;
+  }
+
+  function createLinkedTextMarkup(value, options) {
+    const utils = ns.utils;
+    const opts = options || {};
+    const linked = utils.extractLinks(value);
+    const hasText = Boolean(linked.text);
+    const textMarkup = hasText
+      ? (opts.multiline
+        ? utils.plainTextToRichHtml(linked.text, opts.limit)
+        : `<span class="${opts.textClass || "slide-linked-text"}">${utils.escapeHtml(linked.text)}</span>`)
+      : "";
+    const linkMarkup = createLinkBubbleListMarkup(linked.links, opts.linksClass, opts.linksTag);
+    return `${textMarkup}${linkMarkup}`;
+  }
+
   function createBulletListMarkup(items, options) {
     const utils = ns.utils;
     const opts = options || {};
@@ -262,11 +294,11 @@
             const childrenMarkup = Array.isArray(bulletItem.children) && bulletItem.children.length
               ? `
                 <ul class="slide-sub-bullets">
-                  ${bulletItem.children.map((child) => `<li>${utils.linkifyText(child)}</li>`).join("")}
+                  ${bulletItem.children.map((child) => `<li>${createLinkedTextMarkup(child, { textClass: "slide-sub-bullet-text", linksClass: "slide-link-bubbles slide-link-bubbles-sub" })}</li>`).join("")}
                 </ul>
               `
               : "";
-            return `<li${revealAttrs}>${marker}<div class="slide-bullet-text">${utils.linkifyText(bulletItem.text || "")}${childrenMarkup}</div></li>`;
+            return `<li${revealAttrs}>${marker}<div class="slide-bullet-text">${createLinkedTextMarkup(bulletItem.text || "", { textClass: "slide-bullet-text-content", linksClass: "slide-link-bubbles slide-link-bubbles-bullet" })}${childrenMarkup}</div></li>`;
           })
           .join("")}
       </ul>
@@ -313,6 +345,7 @@
 
   function createTableMarkup(tableInput, tableHighlights, options) {
     const table = normalizeTable(tableInput);
+    const rowCount = table.length;
     const columnCount = table[0] ? table[0].length : 0;
     const opts = options || {};
     const progressive = Boolean(opts.progressive);
@@ -326,7 +359,7 @@
           ? " slide-table-dense-1"
           : "";
     return `
-      <div class="slide-table${densityClass}">
+      <div class="slide-table${densityClass}" data-table-lightbox="true" data-row-count="${rowCount}" data-column-count="${columnCount}">
         ${table.map((row, rowIndex) => `
           <div class="slide-table-row${progressive && rowIndex > 0 && columnCount > 2 ? " slide-reveal-item" : ""}" style="grid-template-columns: repeat(${row.length}, minmax(0, 1fr));"${progressive && rowIndex > 0 && columnCount > 2 ? ` data-reveal-step="${rowIndex}"` : ""}>
             ${row.map((cell, columnIndex) => {
@@ -339,7 +372,7 @@
               const revealAttrs = progressive && rowIndex > 0 && columnCount <= 2
                 ? ` class="slide-table-cell${headerClass} slide-reveal-item" data-reveal-step="${revealStep}"`
                 : ` class="slide-table-cell${headerClass}"`;
-              return `<div${revealAttrs}${fillStyle ? ` style="${fillStyle}"` : ""}>${ns.utils.escapeHtml(cell || "")}</div>`;
+              return `<div${revealAttrs}${fillStyle ? ` style="${fillStyle}"` : ""}>${createLinkedTextMarkup(cell || "", { textClass: "slide-table-cell-text", linksClass: "slide-link-bubbles slide-link-bubbles-table" })}</div>`;
             }).join("")}
           </div>
         `).join("")}
@@ -482,8 +515,16 @@
       : null;
     const chartRevealBase = visibleMediaCards.reduce((maxStep, item) => Math.max(maxStep, item.revealStep || 0), 0);
     const chartRevealStep = visualData.showChart && visualData.chartReveal ? chartRevealBase + 1 : null;
-    const bodyMarkup = ns.utils.plainTextToRichHtml(visualData.body || "", 320);
-    const calloutMarkup = ns.utils.plainTextToRichHtml(visualData.callout || "", 180);
+    const bodyMarkup = createLinkedTextMarkup(visualData.body || "", {
+      multiline: true,
+      limit: 320,
+      linksClass: "slide-link-bubbles slide-link-bubbles-visual",
+    });
+    const calloutMarkup = createLinkedTextMarkup(visualData.callout || "", {
+      multiline: true,
+      limit: 180,
+      linksClass: "slide-link-bubbles slide-link-bubbles-visual",
+    });
     const chartTitle = visualData.chartTitle || "";
     const chartBars = visualData.chartBars
       .slice(0, Math.max(1, Math.min(6, Number(visualData.chartBarCount) || 3)));
@@ -613,7 +654,7 @@
     const subtitle = slide.subtitle ? `<p class="slide-subtitle-text">${utils.escapeHtml(slide.subtitle)}</p>` : "";
     const signature = settings.footer ? `<span class="slide-signature">${utils.escapeHtml(settings.footer)}</span>` : "";
     const note = slide.note
-      ? `<div class="slide-note">${utils.linkifyText(slide.note)}</div>`
+      ? `<div class="slide-note"><span class="slide-note-content">${createLinkedTextMarkup(slide.note, { textClass: "slide-note-text", linksClass: "slide-link-bubbles slide-link-bubbles-inline slide-link-bubbles-note", linksTag: "span" })}</span></div>`
       : "";
 
     let contentMarkup = "";
@@ -645,11 +686,12 @@
     const themeName = resolveThemeName(slide, settings);
     const paletteStyle = createSlidePaletteStyle(slide, settings);
     const visualModeClass = isVisualMode ? " is-visual-slide" : "";
+    const tableModeClass = isTableMode && !slideMediaItems.length ? " is-table-slide" : "";
     const visualHeaderClass = isVisualMode && (slide.title || slide.subtitle) ? " is-visual-has-header" : "";
     const stackedMediaLayoutClass = slideMediaItems.length > 1 ? " has-media-stack-layout" : "";
 
     return `
-      <article class="deck-slide theme-${utils.escapeHtml(themeName)}${compactClass}${visualModeClass}${visualHeaderClass}" data-progressive-content="${bulletsProgressive || tableProgressive || visualProgressive ? "true" : "false"}" style="${utils.escapeHtml(paletteStyle)}">
+      <article class="deck-slide theme-${utils.escapeHtml(themeName)}${compactClass}${visualModeClass}${tableModeClass}${visualHeaderClass}" data-progressive-content="${bulletsProgressive || tableProgressive || visualProgressive ? "true" : "false"}" style="${utils.escapeHtml(paletteStyle)}">
         <div class="slide-wave" aria-hidden="true"></div>
         <img class="slide-logo slide-logo-region" src="${utils.escapeHtml(logoSources.region)}" alt="Logo region academique" />
         <img class="slide-logo slide-logo-drane" src="${utils.escapeHtml(logoSources.drane)}" alt="Logo Drane" />
@@ -666,7 +708,7 @@
               ${subtitle}
               ${contentMarkup}
             </div>
-            ${slideMediaItems.length && (!extraBullets.length || isTableMode || canKeepMediaWithExtendedBullets) && !isFreeMode && !isVisualMode ? `<aside class="slide-media-slot${slideMediaItems.length > 1 ? " has-media-stack" : ""}">${mediaMarkup}</aside>` : ""}
+            ${slideMediaItems.length && (!extraBullets.length || isTableMode || canKeepMediaWithExtendedBullets) && !isFreeMode && !isVisualMode ? `<aside class="slide-media-slot is-media-bare${slideMediaItems.length > 1 ? " has-media-stack" : ""}">${mediaMarkup}</aside>` : ""}
           </div>
           <div class="slide-footer">
             ${footerNoteMarkup}

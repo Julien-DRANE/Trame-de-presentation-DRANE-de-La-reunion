@@ -509,6 +509,32 @@
         text-decoration: underline;
         overflow-wrap: anywhere;
       }
+      .slide-bullet-text-content,
+      .slide-sub-bullet-text,
+      .slide-table-cell-text {
+        display: block;
+        overflow-wrap: anywhere;
+      }
+      .slide-link-bubbles {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.42rem;
+        margin-top: 0.42rem;
+      }
+      .slide-link-bubbles-inline {
+        display: inline-flex;
+        align-items: center;
+        vertical-align: middle;
+        margin-top: 0;
+      }
+      .slide-link-bubbles-sub {
+        margin-top: 0.28rem;
+      }
+      .slide-link-bubbles-table,
+      .slide-link-bubbles-visual,
+      .slide-link-bubbles-note {
+        margin-top: 0.48rem;
+      }
       .slide-sub-bullets {
         display: grid;
         gap: 0.38rem;
@@ -565,6 +591,74 @@
         border-radius: 8px;
         overflow: hidden;
         box-shadow: var(--slide-frame-shadow);
+      }
+      .slide-table[data-table-lightbox="true"] {
+        cursor: zoom-in;
+      }
+      .deck-slide.is-table-slide .slide-content {
+        padding-right: clamp(2.3rem, 4.8vw, 3.35rem);
+      }
+      .deck-slide.is-table-slide .slide-body {
+        grid-template-columns: minmax(0, 1fr);
+        flex: 1 1 auto;
+        min-height: 0;
+      }
+      .deck-slide.is-table-slide .slide-main {
+        display: flex;
+        flex-direction: column;
+        flex: 1 1 auto;
+        min-height: 0;
+      }
+      .deck-slide.is-table-slide .slide-headline {
+        max-width: 22ch;
+      }
+      .deck-slide.is-table-slide .slide-subtitle-text {
+        max-width: 70ch;
+      }
+      .deck-slide.is-table-slide .slide-table {
+        width: 100%;
+        max-width: none;
+        margin-top: 0.72rem;
+        flex: 1 1 auto;
+        min-height: 0;
+        height: 100%;
+        grid-auto-rows: minmax(0, 1fr);
+        align-content: stretch;
+      }
+      .deck-slide.is-table-slide .slide-table-row {
+        min-height: 0;
+      }
+      .deck-slide.is-table-slide .slide-table-cell {
+        min-height: 0;
+        padding: 0.82rem 0.96rem;
+        font-size: clamp(1rem, 1.5vw, 1.22rem);
+        line-height: 1.28;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+      }
+      .deck-slide.is-table-slide .slide-table.slide-table-dense-1 .slide-table-cell {
+        padding: 0.72rem 0.86rem;
+        font-size: clamp(0.94rem, 1.38vw, 1.14rem);
+        line-height: 1.24;
+      }
+      .deck-slide.is-table-slide .slide-table.slide-table-dense-2 .slide-table-cell {
+        padding: 0.64rem 0.78rem;
+        font-size: clamp(0.88rem, 1.28vw, 1.06rem);
+        line-height: 1.22;
+      }
+      .deck-slide.is-table-slide .slide-table.slide-table-dense-3 .slide-table-cell {
+        padding: 0.56rem 0.7rem;
+        font-size: clamp(0.82rem, 1.18vw, 0.98rem);
+        line-height: 1.18;
+      }
+      .deck-slide.is-table-slide .slide-table[data-row-count="8"] .slide-table-cell {
+        padding: 0.42rem 0.56rem;
+        font-size: clamp(0.72rem, 1.04vw, 0.9rem);
+        line-height: 1.1;
+      }
+      .deck-slide.is-table-slide .slide-footer {
+        padding-top: 0.5rem;
       }
       .slide-table-row {
         display: grid;
@@ -632,6 +726,20 @@
         color: var(--slide-accent-strong);
         font-size: 0.92rem;
         font-weight: 700;
+        text-decoration: none;
+      }
+      .slide-link-bubble {
+        min-height: 1.55rem;
+        max-width: min(100%, 20rem);
+        padding: 0.24rem 0.58rem;
+        font-size: 0.76rem;
+        line-height: 1.2;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .slide-link-bubbles .slide-link-bubble {
+        color: var(--slide-accent-strong);
         text-decoration: none;
       }
       .slide-free-gallery {
@@ -987,9 +1095,19 @@
         align-items: stretch;
         justify-content: stretch;
       }
+      .slide-media-slot.is-media-bare {
+        padding: 0;
+        border: 0;
+        background: transparent;
+        box-shadow: none;
+        overflow: visible;
+      }
       .slide-body.has-media-stack-layout > .slide-media-slot.has-media-stack {
         min-height: clamp(11.4rem, 28vh, 15.9rem);
         padding: 0.45rem;
+      }
+      .slide-body.has-media-stack-layout > .slide-media-slot.is-media-bare.has-media-stack {
+        padding: 0;
       }
       .slide-media-stack {
         display: grid;
@@ -1013,6 +1131,17 @@
       .slide-body.has-media-stack-layout .slide-media-stack-card {
         padding: 0.24rem;
         border-radius: 16px;
+      }
+      .slide-media-slot.is-media-bare .slide-media-stack-card {
+        padding: 0;
+        background: transparent;
+        box-shadow: none;
+      }
+      .slide-media-slot.is-media-bare .slide-media-image,
+      .slide-media-slot.is-media-bare .slide-media-video,
+      .slide-media-slot.is-media-bare .slide-media-embed-wrap,
+      .slide-media-slot.is-media-bare .slide-media-print-card {
+        background: transparent;
       }
       .slide-media-stack-card .slide-media-image,
       .slide-media-stack-card .slide-media-video,
@@ -1040,9 +1169,20 @@
         background: var(--slide-line);
       }
       .slide-media-slot .slide-media-image,
+      .slide-media-slot .slide-media-video,
+      .slide-media-slot .slide-media-print-card,
+      .slide-media-slot .slide-media-embed-wrap,
+      .slide-media-slot .slide-media-external-link,
       .slide-free-gallery-item .slide-media-image {
         cursor: zoom-in;
         transition: transform 180ms ease, box-shadow 180ms ease;
+      }
+      .slide-media-slot .slide-media-image,
+      .slide-media-slot .slide-media-video,
+      .slide-media-slot .slide-media-print-card,
+      .slide-media-slot .slide-media-embed-wrap,
+      .slide-media-slot .slide-media-external-link {
+        box-shadow: var(--slide-frame-shadow);
       }
       .slide-media-slot .slide-media-image:hover,
       .slide-free-gallery-item .slide-media-image:hover {
@@ -1447,6 +1587,79 @@
         cursor: pointer;
         box-shadow: 0 12px 28px rgba(0,0,0,0.2);
       }
+      .table-lightbox {
+        position: fixed;
+        inset: 0;
+        z-index: 85;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 2rem;
+        background: rgba(8,15,28,0.82);
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 220ms ease;
+      }
+      .table-lightbox.is-open {
+        opacity: 1;
+        pointer-events: auto;
+      }
+      body.deck-is-fullscreen .table-lightbox {
+        padding: 0.75rem;
+      }
+      .table-lightbox-frame {
+        position: relative;
+        width: min(94vw, 86rem);
+        max-height: 94vh;
+        transform: scale(0.94);
+        transition: transform 220ms ease;
+      }
+      .table-lightbox.is-open .table-lightbox-frame {
+        transform: scale(1);
+      }
+      .table-lightbox-content {
+        display: grid;
+      }
+      .table-lightbox-surface {
+        padding: 1.2rem;
+        border-radius: 26px;
+        background: rgba(255,255,255,0.96);
+        box-shadow: 0 28px 70px rgba(0,0,0,0.28);
+      }
+      .table-lightbox-table.slide-table {
+        width: 100%;
+        max-width: none;
+        margin: 0;
+        cursor: default;
+      }
+      .table-lightbox-table .slide-table-cell {
+        min-height: min(10vh, 5.8rem);
+        padding: 0.9rem 1rem;
+        font-size: clamp(1rem, 1.45vw, 1.22rem);
+        line-height: 1.22;
+      }
+      .table-lightbox-table[data-row-count="8"] .slide-table-cell {
+        min-height: min(8vh, 4.6rem);
+        padding: 0.58rem 0.74rem;
+        font-size: clamp(0.8rem, 1.16vw, 0.98rem);
+        line-height: 1.1;
+      }
+      .table-lightbox-close {
+        position: absolute;
+        top: -0.9rem;
+        right: -0.9rem;
+        width: 2.6rem;
+        height: 2.6rem;
+        border: 0;
+        border-radius: 999px;
+        background: rgba(255,255,255,0.95);
+        color: #122033;
+        font: inherit;
+        font-size: 1.35rem;
+        line-height: 1;
+        cursor: pointer;
+        box-shadow: 0 12px 28px rgba(0,0,0,0.2);
+      }
       @media (max-width: 980px) {
         .chart-lightbox-layout {
           grid-template-columns: minmax(0, 1fr);
@@ -1470,7 +1683,8 @@
         padding-top: 1rem;
       }
       .slide-note {
-        max-width: 64ch;
+        flex: 1 1 auto;
+        max-width: none;
         padding: 0.75rem 0.95rem;
         border-radius: 18px;
         background: var(--slide-surface);
@@ -1478,6 +1692,23 @@
         font-size: 1.08rem;
         line-height: 1.58;
         box-shadow: var(--slide-frame-shadow);
+      }
+      .slide-note-content {
+        display: inline-flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.45rem;
+        width: 100%;
+        min-width: 0;
+      }
+      .slide-note-text {
+        min-width: 0;
+        white-space: nowrap;
+      }
+      .slide-note-content .slide-link-bubble {
+        align-self: center;
+        position: relative;
+        top: -0.2em;
       }
       .slide-note a {
         color: var(--slide-accent-strong);
@@ -1534,6 +1765,17 @@
           width: 1.3rem;
           height: 0.34rem;
         }
+        .table-lightbox {
+          padding: 1rem;
+        }
+        .table-lightbox-surface {
+          padding: 0.85rem;
+        }
+        .table-lightbox-table .slide-table-cell {
+          padding: 0.46rem 0.52rem;
+          font-size: 0.76rem;
+          line-height: 1.06;
+        }
       }
     </style>
   </head>
@@ -1568,6 +1810,12 @@
             <div class="chart-lightbox-content" id="chart-lightbox-content"></div>
           </div>
         </div>
+        <div class="table-lightbox" id="table-lightbox" aria-hidden="true">
+          <div class="table-lightbox-frame">
+            <button class="table-lightbox-close" type="button" id="table-lightbox-close" aria-label="Fermer le tableau">×</button>
+            <div class="table-lightbox-content" id="table-lightbox-content"></div>
+          </div>
+        </div>
       </main>
     </div>
     <script>
@@ -1583,6 +1831,9 @@
       const chartLightbox = document.querySelector("#chart-lightbox");
       const chartLightboxContent = document.querySelector("#chart-lightbox-content");
       const chartLightboxClose = document.querySelector("#chart-lightbox-close");
+      const tableLightbox = document.querySelector("#table-lightbox");
+      const tableLightboxContent = document.querySelector("#table-lightbox-content");
+      const tableLightboxClose = document.querySelector("#table-lightbox-close");
       const progressSteps = Array.from(document.querySelectorAll("[data-progress-index]"));
       let currentIndex = 0;
       let isTransitioning = false;
@@ -1815,20 +2066,33 @@
         return chartClone;
       }
 
-      function appendChartLightboxParagraphs(container, text) {
-        const content = String(text || "").trim();
-        if (!content) {
-          return;
+      function appendChartLightboxText(container, text) {
+        const linked = window.StudioSlides.utils.extractLinks(text || "");
+        if (linked.text) {
+          linked.text
+            .split(/\\r?\\n/)
+            .map((line) => line.trim())
+            .filter(Boolean)
+            .forEach((line) => {
+              const paragraph = document.createElement("p");
+              paragraph.textContent = line;
+              container.appendChild(paragraph);
+            });
         }
-        content
-          .split(/\\r?\\n/)
-          .map((line) => line.trim())
-          .filter(Boolean)
-          .forEach((line) => {
-            const paragraph = document.createElement("p");
-            paragraph.textContent = line;
-            container.appendChild(paragraph);
+        if (linked.links.length) {
+          const linksWrap = document.createElement("div");
+          linksWrap.className = "slide-link-bubbles";
+          linked.links.forEach((url) => {
+            const link = document.createElement("a");
+            link.className = "slide-free-link slide-link-bubble";
+            link.href = url;
+            link.target = "_blank";
+            link.rel = "noopener noreferrer";
+            link.textContent = window.StudioSlides.utils.formatUrlLabel(url);
+            linksWrap.appendChild(link);
           });
+          container.appendChild(linksWrap);
+        }
       }
 
       function createChartLightboxPanel(title) {
@@ -1890,13 +2154,13 @@
           if (bodyText.trim()) {
             const copy = document.createElement("div");
             copy.className = "chart-lightbox-copy";
-            appendChartLightboxParagraphs(copy, bodyText);
+            appendChartLightboxText(copy, bodyText);
             textPanel.appendChild(copy);
           }
           if (calloutText.trim()) {
             const note = document.createElement("div");
             note.className = "chart-lightbox-note";
-            appendChartLightboxParagraphs(note, calloutText);
+            appendChartLightboxText(note, calloutText);
             textPanel.appendChild(note);
           }
           sideColumn.appendChild(textPanel);
@@ -1931,6 +2195,68 @@
         chartLightboxContent.innerHTML = "";
       }
 
+      function applySlidePaletteVarsToNode(sourceNode, targetNode) {
+        if (!sourceNode || !targetNode) {
+          return;
+        }
+        const slideRoot = sourceNode.closest(".deck-slide");
+        if (!slideRoot) {
+          return;
+        }
+        const computed = window.getComputedStyle(slideRoot);
+        [
+          "--slide-bg-start",
+          "--slide-bg-end",
+          "--slide-accent",
+          "--slide-accent-strong",
+          "--slide-accent-soft",
+          "--slide-accent-softer",
+          "--slide-surface",
+          "--slide-surface-strong",
+          "--slide-text",
+          "--slide-text-muted",
+          "--slide-text-soft",
+          "--slide-line",
+          "--slide-frame-shadow",
+          "--slide-font-body",
+          "--slide-font-heading",
+        ].forEach((name) => {
+          const value = computed.getPropertyValue(name);
+          if (value) {
+            targetNode.style.setProperty(name, value.trim());
+          }
+        });
+      }
+
+      function createTableLightboxMarkup(tableClone) {
+        const wrapper = document.createElement("div");
+        wrapper.className = "table-lightbox-surface";
+        tableClone.classList.add("table-lightbox-table");
+        wrapper.appendChild(tableClone);
+        return wrapper;
+      }
+
+      function openTableLightbox(tableNode) {
+        if (!tableNode) {
+          return;
+        }
+        const tableClone = tableNode.cloneNode(true);
+        applySlidePaletteVarsToNode(tableNode, tableClone);
+        tableClone.querySelectorAll(".slide-reveal-item, .presentation-reveal-hidden, .presentation-reveal-visible").forEach((node) => {
+          node.classList.remove("slide-reveal-item", "presentation-reveal-hidden", "presentation-reveal-visible");
+        });
+        tableLightboxContent.innerHTML = "";
+        tableLightboxContent.appendChild(createTableLightboxMarkup(tableClone));
+        tableLightbox.classList.add("is-open");
+        tableLightbox.setAttribute("aria-hidden", "false");
+      }
+
+      function closeTableLightbox() {
+        tableLightbox.classList.remove("is-open");
+        tableLightbox.setAttribute("aria-hidden", "true");
+        tableLightboxContent.innerHTML = "";
+      }
+
       prevButton.addEventListener("click", () => showSlide(currentIndex - 1));
       nextButton.addEventListener("click", () => showSlide(currentIndex + 1));
       progressSteps.forEach((step) => {
@@ -1949,9 +2275,17 @@
         if (chartLightbox.classList.contains("is-open")) {
           return;
         }
+        if (tableLightbox.classList.contains("is-open")) {
+          return;
+        }
         const slideImage = event.target.closest(".slide-media-image");
         if (slideImage && !event.target.closest(".slide-media-print-card")) {
           openImageLightbox(slideImage);
+          return;
+        }
+        const slideTable = event.target.closest(".slide-table[data-table-lightbox='true']");
+        if (slideTable) {
+          openTableLightbox(slideTable);
           return;
         }
         const chartCard = event.target.closest(".slide-visual-chart-card");
@@ -1980,6 +2314,12 @@
         event.stopPropagation();
         if (event.target === chartLightbox || event.target === chartLightboxClose) {
           closeChartLightbox();
+        }
+      });
+      tableLightbox.addEventListener("click", (event) => {
+        event.stopPropagation();
+        if (event.target === tableLightbox || event.target === tableLightboxClose) {
+          closeTableLightbox();
         }
       });
       fullscreenButton.addEventListener("click", async () => {
@@ -2015,6 +2355,10 @@
         }
         if (event.key === "Escape" && chartLightbox.classList.contains("is-open")) {
           closeChartLightbox();
+          return;
+        }
+        if (event.key === "Escape" && tableLightbox.classList.contains("is-open")) {
+          closeTableLightbox();
           return;
         }
         if (event.key === "ArrowRight" || event.key === "PageDown") showSlide(currentIndex + 1);

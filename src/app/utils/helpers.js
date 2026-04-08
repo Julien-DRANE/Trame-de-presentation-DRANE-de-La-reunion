@@ -126,6 +126,59 @@
     return (doc.body.textContent || "").trim().length;
   }
 
+  function extractLinks(value) {
+    const source = String(value || "");
+    const urlRegex = /(https?:\/\/[^\s<]+)/g;
+    let lastIndex = 0;
+    const links = [];
+    let text = "";
+    let match;
+
+    while ((match = urlRegex.exec(source)) !== null) {
+      text += source.slice(lastIndex, match.index);
+      links.push(match[0]);
+      lastIndex = match.index + match[0].length;
+    }
+
+    text += source.slice(lastIndex);
+
+    return {
+      text: text
+        .replace(/[ \t]+\n/g, "\n")
+        .replace(/\n[ \t]+/g, "\n")
+        .replace(/[ \t]{2,}/g, " ")
+        .trim(),
+      links: uniqueStrings(links),
+    };
+  }
+
+  function formatUrlLabel(url) {
+    const source = String(url || "").trim();
+    if (!source) {
+      return "";
+    }
+
+    try {
+      const parsed = new URL(source);
+      const hostname = (parsed.hostname || "")
+        .replace(/^www\./i, "")
+        .trim();
+      const hasExtraPath = Boolean(
+        (parsed.pathname && parsed.pathname !== "/" && parsed.pathname !== "") ||
+        parsed.search ||
+        parsed.hash
+      );
+      const compact = `${hostname}${hasExtraPath ? "/..." : ""}`;
+      return compact.length > 22 ? `${compact.slice(0, 19)}...` : compact;
+    } catch (error) {
+      const shortened = source
+        .replace(/^https?:\/\//i, "")
+        .replace(/^www\./i, "")
+        .replace(/\/$/, "");
+      return shortened.length > 22 ? `${shortened.slice(0, 19)}...` : shortened;
+    }
+  }
+
   function linkifyText(value) {
     const source = String(value || "");
     const urlRegex = /(https?:\/\/[^\s<]+)/g;
@@ -154,5 +207,7 @@
   ns.utils.plainTextToRichHtml = plainTextToRichHtml;
   ns.utils.sanitizeRichText = sanitizeRichText;
   ns.utils.richTextLength = richTextLength;
+  ns.utils.extractLinks = extractLinks;
+  ns.utils.formatUrlLabel = formatUrlLabel;
   ns.utils.linkifyText = linkifyText;
 })();

@@ -38,6 +38,9 @@
     chartLightbox: document.querySelector("#chart-lightbox"),
     chartLightboxContent: document.querySelector("#chart-lightbox-content"),
     chartLightboxClose: document.querySelector("#chart-lightbox-close"),
+    tableLightbox: document.querySelector("#table-lightbox"),
+    tableLightboxContent: document.querySelector("#table-lightbox-content"),
+    tableLightboxClose: document.querySelector("#table-lightbox-close"),
     presentationProgress: document.querySelector("#presentation-progress"),
     slideHint: document.querySelector("#slide-hint"),
     densityBadge: document.querySelector("#density-badge"),
@@ -316,6 +319,35 @@
     return chartClone;
   }
 
+  function appendChartLightboxText(container, text) {
+    const linked = ns.utils.extractLinks(text || "");
+    if (linked.text) {
+      linked.text
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter(Boolean)
+        .forEach((line) => {
+          const paragraph = document.createElement("p");
+          paragraph.textContent = line;
+          container.appendChild(paragraph);
+        });
+    }
+    if (linked.links.length) {
+      const linksWrap = document.createElement("div");
+      linksWrap.className = "slide-link-bubbles";
+      linked.links.forEach((url) => {
+        const link = document.createElement("a");
+        link.className = "slide-free-link slide-link-bubble";
+        link.href = url;
+        link.target = "_blank";
+        link.rel = "noopener noreferrer";
+        link.textContent = ns.utils.formatUrlLabel(url);
+        linksWrap.appendChild(link);
+      });
+      container.appendChild(linksWrap);
+    }
+  }
+
   function createChartLightboxMarkup(chartCard, chartClone) {
     const chartBars = getChartLightboxBars(chartCard);
     const legendMarkup = chartBars.length ? `
@@ -332,26 +364,37 @@
         </ul>
       </section>
     ` : "";
-    const bodyMarkup = ns.utils.plainTextToRichHtml(chartCard.getAttribute("data-chart-body") || "", 320);
-    const calloutMarkup = ns.utils.plainTextToRichHtml(chartCard.getAttribute("data-chart-callout") || "", 180);
-    const indicatorTextMarkup = bodyMarkup || calloutMarkup ? `
-      <section class="chart-lightbox-panel">
-        <p class="chart-lightbox-kicker">Texte des indicateurs</p>
-        ${bodyMarkup ? `<div class="chart-lightbox-copy">${bodyMarkup}</div>` : ""}
-        ${calloutMarkup ? `<div class="chart-lightbox-note">${calloutMarkup}</div>` : ""}
-      </section>
-    ` : "";
-
     const wrapper = document.createElement("div");
     wrapper.className = "chart-lightbox-layout";
     wrapper.innerHTML = `
       <div class="chart-lightbox-main"></div>
-      <aside class="chart-lightbox-side"${legendMarkup || indicatorTextMarkup ? "" : " hidden"}>
+      <aside class="chart-lightbox-side"${legendMarkup ? "" : " hidden"}>
         ${legendMarkup}
-        ${indicatorTextMarkup}
       </aside>
     `;
     wrapper.querySelector(".chart-lightbox-main").appendChild(chartClone);
+    const side = wrapper.querySelector(".chart-lightbox-side");
+    const bodyText = chartCard.getAttribute("data-chart-body") || "";
+    const calloutText = chartCard.getAttribute("data-chart-callout") || "";
+    if (bodyText.trim() || calloutText.trim()) {
+      const panel = document.createElement("section");
+      panel.className = "chart-lightbox-panel";
+      panel.innerHTML = `<p class="chart-lightbox-kicker">Texte des indicateurs</p>`;
+      if (bodyText.trim()) {
+        const copy = document.createElement("div");
+        copy.className = "chart-lightbox-copy";
+        appendChartLightboxText(copy, bodyText);
+        panel.appendChild(copy);
+      }
+      if (calloutText.trim()) {
+        const note = document.createElement("div");
+        note.className = "chart-lightbox-note";
+        appendChartLightboxText(note, calloutText);
+        panel.appendChild(note);
+      }
+      side.appendChild(panel);
+    }
+    side.hidden = side.childElementCount === 0;
     return wrapper;
   }
 
@@ -378,6 +421,71 @@
     refs.chartLightbox.classList.remove("is-open");
     refs.chartLightbox.setAttribute("aria-hidden", "true");
     refs.chartLightboxContent.innerHTML = "";
+  }
+
+  function applySlidePaletteVarsToNode(sourceNode, targetNode) {
+    if (!sourceNode || !targetNode) {
+      return;
+    }
+    const slideRoot = sourceNode.closest(".deck-slide");
+    if (!slideRoot) {
+      return;
+    }
+    const computed = window.getComputedStyle(slideRoot);
+    [
+      "--slide-bg-start",
+      "--slide-bg-end",
+      "--slide-accent",
+      "--slide-accent-strong",
+      "--slide-accent-soft",
+      "--slide-accent-softer",
+      "--slide-surface",
+      "--slide-surface-strong",
+      "--slide-text",
+      "--slide-text-muted",
+      "--slide-text-soft",
+      "--slide-line",
+      "--slide-frame-shadow",
+      "--slide-font-body",
+      "--slide-font-heading",
+    ].forEach((name) => {
+      const value = computed.getPropertyValue(name);
+      if (value) {
+        targetNode.style.setProperty(name, value.trim());
+      }
+    });
+  }
+
+  function createTableLightboxMarkup(tableClone) {
+    const wrapper = document.createElement("div");
+    wrapper.className = "table-lightbox-surface";
+    tableClone.classList.add("table-lightbox-table");
+    wrapper.appendChild(tableClone);
+    return wrapper;
+  }
+
+  function openTableLightbox(tableNode) {
+    if (!tableNode || !refs.tableLightbox || !refs.tableLightboxContent) {
+      return;
+    }
+    const tableClone = tableNode.cloneNode(true);
+    applySlidePaletteVarsToNode(tableNode, tableClone);
+    tableClone.querySelectorAll(".slide-reveal-item, .presentation-reveal-hidden, .presentation-reveal-visible").forEach((node) => {
+      node.classList.remove("slide-reveal-item", "presentation-reveal-hidden", "presentation-reveal-visible");
+    });
+    refs.tableLightboxContent.innerHTML = "";
+    refs.tableLightboxContent.appendChild(createTableLightboxMarkup(tableClone));
+    refs.tableLightbox.classList.add("is-open");
+    refs.tableLightbox.setAttribute("aria-hidden", "false");
+  }
+
+  function closeTableLightbox() {
+    if (!refs.tableLightbox || !refs.tableLightboxContent) {
+      return;
+    }
+    refs.tableLightbox.classList.remove("is-open");
+    refs.tableLightbox.setAttribute("aria-hidden", "true");
+    refs.tableLightboxContent.innerHTML = "";
   }
 
   function setView(view) {
@@ -2047,6 +2155,11 @@
   });
 
   refs.stage.addEventListener("click", (event) => {
+    const tableCard = event.target.closest(".slide-table[data-table-lightbox='true']");
+    if (tableCard) {
+      openTableLightbox(tableCard);
+      return;
+    }
     const chartCard = event.target.closest(".slide-visual-chart-card");
     if (!chartCard) {
       return;
@@ -2063,9 +2176,23 @@
     }
   });
 
+  refs.tableLightbox.addEventListener("click", (event) => {
+    if (
+      event.target === refs.tableLightbox ||
+      event.target === refs.tableLightboxClose
+    ) {
+      closeTableLightbox();
+    }
+  });
+
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape" && refs.chartLightbox.classList.contains("is-open")) {
       closeChartLightbox();
+      return;
+    }
+
+    if (event.key === "Escape" && refs.tableLightbox.classList.contains("is-open")) {
+      closeTableLightbox();
       return;
     }
 
