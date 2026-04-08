@@ -181,6 +181,7 @@
         --slide-text-muted: var(--muted);
         --slide-text-soft: rgba(18,32,51,0.44);
         --slide-line: rgba(18,32,51,0.12);
+        --slide-frame-shadow: none;
         --slide-font-body: Aptos, "Segoe UI", "Trebuchet MS", sans-serif;
         --slide-font-heading: "Iowan Old Style", Georgia, serif;
         position: relative;
@@ -422,6 +423,10 @@
         gap: clamp(1rem, 2vw, 1.4rem);
         align-items: start;
       }
+      .slide-body.has-media-stack-layout {
+        grid-template-columns: minmax(0, 1fr) clamp(11.75rem, 29%, 17.1rem);
+        gap: clamp(0.85rem, 1.7vw, 1.15rem);
+      }
       .slide-main { min-width: 0; }
       .slide-main,
       .slide-body > .slide-media-slot,
@@ -498,6 +503,12 @@
       .slide-bullet-text {
         min-width: 0;
       }
+      .slide-bullet-text a,
+      .slide-sub-bullets a {
+        color: var(--slide-accent-strong);
+        text-decoration: underline;
+        overflow-wrap: anywhere;
+      }
       .slide-sub-bullets {
         display: grid;
         gap: 0.38rem;
@@ -553,6 +564,7 @@
         border: 1px solid var(--slide-line);
         border-radius: 8px;
         overflow: hidden;
+        box-shadow: var(--slide-frame-shadow);
       }
       .slide-table-row {
         display: grid;
@@ -634,6 +646,7 @@
         border: 1px solid var(--slide-line);
         border-radius: 16px;
         background: var(--slide-surface-strong);
+        box-shadow: var(--slide-frame-shadow);
       }
       .slide-free-gallery-item .slide-media-image,
       .slide-free-gallery-item .slide-media-video,
@@ -642,6 +655,321 @@
         margin: 0;
         max-height: 8.6rem;
         border-radius: 12px;
+      }
+      .slide-body-visual {
+        grid-template-columns: minmax(0, 1fr);
+        min-height: 0;
+      }
+      .slide-body-visual .slide-main {
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+      }
+      .deck-slide.is-visual-slide .slide-body-visual .slide-main {
+        gap: 0.18rem;
+      }
+      .slide-visual-layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1.22fr) minmax(11rem, 0.78fr);
+        gap: clamp(0.75rem, 1.6vw, 1.1rem);
+        margin-top: 0.72rem;
+        align-items: stretch;
+        flex: 1 1 auto;
+        min-height: 0;
+        position: relative;
+      }
+      .slide-visual-flow,
+      .slide-visual-support-column,
+      .slide-visual-relation-card {
+        display: grid;
+        gap: 0.7rem;
+        min-height: 0;
+      }
+      .slide-visual-flow {
+        position: relative;
+      }
+      .slide-visual-flow-horizontal {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        align-items: stretch;
+        gap: 1rem;
+      }
+      .slide-visual-flow-vertical {
+        grid-template-rows: repeat(2, minmax(0, 1fr));
+        gap: 1rem;
+      }
+      .slide-visual-flow-count-1 {
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-rows: minmax(0, 1fr);
+      }
+      .slide-visual-support-column {
+        align-content: start;
+        align-self: start;
+      }
+      .slide-visual-support-column.has-chart {
+        grid-template-rows: auto auto minmax(0, 1fr);
+      }
+      .slide-visual-layout.is-media-hidden {
+        grid-template-columns: minmax(0, 1fr);
+      }
+      .slide-visual-support-column.is-expanded.has-chart {
+        grid-template-columns: minmax(0, 0.78fr) minmax(0, 1.22fr);
+        grid-template-rows: auto minmax(0, 1fr);
+        align-items: stretch;
+      }
+      .slide-visual-support-column.is-expanded.has-chart .slide-visual-text-card {
+        grid-column: 1;
+        grid-row: 1;
+      }
+      .slide-visual-support-column.is-expanded.has-chart .slide-visual-callout-card {
+        grid-column: 1;
+        grid-row: 2;
+      }
+      .slide-visual-support-column.is-expanded.has-chart .slide-visual-chart-card {
+        grid-column: 2;
+        grid-row: 1 / span 2;
+      }
+      .slide-visual-media-card,
+      .slide-visual-text-card,
+      .slide-visual-callout-card,
+      .slide-visual-relation-card,
+      .slide-visual-chart-card {
+        min-width: 0;
+        min-height: 0;
+        border: 1px solid var(--slide-line);
+        border-radius: 22px;
+        background: var(--slide-surface-strong);
+        overflow: hidden;
+        box-shadow: var(--slide-frame-shadow);
+      }
+      .slide-visual-media-card {
+        display: grid;
+        place-items: center;
+        width: 100%;
+        padding: 0.45rem;
+        background:
+          linear-gradient(145deg, rgba(255,255,255,0.68), rgba(255,255,255,0.34)),
+          var(--slide-surface-strong);
+      }
+      .slide-visual-media-frame {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        height: 100%;
+        min-width: 0;
+        min-height: 0;
+      }
+      .slide-visual-flow-horizontal .slide-visual-media-card {
+        aspect-ratio: 1 / 0.92;
+      }
+      .slide-visual-flow-vertical .slide-visual-media-card {
+        aspect-ratio: 16 / 5.05;
+      }
+      .slide-visual-media-card .slide-media-image,
+      .slide-visual-media-card .slide-media-video,
+      .slide-visual-media-card .slide-media-print-card,
+      .slide-visual-media-card .slide-media-embed-wrap {
+        width: auto;
+        height: auto;
+        max-width: 100%;
+        max-height: 100%;
+        margin: 0;
+        border-radius: 16px;
+        box-sizing: border-box;
+      }
+      .slide-visual-media-card .slide-media-print-card,
+      .slide-visual-media-card .slide-media-external-link {
+        display: grid;
+        place-items: center;
+        width: 100%;
+        height: 100%;
+        min-width: 0;
+        min-height: 0;
+      }
+      .slide-visual-media-card .slide-media-image,
+      .slide-visual-media-card .slide-media-video {
+        object-fit: contain;
+        object-position: center;
+        background: rgba(255,255,255,0.42);
+        width: auto;
+        height: auto;
+        max-width: 100%;
+        max-height: 100%;
+      }
+      .slide-visual-media-card .slide-media-print-card .slide-media-image,
+      .slide-visual-media-card .slide-media-external-link .slide-media-image {
+        object-fit: contain;
+        object-position: center;
+      }
+      .deck-slide.is-visual-slide.is-visual-has-header .slide-visual-layout {
+        gap: clamp(0.6rem, 1.3vw, 0.9rem);
+        margin-top: 0.38rem;
+      }
+      .deck-slide.is-visual-slide.is-visual-has-header .slide-visual-flow-horizontal .slide-visual-media-card {
+        aspect-ratio: 1 / 0.76;
+      }
+      .deck-slide.is-visual-slide.is-visual-has-header .slide-visual-flow-vertical .slide-visual-media-card {
+        aspect-ratio: 16 / 4.15;
+      }
+      .deck-slide.is-visual-slide.is-visual-has-header .slide-visual-text-card,
+      .deck-slide.is-visual-slide.is-visual-has-header .slide-visual-callout-card,
+      .deck-slide.is-visual-slide.is-visual-has-header .slide-visual-chart-card {
+        padding: 0.72rem 0.82rem;
+      }
+      .slide-visual-media-placeholder {
+        display: grid;
+        place-items: center;
+        min-height: inherit;
+        padding: 1rem;
+        color: var(--slide-text-muted);
+        text-align: center;
+        line-height: 1.35;
+        background:
+          linear-gradient(145deg, rgba(255,255,255,0.5), transparent),
+          var(--slide-surface);
+      }
+      .slide-visual-text-card,
+      .slide-visual-callout-card,
+      .slide-visual-relation-card,
+      .slide-visual-chart-card {
+        padding: 0.82rem 0.9rem;
+      }
+      .slide-visual-text-card {
+        display: flex;
+        align-items: flex-start;
+      }
+      .slide-visual-text-card p,
+      .slide-visual-callout-text p {
+        margin: 0;
+        color: var(--slide-text-muted);
+        font-size: 0.94rem;
+        line-height: 1.34;
+      }
+      .slide-visual-text-card p + p,
+      .slide-visual-callout-text p + p {
+        margin-top: 0.32rem;
+      }
+      .slide-visual-relation-card {
+        position: absolute;
+        inset: 50% auto auto 50%;
+        align-content: center;
+        justify-items: center;
+        padding: 0;
+        border: 0;
+        background: transparent;
+        overflow: visible;
+        z-index: 2;
+        box-shadow: none;
+        transform: translate(-50%, -50%);
+        pointer-events: none;
+      }
+      .slide-visual-flow-horizontal .slide-visual-relation-card {
+        top: calc(50% + 0.9rem);
+        left: 50%;
+        text-align: center;
+        transform: translate(-50%, -50%);
+      }
+      .slide-visual-flow-vertical .slide-visual-relation-card {
+        top: 50%;
+        left: calc(50% - 0.1rem);
+        align-items: center;
+        justify-items: center;
+        transform: translate(-50%, -50%);
+      }
+      .slide-visual-arrow-wrap {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 2.9rem;
+        padding: 0;
+        pointer-events: none;
+      }
+      .slide-visual-arrow-svg {
+        width: 100%;
+        max-width: 12rem;
+        height: 2.8rem;
+        filter: drop-shadow(0 8px 18px rgba(18,32,51,0.12));
+      }
+      .slide-visual-flow-vertical .slide-visual-arrow-svg {
+        max-width: 3.4rem;
+        height: 6rem;
+      }
+      .slide-visual-chart-card {
+        display: grid;
+        gap: 0.6rem;
+        min-height: 0;
+        cursor: zoom-in;
+        transition: transform 180ms ease, box-shadow 180ms ease;
+      }
+      .slide-visual-chart-card:hover {
+        transform: translateY(-0.08rem);
+        box-shadow: 0 14px 34px rgba(18,32,51,0.12);
+      }
+      .slide-visual-chart-title {
+        font-size: 0.8rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--slide-accent-strong);
+      }
+      .slide-visual-chart-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.55rem;
+        align-items: end;
+        min-height: 0;
+        height: 100%;
+      }
+      .slide-visual-chart-grid.is-dense {
+        gap: 0.38rem;
+      }
+      .slide-visual-chart-bar-card {
+        display: grid;
+        gap: 0.4rem;
+        min-height: 0;
+      }
+      .slide-visual-chart-bar-shell {
+        display: flex;
+        align-items: end;
+        min-height: clamp(4.6rem, 7vw, 6rem);
+        padding: 0.24rem;
+        border-radius: 16px;
+        background:
+          repeating-linear-gradient(
+            to top,
+            rgba(23,71,139,0.1) 0,
+            rgba(23,71,139,0.1) 1px,
+            transparent 1px,
+            transparent 1.35rem
+          ),
+          linear-gradient(180deg, rgba(255,255,255,0.78), rgba(255,255,255,0.58));
+        box-shadow: inset 0 0 0 1px rgba(23,71,139,0.08);
+      }
+      .slide-visual-chart-bar-fill {
+        width: 100%;
+        min-height: 0.85rem;
+        border-radius: 14px 14px 6px 6px;
+        box-shadow: inset 0 0 0 1px rgba(255,255,255,0.2);
+      }
+      .slide-visual-chart-meta {
+        display: grid;
+        gap: 0.12rem;
+        justify-items: center;
+        text-align: center;
+      }
+      .slide-visual-chart-label {
+        font-size: 0.72rem;
+        color: var(--slide-text-muted);
+      }
+      .slide-visual-chart-value {
+        font-size: 0.92rem;
+        color: var(--slide-text);
+      }
+      .slide-visual-chart-grid.is-dense .slide-visual-chart-label {
+        font-size: 0.64rem;
+      }
+      .slide-visual-chart-grid.is-dense .slide-visual-chart-value {
+        font-size: 0.82rem;
       }
       .slide-media-slot {
         display: flex;
@@ -654,6 +982,52 @@
         border-radius: 22px;
         background: var(--slide-surface);
         overflow: hidden;
+      }
+      .slide-media-slot.has-media-stack {
+        align-items: stretch;
+        justify-content: stretch;
+      }
+      .slide-body.has-media-stack-layout > .slide-media-slot.has-media-stack {
+        min-height: clamp(11.4rem, 28vh, 15.9rem);
+        padding: 0.45rem;
+      }
+      .slide-media-stack {
+        display: grid;
+        grid-template-rows: repeat(2, minmax(0, 1fr));
+        gap: 0.55rem;
+        width: 100%;
+        height: 100%;
+      }
+      .slide-media-stack-card {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 0;
+        padding: 0.3rem;
+        border-radius: 18px;
+        background: rgba(255,255,255,0.28);
+      }
+      .slide-body.has-media-stack-layout .slide-media-stack {
+        gap: 0.42rem;
+      }
+      .slide-body.has-media-stack-layout .slide-media-stack-card {
+        padding: 0.24rem;
+        border-radius: 16px;
+      }
+      .slide-media-stack-card .slide-media-image,
+      .slide-media-stack-card .slide-media-video,
+      .slide-media-stack-card .slide-media-print-card,
+      .slide-media-stack-card .slide-media-embed-wrap,
+      .slide-media-stack-card .slide-media-external-link {
+        width: 100%;
+        height: 100%;
+        max-height: 100%;
+        min-height: 0;
+      }
+      .slide-media-stack-card .slide-media-image,
+      .slide-media-stack-card .slide-media-video {
+        object-fit: contain;
+        object-position: center;
       }
       .slide-media-image,
       .slide-media-video {
@@ -892,6 +1266,201 @@
         cursor: pointer;
         box-shadow: 0 12px 28px rgba(0,0,0,0.2);
       }
+      .chart-lightbox {
+        position: fixed;
+        inset: 0;
+        z-index: 85;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 2rem;
+        background: rgba(8,15,28,0.82);
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 220ms ease;
+      }
+      .chart-lightbox.is-open {
+        opacity: 1;
+        pointer-events: auto;
+      }
+      body.deck-is-fullscreen .chart-lightbox {
+        padding: 0.75rem;
+      }
+      .chart-lightbox-frame {
+        position: relative;
+        width: min(92vw, 72rem);
+        max-height: 92vh;
+        transform: scale(0.94);
+        transition: transform 220ms ease;
+      }
+      body.deck-is-fullscreen .chart-lightbox-frame {
+        width: min(98vw, 84rem);
+        max-height: 98vh;
+      }
+      .chart-lightbox.is-open .chart-lightbox-frame {
+        transform: scale(1);
+      }
+      .chart-lightbox-content {
+        display: grid;
+      }
+      .chart-lightbox-layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1.7fr) minmax(17rem, 23rem);
+        gap: 1rem;
+        align-items: stretch;
+      }
+      .chart-lightbox-main {
+        min-width: 0;
+      }
+      .chart-lightbox-side {
+        display: grid;
+        gap: 0.9rem;
+        align-content: start;
+      }
+      .chart-lightbox-panel {
+        padding: 1rem 1.05rem;
+        border-radius: 22px;
+        background: rgba(255,255,255,0.9);
+        border: 1px solid rgba(18,32,51,0.08);
+        box-shadow: 0 16px 36px rgba(7,28,61,0.12);
+      }
+      .chart-lightbox-kicker {
+        margin: 0 0 0.75rem;
+        font-size: 0.72rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: rgba(18,32,51,0.52);
+      }
+      .chart-lightbox-legend {
+        display: grid;
+        gap: 0.55rem;
+        padding: 0;
+        margin: 0;
+        list-style: none;
+      }
+      .chart-lightbox-legend-item {
+        display: grid;
+        grid-template-columns: auto 1fr auto;
+        gap: 0.65rem;
+        align-items: center;
+      }
+      .chart-lightbox-swatch {
+        width: 0.9rem;
+        height: 0.9rem;
+        border-radius: 999px;
+        box-shadow: inset 0 0 0 1px rgba(18,32,51,0.08);
+      }
+      .chart-lightbox-legend-label {
+        min-width: 0;
+        font-size: 0.94rem;
+        color: #122033;
+      }
+      .chart-lightbox-legend-value {
+        font-size: 0.98rem;
+        color: #122033;
+      }
+      .chart-lightbox-copy,
+      .chart-lightbox-note {
+        display: grid;
+        gap: 0.45rem;
+        color: #223248;
+      }
+      .chart-lightbox-copy p,
+      .chart-lightbox-note p {
+        margin: 0;
+        line-height: 1.5;
+      }
+      .chart-lightbox-note {
+        margin-top: 0.8rem;
+        padding-top: 0.8rem;
+        border-top: 1px solid rgba(18,32,51,0.1);
+      }
+      .chart-lightbox-main .slide-visual-chart-card {
+        min-height: min(82vh, 44rem);
+        padding: 1.35rem 1.5rem;
+        border-radius: 26px;
+        box-shadow: 0 28px 70px rgba(0,0,0,0.28);
+        transform: none;
+      }
+      .chart-lightbox-main .slide-visual-chart-title {
+        font-size: 1rem;
+      }
+      .chart-lightbox-chart-grid-wrap {
+        display: block;
+        min-height: 22rem;
+      }
+      .chart-lightbox-grid-surface {
+        position: relative;
+        min-width: 0;
+      }
+      .chart-lightbox-grid-lines {
+        position: absolute;
+        inset: 0 0 0.95rem 0;
+        pointer-events: none;
+        z-index: 2;
+      }
+      .chart-lightbox-grid-lines span {
+        position: absolute;
+        left: 0;
+        right: 0;
+        border-top: 2px solid rgba(18,32,51,0.36);
+      }
+      .chart-lightbox-grid-lines span[data-chart-line="high"] {
+        top: 22%;
+      }
+      .chart-lightbox-grid-lines span[data-chart-line="mid"] {
+        top: 49%;
+      }
+      .chart-lightbox-grid-lines span[data-chart-line="low"] {
+        top: 76%;
+      }
+      .chart-lightbox-grid-surface .slide-visual-chart-grid {
+        position: relative;
+        z-index: 1;
+      }
+      .chart-lightbox-main .slide-visual-chart-grid {
+        min-height: 22rem;
+      }
+      .chart-lightbox-main .slide-visual-chart-bar-shell {
+        min-height: min(52vh, 30rem);
+        background: linear-gradient(180deg, rgba(255,255,255,0.86), rgba(255,255,255,0.62));
+      }
+      .chart-lightbox-main .slide-visual-chart-label {
+        font-size: 0.92rem;
+      }
+      .chart-lightbox-main .slide-visual-chart-value {
+        font-size: 1.18rem;
+      }
+      .chart-lightbox-close {
+        position: absolute;
+        top: -0.9rem;
+        right: -0.9rem;
+        width: 2.6rem;
+        height: 2.6rem;
+        border: 0;
+        border-radius: 999px;
+        background: rgba(255,255,255,0.95);
+        color: #122033;
+        font: inherit;
+        font-size: 1.35rem;
+        line-height: 1;
+        cursor: pointer;
+        box-shadow: 0 12px 28px rgba(0,0,0,0.2);
+      }
+      @media (max-width: 980px) {
+        .chart-lightbox-layout {
+          grid-template-columns: minmax(0, 1fr);
+        }
+        .chart-lightbox-main .slide-visual-chart-card {
+          min-height: min(60vh, 36rem);
+        }
+        .chart-lightbox-chart-grid-wrap {
+          min-height: 18rem;
+        }
+        .chart-lightbox-main .slide-visual-chart-bar-shell {
+          min-height: min(34vh, 22rem);
+        }
+      }
       .slide-footer {
         display: flex;
         align-items: flex-end;
@@ -908,6 +1477,7 @@
         color: var(--slide-text-muted);
         font-size: 1.08rem;
         line-height: 1.58;
+        box-shadow: var(--slide-frame-shadow);
       }
       .slide-note a {
         color: var(--slide-accent-strong);
@@ -992,6 +1562,12 @@
             <img class="image-lightbox-image" id="image-lightbox-image" alt="" />
           </div>
         </div>
+        <div class="chart-lightbox" id="chart-lightbox" aria-hidden="true">
+          <div class="chart-lightbox-frame">
+            <button class="chart-lightbox-close" type="button" id="chart-lightbox-close" aria-label="Fermer le graphique">×</button>
+            <div class="chart-lightbox-content" id="chart-lightbox-content"></div>
+          </div>
+        </div>
       </main>
     </div>
     <script>
@@ -1004,6 +1580,9 @@
       const lightbox = document.querySelector("#image-lightbox");
       const lightboxImage = document.querySelector("#image-lightbox-image");
       const lightboxClose = document.querySelector("#image-lightbox-close");
+      const chartLightbox = document.querySelector("#chart-lightbox");
+      const chartLightboxContent = document.querySelector("#chart-lightbox-content");
+      const chartLightboxClose = document.querySelector("#chart-lightbox-close");
       const progressSteps = Array.from(document.querySelectorAll("[data-progress-index]"));
       let currentIndex = 0;
       let isTransitioning = false;
@@ -1177,6 +1756,181 @@
         }, 220);
       }
 
+      function normalizeChartHexColor(value) {
+        return /^#[0-9a-fA-F]{6}$/.test(value || "") ? value.toLowerCase() : "#60b2e5";
+      }
+
+      function clampChartBarValue(value) {
+        const parsed = Number(value);
+        return Number.isFinite(parsed) ? Math.max(0, Math.min(100, Math.round(parsed))) : 0;
+      }
+
+      function getChartLightboxBars(chartCard) {
+        if (!chartCard) {
+          return [];
+        }
+        try {
+          const parsed = JSON.parse(chartCard.getAttribute("data-chart-bars") || "[]");
+          if (!Array.isArray(parsed)) {
+            return [];
+          }
+          return parsed.slice(0, 6).map((bar) => ({
+            label: typeof (bar && bar.label) === "string" && bar.label.trim() ? bar.label.trim().slice(0, 18) : "Point",
+            value: clampChartBarValue(bar && bar.value),
+            color: normalizeChartHexColor(bar && bar.color),
+          }));
+        } catch (error) {
+          return [];
+        }
+      }
+
+      function decorateChartCloneForLightbox(chartClone) {
+        if (!chartClone) {
+          return chartClone;
+        }
+        const chartGrid = chartClone.querySelector(".slide-visual-chart-grid");
+        if (!chartGrid || chartGrid.closest(".chart-lightbox-chart-grid-wrap")) {
+          return chartClone;
+        }
+
+        const wrapper = document.createElement("div");
+        wrapper.className = "chart-lightbox-chart-grid-wrap";
+
+        const gridSurface = document.createElement("div");
+        gridSurface.className = "chart-lightbox-grid-surface";
+        const gridLines = document.createElement("div");
+        gridLines.className = "chart-lightbox-grid-lines";
+        ["high", "mid", "low"].forEach((labelText) => {
+          const line = document.createElement("span");
+          line.setAttribute("aria-hidden", "true");
+          line.setAttribute("data-chart-line", labelText);
+          gridLines.appendChild(line);
+        });
+
+        const parent = chartGrid.parentNode;
+        parent.replaceChild(wrapper, chartGrid);
+        gridSurface.appendChild(gridLines);
+        gridSurface.appendChild(chartGrid);
+        wrapper.appendChild(gridSurface);
+        return chartClone;
+      }
+
+      function appendChartLightboxParagraphs(container, text) {
+        const content = String(text || "").trim();
+        if (!content) {
+          return;
+        }
+        content
+          .split(/\\r?\\n/)
+          .map((line) => line.trim())
+          .filter(Boolean)
+          .forEach((line) => {
+            const paragraph = document.createElement("p");
+            paragraph.textContent = line;
+            container.appendChild(paragraph);
+          });
+      }
+
+      function createChartLightboxPanel(title) {
+        const panel = document.createElement("section");
+        panel.className = "chart-lightbox-panel";
+        const kicker = document.createElement("p");
+        kicker.className = "chart-lightbox-kicker";
+        kicker.textContent = title;
+        panel.appendChild(kicker);
+        return panel;
+      }
+
+      function createChartLightboxMarkup(chartCard, chartClone) {
+        const layout = document.createElement("div");
+        layout.className = "chart-lightbox-layout";
+
+        const mainColumn = document.createElement("div");
+        mainColumn.className = "chart-lightbox-main";
+        mainColumn.appendChild(chartClone);
+        layout.appendChild(mainColumn);
+
+        const sideColumn = document.createElement("aside");
+        sideColumn.className = "chart-lightbox-side";
+
+        const chartBars = getChartLightboxBars(chartCard);
+        if (chartBars.length) {
+          const legendPanel = createChartLightboxPanel("Legende");
+          const legend = document.createElement("ul");
+          legend.className = "chart-lightbox-legend";
+          chartBars.forEach((bar) => {
+            const item = document.createElement("li");
+            item.className = "chart-lightbox-legend-item";
+
+            const swatch = document.createElement("span");
+            swatch.className = "chart-lightbox-swatch";
+            swatch.style.background = bar.color;
+
+            const label = document.createElement("span");
+            label.className = "chart-lightbox-legend-label";
+            label.textContent = bar.label;
+
+            const value = document.createElement("strong");
+            value.className = "chart-lightbox-legend-value";
+            value.textContent = String(bar.value) + "%";
+
+            item.appendChild(swatch);
+            item.appendChild(label);
+            item.appendChild(value);
+            legend.appendChild(item);
+          });
+          legendPanel.appendChild(legend);
+          sideColumn.appendChild(legendPanel);
+        }
+
+        const bodyText = chartCard.getAttribute("data-chart-body") || "";
+        const calloutText = chartCard.getAttribute("data-chart-callout") || "";
+        if (bodyText.trim() || calloutText.trim()) {
+          const textPanel = createChartLightboxPanel("Texte des indicateurs");
+          if (bodyText.trim()) {
+            const copy = document.createElement("div");
+            copy.className = "chart-lightbox-copy";
+            appendChartLightboxParagraphs(copy, bodyText);
+            textPanel.appendChild(copy);
+          }
+          if (calloutText.trim()) {
+            const note = document.createElement("div");
+            note.className = "chart-lightbox-note";
+            appendChartLightboxParagraphs(note, calloutText);
+            textPanel.appendChild(note);
+          }
+          sideColumn.appendChild(textPanel);
+        }
+
+        if (sideColumn.childElementCount > 0) {
+          layout.appendChild(sideColumn);
+        }
+
+        return layout;
+      }
+
+      function openChartLightbox(chartCard) {
+        if (!chartCard) {
+          return;
+        }
+        const chartClone = chartCard.cloneNode(true);
+        decorateChartCloneForLightbox(chartClone);
+        chartClone.classList.remove("slide-reveal-item", "presentation-reveal-hidden", "presentation-reveal-visible");
+        chartClone.querySelectorAll(".slide-reveal-item, .presentation-reveal-hidden, .presentation-reveal-visible").forEach((node) => {
+          node.classList.remove("slide-reveal-item", "presentation-reveal-hidden", "presentation-reveal-visible");
+        });
+        chartLightboxContent.innerHTML = "";
+        chartLightboxContent.appendChild(createChartLightboxMarkup(chartCard, chartClone));
+        chartLightbox.classList.add("is-open");
+        chartLightbox.setAttribute("aria-hidden", "false");
+      }
+
+      function closeChartLightbox() {
+        chartLightbox.classList.remove("is-open");
+        chartLightbox.setAttribute("aria-hidden", "true");
+        chartLightboxContent.innerHTML = "";
+      }
+
       prevButton.addEventListener("click", () => showSlide(currentIndex - 1));
       nextButton.addEventListener("click", () => showSlide(currentIndex + 1));
       progressSteps.forEach((step) => {
@@ -1192,9 +1946,17 @@
         if (lightbox.classList.contains("is-open")) {
           return;
         }
+        if (chartLightbox.classList.contains("is-open")) {
+          return;
+        }
         const slideImage = event.target.closest(".slide-media-image");
         if (slideImage && !event.target.closest(".slide-media-print-card")) {
           openImageLightbox(slideImage);
+          return;
+        }
+        const chartCard = event.target.closest(".slide-visual-chart-card");
+        if (chartCard) {
+          openChartLightbox(chartCard);
           return;
         }
         if (
@@ -1212,6 +1974,12 @@
         event.stopPropagation();
         if (event.target === lightbox || event.target === lightboxClose || event.target === lightboxImage) {
           closeImageLightbox();
+        }
+      });
+      chartLightbox.addEventListener("click", (event) => {
+        event.stopPropagation();
+        if (event.target === chartLightbox || event.target === chartLightboxClose) {
+          closeChartLightbox();
         }
       });
       fullscreenButton.addEventListener("click", async () => {
@@ -1243,6 +2011,10 @@
         }
         if (event.key === "Escape" && lightbox.classList.contains("is-open")) {
           closeImageLightbox();
+          return;
+        }
+        if (event.key === "Escape" && chartLightbox.classList.contains("is-open")) {
+          closeChartLightbox();
           return;
         }
         if (event.key === "ArrowRight" || event.key === "PageDown") showSlide(currentIndex + 1);

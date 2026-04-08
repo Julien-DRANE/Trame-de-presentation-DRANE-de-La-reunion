@@ -27,6 +27,7 @@
     deckPalette: document.querySelector("#deck-palette"),
     deckFont: document.querySelector("#deck-font"),
     deckTransition: document.querySelector("#deck-transition"),
+    deckFrameShadow: document.querySelector("#deck-frame-shadow"),
     taxonomyCount: document.querySelector("#taxonomy-count"),
     taxonomyRoadmap: document.querySelector("#taxonomy-roadmap"),
     slideCount: document.querySelector("#slide-count"),
@@ -34,6 +35,9 @@
     principlesList: document.querySelector("#principles-list"),
     previewPanel: document.querySelector("#preview-panel"),
     stage: document.querySelector("#stage"),
+    chartLightbox: document.querySelector("#chart-lightbox"),
+    chartLightboxContent: document.querySelector("#chart-lightbox-content"),
+    chartLightboxClose: document.querySelector("#chart-lightbox-close"),
     presentationProgress: document.querySelector("#presentation-progress"),
     slideHint: document.querySelector("#slide-hint"),
     densityBadge: document.querySelector("#density-badge"),
@@ -62,6 +66,7 @@
     slideBulletsEditor: document.querySelector("#slide-bullets-editor"),
     slideTableEditor: document.querySelector("#slide-table-editor"),
     slideFreeEditor: document.querySelector("#slide-free-editor"),
+    slideVisualEditor: document.querySelector("#slide-visual-editor"),
     slideNoteEditor: document.querySelector("#slide-note-editor"),
     slideBulletsNumbered: document.querySelector("#slide-bullets-numbered"),
     slideBulletsProgressive: document.querySelector("#slide-bullets-progressive"),
@@ -94,6 +99,24 @@
     freeLinkUrl: document.querySelector("#free-link-url"),
     addFreeLink: document.querySelector("#add-free-link"),
     freeLinksList: document.querySelector("#free-links-list"),
+    visualPrimaryMedia: document.querySelector("#visual-primary-media"),
+    visualSecondaryMedia: document.querySelector("#visual-secondary-media"),
+    visualShowImages: document.querySelector("#visual-show-images"),
+    visualPrimaryMediaReveal: document.querySelector("#visual-primary-media-reveal"),
+    visualSecondaryMediaReveal: document.querySelector("#visual-secondary-media-reveal"),
+    visualBody: document.querySelector("#visual-body"),
+    visualBodyMeta: document.querySelector("#visual-body-meta"),
+    visualCallout: document.querySelector("#visual-callout"),
+    visualCalloutMeta: document.querySelector("#visual-callout-meta"),
+    visualArrowDirection: document.querySelector("#visual-arrow-direction"),
+    visualArrowColor: document.querySelector("#visual-arrow-color"),
+    visualShowChart: document.querySelector("#visual-show-chart"),
+    visualChartEditor: document.querySelector("#visual-chart-editor"),
+    visualChartReveal: document.querySelector("#visual-chart-reveal"),
+    visualChartTitle: document.querySelector("#visual-chart-title"),
+    visualChartBars: document.querySelector("#visual-chart-bars"),
+    visualChartAddColumn: document.querySelector("#visual-chart-add-column"),
+    visualChartRemoveColumn: document.querySelector("#visual-chart-remove-column"),
     slideNote: document.querySelector("#slide-note"),
     titleMeta: document.querySelector("#title-meta"),
     subtitleMeta: document.querySelector("#subtitle-meta"),
@@ -107,10 +130,13 @@
   let draggedListSlideId = null;
   let draggedBulletIndex = null;
   let draggedFreeLinkIndex = null;
+  let draggedVisualChartIndex = null;
   let isAddSlideMenuOpen = false;
   let pendingBulletFocus = null;
   let pendingSubBulletFocus = null;
   let pendingTableFocus = null;
+  let pendingVisualFieldFocus = null;
+  let pendingVisualChartFocus = null;
   let pendingPreviewPanelFocus = false;
   let freeEditorRange = null;
   const isPresentationMode = new URLSearchParams(window.location.search).get("present") === "1";
@@ -156,6 +182,30 @@
       }
       pendingSubBulletFocus = null;
     }
+    if (pendingVisualFieldFocus) {
+      const input = refs[pendingVisualFieldFocus.refKey];
+      if (input) {
+        input.focus();
+        if (typeof input.setSelectionRange === "function") {
+          const caret = Math.min(pendingVisualFieldFocus.caret, input.value.length);
+          input.setSelectionRange(caret, caret);
+        }
+      }
+      pendingVisualFieldFocus = null;
+    }
+    if (pendingVisualChartFocus) {
+      const input = refs.visualChartBars.querySelector(
+        `[data-visual-chart-field="${pendingVisualChartFocus.field}"][data-visual-chart-index="${pendingVisualChartFocus.index}"]`
+      );
+      if (input) {
+        input.focus();
+        if (typeof input.setSelectionRange === "function") {
+          const caret = Math.min(pendingVisualChartFocus.caret, input.value.length);
+          input.setSelectionRange(caret, caret);
+        }
+      }
+      pendingVisualChartFocus = null;
+    }
     if (pendingPreviewPanelFocus) {
       refs.previewPanel.focus();
       pendingPreviewPanelFocus = false;
@@ -178,8 +228,29 @@
     render();
   }
 
-  function updateSettings(key, value, limit) {
+  function syncLiveEditorMeta() {
+    const selectedSlide = getSelectedSlide();
+    const visualData = selectedSlide.visualData || {};
+    const density = ns.ui.computeDensity(selectedSlide);
+
+    refs.titleMeta.textContent = `${selectedSlide.title.length}/72 caractères`;
+    refs.subtitleMeta.textContent = `${selectedSlide.subtitle.length}/170 caractères`;
+    refs.noteMeta.textContent = `${selectedSlide.note.length}/180 caractères`;
+    refs.objectiveMeta.textContent = `${selectedSlide.objective.length}/180 caractères`;
+    refs.evidenceMeta.textContent = `${selectedSlide.evidence.length}/120 caractères`;
+    refs.freeBodyMeta.textContent = `${ns.utils.richTextLength(selectedSlide.freeBody || "")}/1600 caractères`;
+    refs.visualBodyMeta.textContent = `${(visualData.body || "").length}/320 caractères`;
+    refs.visualCalloutMeta.textContent = `${(visualData.callout || "").length}/180 caractères`;
+    refs.densityBadge.className = density.className;
+    refs.densityBadge.textContent = density.label;
+  }
+
+  function updateSettings(key, value, limit, rerender = true) {
     state.settings[key] = ns.utils.clampText(value, limit);
+    if (rerender === false) {
+      refreshStageOnly();
+      return;
+    }
     render();
   }
 
@@ -190,7 +261,123 @@
       mediaItems: state.mediaLibrary,
       mediaUrls: ns.services.media.getUrlMap(),
     });
+    syncLiveEditorMeta();
     ns.services.storage.saveState(STORAGE_KEY, state);
+  }
+
+  function getChartLightboxBars(chartCard) {
+    if (!chartCard) {
+      return [];
+    }
+
+    try {
+      const parsed = JSON.parse(chartCard.getAttribute("data-chart-bars") || "[]");
+      if (!Array.isArray(parsed)) {
+        return [];
+      }
+      return parsed.slice(0, 6).map((bar) => ({
+        label: ns.utils.clampText(bar && bar.label, 18) || "Point",
+        value: clampVisualBarValue(bar && bar.value),
+        color: normalizeVisualArrowColor(bar && bar.color),
+      }));
+    } catch (error) {
+      return [];
+    }
+  }
+
+  function decorateChartCloneForLightbox(chartClone) {
+    if (!chartClone) {
+      return chartClone;
+    }
+    const chartGrid = chartClone.querySelector(".slide-visual-chart-grid");
+    if (!chartGrid || chartGrid.closest(".chart-lightbox-chart-grid-wrap")) {
+      return chartClone;
+    }
+
+    const wrapper = document.createElement("div");
+    wrapper.className = "chart-lightbox-chart-grid-wrap";
+
+    const gridSurface = document.createElement("div");
+    gridSurface.className = "chart-lightbox-grid-surface";
+    const gridLines = document.createElement("div");
+    gridLines.className = "chart-lightbox-grid-lines";
+    ["high", "mid", "low"].forEach((labelText) => {
+      const line = document.createElement("span");
+      line.setAttribute("aria-hidden", "true");
+      line.setAttribute("data-chart-line", labelText);
+      gridLines.appendChild(line);
+    });
+
+    const parent = chartGrid.parentNode;
+    parent.replaceChild(wrapper, chartGrid);
+    gridSurface.appendChild(gridLines);
+    gridSurface.appendChild(chartGrid);
+    wrapper.appendChild(gridSurface);
+    return chartClone;
+  }
+
+  function createChartLightboxMarkup(chartCard, chartClone) {
+    const chartBars = getChartLightboxBars(chartCard);
+    const legendMarkup = chartBars.length ? `
+      <section class="chart-lightbox-panel">
+        <p class="chart-lightbox-kicker">Legende</p>
+        <ul class="chart-lightbox-legend">
+          ${chartBars.map((bar) => `
+            <li class="chart-lightbox-legend-item">
+              <span class="chart-lightbox-swatch" style="background:${ns.utils.escapeHtml(bar.color)};"></span>
+              <span class="chart-lightbox-legend-label">${ns.utils.escapeHtml(bar.label)}</span>
+              <strong class="chart-lightbox-legend-value">${Math.round(bar.value)}%</strong>
+            </li>
+          `).join("")}
+        </ul>
+      </section>
+    ` : "";
+    const bodyMarkup = ns.utils.plainTextToRichHtml(chartCard.getAttribute("data-chart-body") || "", 320);
+    const calloutMarkup = ns.utils.plainTextToRichHtml(chartCard.getAttribute("data-chart-callout") || "", 180);
+    const indicatorTextMarkup = bodyMarkup || calloutMarkup ? `
+      <section class="chart-lightbox-panel">
+        <p class="chart-lightbox-kicker">Texte des indicateurs</p>
+        ${bodyMarkup ? `<div class="chart-lightbox-copy">${bodyMarkup}</div>` : ""}
+        ${calloutMarkup ? `<div class="chart-lightbox-note">${calloutMarkup}</div>` : ""}
+      </section>
+    ` : "";
+
+    const wrapper = document.createElement("div");
+    wrapper.className = "chart-lightbox-layout";
+    wrapper.innerHTML = `
+      <div class="chart-lightbox-main"></div>
+      <aside class="chart-lightbox-side"${legendMarkup || indicatorTextMarkup ? "" : " hidden"}>
+        ${legendMarkup}
+        ${indicatorTextMarkup}
+      </aside>
+    `;
+    wrapper.querySelector(".chart-lightbox-main").appendChild(chartClone);
+    return wrapper;
+  }
+
+  function openChartLightbox(chartCard) {
+    if (!chartCard || !refs.chartLightbox || !refs.chartLightboxContent) {
+      return;
+    }
+    const chartClone = chartCard.cloneNode(true);
+    decorateChartCloneForLightbox(chartClone);
+    chartClone.classList.remove("slide-reveal-item", "presentation-reveal-hidden", "presentation-reveal-visible");
+    chartClone.querySelectorAll(".slide-reveal-item, .presentation-reveal-hidden, .presentation-reveal-visible").forEach((node) => {
+      node.classList.remove("slide-reveal-item", "presentation-reveal-hidden", "presentation-reveal-visible");
+    });
+    refs.chartLightboxContent.innerHTML = "";
+    refs.chartLightboxContent.appendChild(createChartLightboxMarkup(chartCard, chartClone));
+    refs.chartLightbox.classList.add("is-open");
+    refs.chartLightbox.setAttribute("aria-hidden", "false");
+  }
+
+  function closeChartLightbox() {
+    if (!refs.chartLightbox || !refs.chartLightboxContent) {
+      return;
+    }
+    refs.chartLightbox.classList.remove("is-open");
+    refs.chartLightbox.setAttribute("aria-hidden", "true");
+    refs.chartLightboxContent.innerHTML = "";
   }
 
   function setView(view) {
@@ -220,17 +407,21 @@
     render();
   }
 
-  function updateSelectedSlide(patch) {
+  function updateSelectedSlide(patch, rerender = true) {
     state.slides = state.slides.map((slide) => {
       if (slide.id !== state.selectedSlideId) {
         return slide;
       }
       return Object.assign({}, slide, patch);
     });
+    if (rerender === false) {
+      refreshStageOnly();
+      return;
+    }
     render();
   }
 
-  function updateSelectedTableCell(rowIndex, columnIndex, value) {
+  function updateSelectedTableCell(rowIndex, columnIndex, value, rerender = true) {
     state.slides = state.slides.map((slide) => {
       if (slide.id !== state.selectedSlideId) {
         return slide;
@@ -239,6 +430,10 @@
       table[rowIndex][columnIndex] = value;
       return Object.assign({}, slide, { table });
     });
+    if (rerender === false) {
+      refreshStageOnly();
+      return;
+    }
     render();
   }
 
@@ -252,6 +447,139 @@
       return Object.assign({}, slide, { table, tableHighlights });
     });
     render();
+  }
+
+  function getDefaultVisualData() {
+    return ns.utils.clone(ns.stateFactory.createDefaultVisualData());
+  }
+
+  function getSelectedVisualData() {
+    return Object.assign(getDefaultVisualData(), ns.utils.clone((getSelectedSlide() && getSelectedSlide().visualData) || {}));
+  }
+
+  function normalizeVisualArrowColor(value) {
+    return /^#[0-9a-fA-F]{6}$/.test(value || "") ? value.toLowerCase() : "#60b2e5";
+  }
+
+  function clampVisualBarValue(value) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? Math.max(0, Math.min(100, Math.round(parsed))) : 0;
+  }
+
+  function updateSelectedVisualData(patch, rerender = true) {
+    const current = getSelectedVisualData();
+    updateSelectedSlide({
+      visualData: Object.assign({}, current, patch),
+    }, rerender);
+  }
+
+  function updateSelectedVisualChartBar(index, patch, rerender = true) {
+    const current = getSelectedVisualData();
+    const nextBars = current.chartBars.map((bar, barIndex) => barIndex === index ? Object.assign({}, bar, patch) : bar);
+    updateSelectedVisualData({ chartBars: nextBars }, rerender);
+  }
+
+  function getDefaultVisualChartBar(index) {
+    const defaults = getDefaultVisualData().chartBars || [];
+    return ns.utils.clone(defaults[index] || defaults[defaults.length - 1] || {
+      label: `Point ${index + 1}`,
+      value: 50,
+      color: "#60b2e5",
+    });
+  }
+
+  function normalizeVisualChartBars(bars) {
+    const normalized = Array.isArray(bars) ? bars.slice(0, 6).map((bar, index) => ({
+      label: ns.utils.clampText(bar && bar.label, 18) || "",
+      value: clampVisualBarValue(bar && bar.value),
+      color: normalizeVisualArrowColor(bar && bar.color),
+    })) : [];
+
+    while (normalized.length < 6) {
+      normalized.push(getDefaultVisualChartBar(normalized.length));
+    }
+
+    return normalized;
+  }
+
+  function getVisibleVisualChartBars() {
+    const current = getSelectedVisualData();
+    const count = Math.max(1, Math.min(6, Number(current.chartBarCount) || 3));
+    return {
+      count,
+      bars: normalizeVisualChartBars(current.chartBars),
+    };
+  }
+
+  function addSelectedVisualChartBar() {
+    const current = getSelectedVisualData();
+    const count = Math.max(1, Math.min(6, Number(current.chartBarCount) || 3));
+    if (count >= 6) {
+      return;
+    }
+    const nextBars = normalizeVisualChartBars(current.chartBars);
+    nextBars.splice(count, 0, getDefaultVisualChartBar(count));
+    nextBars.length = 6;
+    pendingVisualChartFocus = { index: count, field: "label", caret: 0 };
+    updateSelectedVisualData({
+      chartBarCount: count + 1,
+      chartBars: nextBars,
+    });
+  }
+
+  function removeSelectedVisualChartBar(index) {
+    const current = getSelectedVisualData();
+    const count = Math.max(1, Math.min(6, Number(current.chartBarCount) || 3));
+    if (count <= 1 || index < 0 || index >= count) {
+      return;
+    }
+    const nextBars = normalizeVisualChartBars(current.chartBars);
+    nextBars.splice(index, 1);
+    nextBars.push(getDefaultVisualChartBar(nextBars.length));
+    nextBars.length = 6;
+    updateSelectedVisualData({
+      chartBarCount: count - 1,
+      chartBars: nextBars,
+    });
+  }
+
+  function moveSelectedVisualChartBar(fromIndex, toIndex) {
+    const current = getSelectedVisualData();
+    const count = Math.max(1, Math.min(6, Number(current.chartBarCount) || 3));
+    if (
+      fromIndex === toIndex ||
+      fromIndex < 0 || fromIndex >= count ||
+      toIndex < 0 || toIndex >= count
+    ) {
+      return;
+    }
+    const nextBars = normalizeVisualChartBars(current.chartBars);
+    const visible = nextBars.slice(0, count);
+    const hidden = nextBars.slice(count);
+    const [moved] = visible.splice(fromIndex, 1);
+    visible.splice(toIndex, 0, moved);
+    updateSelectedVisualData({
+      chartBars: visible.concat(hidden).slice(0, 6),
+    });
+  }
+
+  function assignVisualMedia(mediaId) {
+    const current = getSelectedVisualData();
+    if (!mediaId || mediaId === current.primaryMediaId || mediaId === current.secondaryMediaId) {
+      return;
+    }
+
+    if (!current.primaryMediaId) {
+      updateSelectedVisualData({ primaryMediaId: mediaId });
+      return;
+    }
+
+    if (!current.secondaryMediaId) {
+      updateSelectedVisualData({ secondaryMediaId: mediaId });
+      return;
+    }
+
+    updateSelectedVisualData({ secondaryMediaId: mediaId });
   }
 
   function normalizeTable(tableInput, minRows, minCols) {
@@ -349,7 +677,23 @@
   }
 
   function assignMediaToSelectedSlide(mediaId) {
-    updateSelectedSlide({ mediaId: mediaId || "" });
+    const selectedSlide = getSelectedSlide();
+    if (!mediaId) {
+      updateSelectedSlide({ mediaId: "", secondaryMediaId: "" });
+      return;
+    }
+    if (mediaId === selectedSlide.mediaId || mediaId === selectedSlide.secondaryMediaId) {
+      return;
+    }
+    if (!selectedSlide.mediaId) {
+      updateSelectedSlide({ mediaId });
+      return;
+    }
+    if (!selectedSlide.secondaryMediaId) {
+      updateSelectedSlide({ secondaryMediaId: mediaId });
+      return;
+    }
+    updateSelectedSlide({ secondaryMediaId: mediaId });
   }
 
   function updateSelectedBullet(index, value, rerender) {
@@ -383,7 +727,7 @@
     render();
   }
 
-  function updateSelectedSubBullet(parentIndex, subIndex, value) {
+  function updateSelectedSubBullet(parentIndex, subIndex, value, rerender = true) {
     state.slides = state.slides.map((slide) => {
       if (slide.id !== state.selectedSlideId) {
         return slide;
@@ -397,6 +741,10 @@
       subBullets[parentIndex] = items;
       return Object.assign({}, slide, { subBullets });
     });
+    if (rerender === false) {
+      refreshStageOnly();
+      return;
+    }
     render();
   }
 
@@ -932,23 +1280,27 @@
     render();
   }
 
-  refs.deckTitle.addEventListener("input", (event) => updateSettings("title", event.target.value, 60));
-  refs.deckSubtitle.addEventListener("input", (event) => updateSettings("subtitle", event.target.value, 90));
-  refs.deckFooter.addEventListener("input", (event) => updateSettings("footer", event.target.value, 50));
+  refs.deckTitle.addEventListener("input", (event) => updateSettings("title", event.target.value, 60, false));
+  refs.deckSubtitle.addEventListener("input", (event) => updateSettings("subtitle", event.target.value, 90, false));
+  refs.deckFooter.addEventListener("input", (event) => updateSettings("footer", event.target.value, 50, false));
   refs.deckPalette.addEventListener("change", (event) => updateSettings("palette", event.target.value, 24));
   refs.deckFont.addEventListener("change", (event) => updateSettings("font", event.target.value, 24));
   refs.deckTransition.addEventListener("change", (event) => updateSettings("transition", event.target.value, 12));
   refs.deckTheme.addEventListener("change", (event) => updateSettings("theme", event.target.value, 12));
+  refs.deckFrameShadow.addEventListener("change", (event) => {
+    state.settings.frameShadow = Boolean(event.target.checked);
+    render();
+  });
 
   refs.slideBloomLevel.addEventListener("change", (event) => updateSelectedSlide({ bloomLevel: event.target.value }));
-  refs.slideLabel.addEventListener("input", (event) => updateSelectedSlide({ label: ns.utils.clampText(event.target.value, 24) }));
-  refs.slideNumber.addEventListener("input", (event) => updateSelectedSlide({ number: ns.utils.clampText(event.target.value, 8) }));
-  refs.slideObjective.addEventListener("input", (event) => updateSelectedSlide({ objective: ns.utils.clampText(event.target.value, 180) }));
-  refs.slideEvidence.addEventListener("input", (event) => updateSelectedSlide({ evidence: ns.utils.clampText(event.target.value, 120) }));
-  refs.slideTitle.addEventListener("input", (event) => updateSelectedSlide({ title: ns.utils.clampText(event.target.value, 72) }));
-  refs.slideSubtitle.addEventListener("input", (event) => updateSelectedSlide({ subtitle: ns.utils.clampText(event.target.value, 170) }));
+  refs.slideLabel.addEventListener("input", (event) => updateSelectedSlide({ label: ns.utils.clampText(event.target.value, 24) }, false));
+  refs.slideNumber.addEventListener("input", (event) => updateSelectedSlide({ number: ns.utils.clampText(event.target.value, 8) }, false));
+  refs.slideObjective.addEventListener("input", (event) => updateSelectedSlide({ objective: ns.utils.clampText(event.target.value, 180) }, false));
+  refs.slideEvidence.addEventListener("input", (event) => updateSelectedSlide({ evidence: ns.utils.clampText(event.target.value, 120) }, false));
+  refs.slideTitle.addEventListener("input", (event) => updateSelectedSlide({ title: ns.utils.clampText(event.target.value, 72) }, false));
+  refs.slideSubtitle.addEventListener("input", (event) => updateSelectedSlide({ subtitle: ns.utils.clampText(event.target.value, 170) }, false));
   refs.slideContentType.addEventListener("change", (event) => updateSelectedSlide({
-    contentType: event.target.value === "table" ? "table" : event.target.value === "free" ? "free" : "bullets",
+    contentType: event.target.value === "table" ? "table" : event.target.value === "free" ? "free" : event.target.value === "visual" ? "visual" : "bullets",
   }));
   refs.slidePaletteOverride.addEventListener("change", (event) => updateSelectedSlide({
     paletteOverride: event.target.value,
@@ -968,9 +1320,9 @@
   refs.slideTableProgressiveOrder.addEventListener("change", (event) => updateSelectedSlide({
     tableProgressiveOrder: event.target.value === "column" ? "column" : "row",
   }));
-  refs.slideBullet1.addEventListener("input", (event) => updateSelectedBullet(0, ns.utils.clampText(event.target.value, 220)));
-  refs.slideBullet2.addEventListener("input", (event) => updateSelectedBullet(1, ns.utils.clampText(event.target.value, 220)));
-  refs.slideBullet3.addEventListener("input", (event) => updateSelectedBullet(2, ns.utils.clampText(event.target.value, 220)));
+  refs.slideBullet1.addEventListener("input", (event) => updateSelectedBullet(0, ns.utils.clampText(event.target.value, 220), false));
+  refs.slideBullet2.addEventListener("input", (event) => updateSelectedBullet(1, ns.utils.clampText(event.target.value, 220), false));
+  refs.slideBullet3.addEventListener("input", (event) => updateSelectedBullet(2, ns.utils.clampText(event.target.value, 220), false));
   refs.addBullet.addEventListener("click", addSelectedBullet);
   refs.slideFreeBody.addEventListener("input", () => {
     saveFreeEditorSelection();
@@ -1042,7 +1394,107 @@
       );
     }
   });
-  refs.slideNote.addEventListener("input", (event) => updateSelectedSlide({ note: ns.utils.clampText(event.target.value, 180) }));
+  refs.visualPrimaryMedia.addEventListener("change", (event) => updateSelectedVisualData({
+    primaryMediaId: event.target.value,
+  }));
+  refs.visualSecondaryMedia.addEventListener("change", (event) => updateSelectedVisualData({
+    secondaryMediaId: event.target.value,
+  }));
+  refs.visualShowImages.addEventListener("change", (event) => updateSelectedVisualData({
+    showImages: Boolean(event.target.checked),
+  }));
+  refs.visualPrimaryMediaReveal.addEventListener("change", (event) => updateSelectedVisualData({
+    primaryMediaReveal: Boolean(event.target.checked),
+  }));
+  refs.visualSecondaryMediaReveal.addEventListener("change", (event) => updateSelectedVisualData({
+    secondaryMediaReveal: Boolean(event.target.checked),
+  }));
+  refs.visualBody.addEventListener("input", (event) => {
+    pendingVisualFieldFocus = {
+      refKey: "visualBody",
+      caret: event.target.selectionStart || 0,
+    };
+    updateSelectedVisualData({
+      body: ns.utils.clampText(event.target.value, 320),
+    }, false);
+  });
+  refs.visualCallout.addEventListener("input", (event) => {
+    pendingVisualFieldFocus = {
+      refKey: "visualCallout",
+      caret: event.target.selectionStart || 0,
+    };
+    updateSelectedVisualData({
+      callout: ns.utils.clampText(event.target.value, 180),
+    }, false);
+  });
+  refs.visualArrowDirection.addEventListener("change", (event) => updateSelectedVisualData({
+    arrowDirection: event.target.value === "up" || event.target.value === "down" || event.target.value === "left" ? event.target.value : "right",
+  }));
+  refs.visualArrowColor.addEventListener("change", (event) => updateSelectedVisualData({
+    arrowColor: normalizeVisualArrowColor(event.target.value),
+  }));
+  refs.visualShowChart.addEventListener("change", (event) => updateSelectedVisualData({
+    showChart: Boolean(event.target.checked),
+  }));
+  refs.visualChartReveal.addEventListener("change", (event) => updateSelectedVisualData({
+    chartReveal: Boolean(event.target.checked),
+  }));
+  refs.visualChartTitle.addEventListener("input", (event) => {
+    pendingVisualFieldFocus = {
+      refKey: "visualChartTitle",
+      caret: event.target.selectionStart || 0,
+    };
+    updateSelectedVisualData({
+      chartTitle: ns.utils.clampText(event.target.value, 48),
+    }, false);
+  });
+  refs.visualChartBars.addEventListener("input", (event) => {
+    const input = event.target.closest("[data-visual-chart-field]");
+    if (!input) {
+      return;
+    }
+    const index = Number(input.getAttribute("data-visual-chart-index"));
+    const field = input.getAttribute("data-visual-chart-field");
+    pendingVisualChartFocus = {
+      index,
+      field,
+      caret: typeof input.selectionStart === "number" ? input.selectionStart : 0,
+    };
+    if (field === "label") {
+      updateSelectedVisualChartBar(index, {
+        label: ns.utils.clampText(input.value, 18),
+      }, false);
+      return;
+    }
+    if (field === "value") {
+      updateSelectedVisualChartBar(index, {
+        value: clampVisualBarValue(input.value),
+      }, false);
+    }
+  });
+  refs.visualChartBars.addEventListener("change", (event) => {
+    const input = event.target.closest('[data-visual-chart-field="color"]');
+    if (!input) {
+      return;
+    }
+    const index = Number(input.getAttribute("data-visual-chart-index"));
+    updateSelectedVisualChartBar(index, {
+      color: normalizeVisualArrowColor(input.value),
+    });
+  });
+  refs.visualChartBars.addEventListener("click", (event) => {
+    const removeButton = event.target.closest("[data-remove-visual-chart-bar]");
+    if (!removeButton) {
+      return;
+    }
+    removeSelectedVisualChartBar(Number(removeButton.getAttribute("data-remove-visual-chart-bar")));
+  });
+  refs.visualChartAddColumn.addEventListener("click", addSelectedVisualChartBar);
+  refs.visualChartRemoveColumn.addEventListener("click", () => {
+    const { count } = getVisibleVisualChartBars();
+    removeSelectedVisualChartBar(count - 1);
+  });
+  refs.slideNote.addEventListener("input", (event) => updateSelectedSlide({ note: ns.utils.clampText(event.target.value, 180) }, false));
   refs.extraBulletsList.addEventListener("input", (event) => {
     const input = event.target.closest("[data-extra-bullet-index]");
     if (!input) {
@@ -1067,7 +1519,8 @@
     updateSelectedSubBullet(
       Number(input.getAttribute("data-sub-bullet-parent")),
       Number(input.getAttribute("data-sub-bullet-index")),
-      ns.utils.clampText(input.value, 180)
+      ns.utils.clampText(input.value, 320),
+      false
     );
   });
   refs.tableEditorGrid.addEventListener("input", (event) => {
@@ -1077,7 +1530,7 @@
     }
     const [rowIndex, columnIndex] = input.getAttribute("data-table-cell").split("-").map(Number);
     pendingTableFocus = { row: rowIndex, column: columnIndex, caret: input.selectionStart || 0 };
-    updateSelectedTableCell(rowIndex, columnIndex, ns.utils.clampText(input.value, 120));
+    updateSelectedTableCell(rowIndex, columnIndex, ns.utils.clampText(input.value, 120), false);
   });
   refs.tableFillTarget.addEventListener("change", () => render());
   refs.tableFillIndex.addEventListener("change", () => {
@@ -1241,6 +1694,10 @@
     }
 
     if (mediaAssignTrigger) {
+      if ((getSelectedSlide().contentType || "bullets") === "visual") {
+        assignVisualMedia(mediaAssignTrigger.getAttribute("data-assign-media"));
+        return;
+      }
       assignMediaToSelectedSlide(mediaAssignTrigger.getAttribute("data-assign-media"));
       return;
     }
@@ -1254,7 +1711,17 @@
       const mediaId = mediaDeleteTrigger.getAttribute("data-delete-media");
       state.mediaLibrary = state.mediaLibrary.filter((item) => item.id !== mediaId);
       state.slides = state.slides.map((slide) => {
-        return slide.mediaId === mediaId ? Object.assign({}, slide, { mediaId: "" }) : slide;
+        const nextVisualData = slide.visualData
+          ? Object.assign({}, slide.visualData, {
+              primaryMediaId: slide.visualData.primaryMediaId === mediaId ? "" : slide.visualData.primaryMediaId,
+              secondaryMediaId: slide.visualData.secondaryMediaId === mediaId ? "" : slide.visualData.secondaryMediaId,
+            })
+          : slide.visualData;
+        return Object.assign({}, slide, {
+          mediaId: slide.mediaId === mediaId ? "" : slide.mediaId,
+          secondaryMediaId: slide.secondaryMediaId === mediaId ? "" : slide.secondaryMediaId,
+          visualData: nextVisualData,
+        });
       });
       ns.services.media.deleteMedia(mediaId).then(() => render());
       render();
@@ -1526,7 +1993,82 @@
     draggedFreeLinkIndex = null;
   });
 
+  refs.visualChartBars.addEventListener("dragstart", (event) => {
+    const handle = event.target.closest("[data-visual-chart-drag-handle]");
+    if (!handle) {
+      return;
+    }
+    draggedVisualChartIndex = Number(handle.getAttribute("data-visual-chart-drag-handle"));
+    const row = handle.closest("[data-visual-chart-row]");
+    if (row) {
+      row.classList.add("is-dragging");
+    }
+    if (event.dataTransfer) {
+      event.dataTransfer.effectAllowed = "move";
+      event.dataTransfer.setData("text/plain", String(draggedVisualChartIndex));
+    }
+  });
+
+  refs.visualChartBars.addEventListener("dragover", (event) => {
+    const row = event.target.closest("[data-visual-chart-row]");
+    if (!row || draggedVisualChartIndex === null) {
+      return;
+    }
+    event.preventDefault();
+    refs.visualChartBars.querySelectorAll(".visual-chart-bar-row.is-drop-target").forEach((item) => {
+      if (item !== row) {
+        item.classList.remove("is-drop-target");
+      }
+    });
+    if (Number(row.getAttribute("data-visual-chart-row")) !== draggedVisualChartIndex) {
+      row.classList.add("is-drop-target");
+    }
+  });
+
+  refs.visualChartBars.addEventListener("drop", (event) => {
+    const row = event.target.closest("[data-visual-chart-row]");
+    if (!row || draggedVisualChartIndex === null) {
+      return;
+    }
+    event.preventDefault();
+    const targetIndex = Number(row.getAttribute("data-visual-chart-row"));
+    refs.visualChartBars.querySelectorAll(".visual-chart-bar-row.is-drop-target, .visual-chart-bar-row.is-dragging").forEach((item) => {
+      item.classList.remove("is-drop-target", "is-dragging");
+    });
+    moveSelectedVisualChartBar(draggedVisualChartIndex, targetIndex);
+    draggedVisualChartIndex = null;
+  });
+
+  refs.visualChartBars.addEventListener("dragend", () => {
+    refs.visualChartBars.querySelectorAll(".visual-chart-bar-row.is-drop-target, .visual-chart-bar-row.is-dragging").forEach((item) => {
+      item.classList.remove("is-drop-target", "is-dragging");
+    });
+    draggedVisualChartIndex = null;
+  });
+
+  refs.stage.addEventListener("click", (event) => {
+    const chartCard = event.target.closest(".slide-visual-chart-card");
+    if (!chartCard) {
+      return;
+    }
+    openChartLightbox(chartCard);
+  });
+
+  refs.chartLightbox.addEventListener("click", (event) => {
+    if (
+      event.target === refs.chartLightbox ||
+      event.target === refs.chartLightboxClose
+    ) {
+      closeChartLightbox();
+    }
+  });
+
   document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && refs.chartLightbox.classList.contains("is-open")) {
+      closeChartLightbox();
+      return;
+    }
+
     if ((event.key === "ArrowUp" || event.key === "ArrowDown") && isPreviewPanelTarget(event.target)) {
       event.preventDefault();
       const currentIndex = state.slides.findIndex((slide) => slide.id === state.selectedSlideId);

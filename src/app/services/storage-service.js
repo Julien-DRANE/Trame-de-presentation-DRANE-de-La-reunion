@@ -9,6 +9,10 @@
   const fontOptions = ((ns.data && ns.data.fontOptions) || []).map((item) => item.id);
   const transitionOptions = ["fade", "slide", "zoom", "rise", "none"];
 
+  function normalizeHexColor(value, fallback) {
+    return /^#[0-9a-fA-F]{6}$/.test(value || "") ? value.toLowerCase() : (fallback || "#60b2e5");
+  }
+
   function safeRead(key) {
     try {
       return localStorage.getItem(key);
@@ -59,6 +63,7 @@
         palette: paletteOptions.includes(input.settings && input.settings.palette) ? input.settings.palette : fallbackState.settings.palette,
         font: fontOptions.includes(input.settings && input.settings.font) ? input.settings.font : fallbackState.settings.font,
         transition: transitionOptions.includes(input.settings && input.settings.transition) ? input.settings.transition : fallbackState.settings.transition,
+        frameShadow: Boolean(input.settings && input.settings.frameShadow),
       },
       mediaLibrary: Array.isArray(input.mediaLibrary)
         ? input.mediaLibrary.map((item) => ns.services.media.sanitizeMediaItem(item)).filter(Boolean)
@@ -82,6 +87,7 @@
     const tableHighlights = sanitizeTableHighlights(slide.tableHighlights, table);
     const freeLinks = sanitizeFreeLinks(slide.freeLinks);
     const freeMediaIds = sanitizeFreeMediaIds(slide.freeMediaIds);
+    const visualData = sanitizeVisualData(slide.visualData);
     const subBullets = sanitizeSubBullets(slide.subBullets);
 
     const principleIds = utils.uniqueStrings(slide.principleIds || []).filter((id) => allowedPrincipleIds.includes(id));
@@ -90,7 +96,7 @@
       id: typeof slide.id === "string" && slide.id ? slide.id : utils.createId("slide"),
       label: utils.clampText(slide.label, 24) || `Slide ${index + 1}`,
       number: utils.clampText(slide.number, 8) || String(index + 1).padStart(2, "0"),
-      contentType: slide.contentType === "table" ? "table" : slide.contentType === "free" ? "free" : "bullets",
+      contentType: slide.contentType === "table" ? "table" : slide.contentType === "free" ? "free" : slide.contentType === "visual" ? "visual" : "bullets",
       bulletsNumbered: Boolean(slide.bulletsNumbered),
       bulletsProgressive: Boolean(slide.bulletsProgressive),
       tableProgressive: Boolean(slide.tableProgressive),
@@ -102,8 +108,10 @@
       freeBody: utils.sanitizeRichText(slide.freeBody, 1600),
       freeLinks,
       freeMediaIds,
+      visualData,
       subBullets,
       mediaId: utils.clampText(slide.mediaId, 80),
+      secondaryMediaId: utils.clampText(slide.secondaryMediaId, 80),
       bloomLevel: allowedBloomIds.includes(slide.bloomLevel) ? slide.bloomLevel : allowedBloomIds[0],
       objective: utils.clampText(slide.objective, 180),
       evidence: utils.clampText(slide.evidence, 120),
@@ -133,6 +141,43 @@
       }
     });
     return sanitizedRows;
+  }
+
+  function sanitizeVisualData(input) {
+    const utils = ns.utils;
+    const fallback = ns.stateFactory.createDefaultVisualData();
+    const raw = input && typeof input === "object" ? input : {};
+    const chartBarsInput = Array.isArray(raw.chartBars) ? raw.chartBars.slice(0, 6) : [];
+    const chartBars = chartBarsInput.map((item, index) => {
+      const fallbackBar = fallback.chartBars[index] || fallback.chartBars[0];
+      const value = Number(item && item.value);
+      return {
+        label: utils.clampText(item && item.label, 18) || fallbackBar.label,
+        value: Number.isFinite(value) ? Math.max(0, Math.min(100, Math.round(value))) : fallbackBar.value,
+        color: normalizeHexColor(item && item.color, fallbackBar.color),
+      };
+    });
+
+    while (chartBars.length < 6) {
+      chartBars.push(utils.clone(fallback.chartBars[chartBars.length]));
+    }
+
+    return {
+      primaryMediaId: utils.clampText(raw.primaryMediaId, 80),
+      secondaryMediaId: utils.clampText(raw.secondaryMediaId, 80),
+      showImages: raw.showImages !== false,
+      primaryMediaReveal: Boolean(raw.primaryMediaReveal),
+      secondaryMediaReveal: Boolean(raw.secondaryMediaReveal),
+      body: typeof raw.body === "string" ? utils.clampText(raw.body, 320) : fallback.body,
+      callout: typeof raw.callout === "string" ? utils.clampText(raw.callout, 180) : fallback.callout,
+      arrowDirection: raw.arrowDirection === "up" || raw.arrowDirection === "down" || raw.arrowDirection === "left" ? raw.arrowDirection : "right",
+      arrowColor: normalizeHexColor(raw.arrowColor, fallback.arrowColor),
+      showChart: raw.showChart !== false,
+      chartReveal: Boolean(raw.chartReveal),
+      chartBarCount: Math.max(1, Math.min(6, Number(raw.chartBarCount) || fallback.chartBarCount || 3)),
+      chartTitle: typeof raw.chartTitle === "string" ? utils.clampText(raw.chartTitle, 48) : fallback.chartTitle,
+      chartBars,
+    };
   }
 
   function sanitizeTableHighlights(input, table) {
@@ -176,7 +221,7 @@
         return;
       }
       const items = Array.isArray(input[key]) ? input[key].slice(0, 6) : [];
-      const sanitized = items.map((item) => utils.clampText(item, 180)).filter(Boolean);
+      const sanitized = items.map((item) => utils.clampText(item, 320)).filter(Boolean);
       if (sanitized.length) {
         result[String(index)] = sanitized;
       }

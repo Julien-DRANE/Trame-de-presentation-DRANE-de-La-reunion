@@ -82,6 +82,9 @@
     const palette = getSlidePalette(slide, settings);
     const decorativeAccent = getDecorativeAccent(slide && slide.decorativeAccentOverride);
     const font = getDeckFont(settings);
+    const frameShadow = settings && settings.frameShadow
+      ? "0 12px 30px rgba(18, 32, 51, 0.12)"
+      : "none";
     return [
       `--slide-bg-start:${palette.bgStart}`,
       `--slide-bg-end:${palette.bgEnd}`,
@@ -98,6 +101,7 @@
       `--slide-text-muted:${palette.textMuted}`,
       `--slide-text-soft:${palette.textSoft}`,
       `--slide-line:${palette.line}`,
+      `--slide-frame-shadow:${frameShadow}`,
       `--slide-font-body:${font.body}`,
       `--slide-font-heading:${font.heading}`,
     ].join(";");
@@ -120,6 +124,13 @@
 
   function getSlideMedia(slide, options) {
     return getResolvedMediaById(slide && slide.mediaId, options);
+  }
+
+  function getSlideMediaItems(slide, options) {
+    const mediaIds = [slide && slide.mediaId, slide && slide.secondaryMediaId].filter(Boolean);
+    return mediaIds
+      .map((mediaId) => getResolvedMediaById(mediaId, options))
+      .filter(Boolean);
   }
 
   function getResolvedMediaById(mediaId, options) {
@@ -214,7 +225,19 @@
   }
 
   function createSlideMediaMarkup(slide, options) {
-    return createResolvedMediaMarkup(getSlideMedia(slide, options), options);
+    const mediaItems = getSlideMediaItems(slide, options);
+    if (mediaItems.length > 1) {
+      return `
+        <div class="slide-media-stack">
+          ${mediaItems.map((media) => `
+            <div class="slide-media-stack-card">
+              ${createResolvedMediaMarkup(media, options)}
+            </div>
+          `).join("")}
+        </div>
+      `;
+    }
+    return createResolvedMediaMarkup(mediaItems[0] || getSlideMedia(slide, options), options);
   }
 
   function createBulletListMarkup(items, options) {
@@ -239,11 +262,11 @@
             const childrenMarkup = Array.isArray(bulletItem.children) && bulletItem.children.length
               ? `
                 <ul class="slide-sub-bullets">
-                  ${bulletItem.children.map((child) => `<li>${utils.escapeHtml(child)}</li>`).join("")}
+                  ${bulletItem.children.map((child) => `<li>${utils.linkifyText(child)}</li>`).join("")}
                 </ul>
               `
               : "";
-            return `<li${revealAttrs}>${marker}<div class="slide-bullet-text">${utils.escapeHtml(bulletItem.text || "")}${childrenMarkup}</div></li>`;
+            return `<li${revealAttrs}>${marker}<div class="slide-bullet-text">${utils.linkifyText(bulletItem.text || "")}${childrenMarkup}</div></li>`;
           })
           .join("")}
       </ul>
@@ -364,22 +387,195 @@
     `;
   }
 
+  function getVisualData(slide) {
+    const fallback = (ns.stateFactory && ns.stateFactory.createDefaultVisualData)
+      ? ns.stateFactory.createDefaultVisualData()
+      : {
+          primaryMediaId: "",
+          secondaryMediaId: "",
+          body: "",
+          callout: "",
+          arrowDirection: "right",
+          arrowColor: "#60b2e5",
+          chartTitle: "",
+          chartBars: [],
+        };
+    const raw = slide && slide.visualData && typeof slide.visualData === "object" ? slide.visualData : {};
+    const chartBars = Array.isArray(raw.chartBars) ? raw.chartBars.slice(0, 6) : [];
+
+    while (chartBars.length < 6) {
+      chartBars.push(fallback.chartBars[chartBars.length] || { label: "", value: 0 });
+    }
+
+    return {
+      primaryMediaId: raw.primaryMediaId || fallback.primaryMediaId,
+      secondaryMediaId: raw.secondaryMediaId || fallback.secondaryMediaId,
+      showImages: raw.showImages !== false,
+      primaryMediaReveal: Boolean(raw.primaryMediaReveal),
+      secondaryMediaReveal: Boolean(raw.secondaryMediaReveal),
+      body: typeof raw.body === "string" ? raw.body : fallback.body,
+      callout: typeof raw.callout === "string" ? raw.callout : fallback.callout,
+      arrowDirection: raw.arrowDirection || fallback.arrowDirection,
+      arrowColor: raw.arrowColor || fallback.arrowColor,
+      showChart: raw.showChart !== false,
+      chartReveal: Boolean(raw.chartReveal),
+      chartBarCount: Math.max(1, Math.min(6, Number(raw.chartBarCount) || fallback.chartBarCount || 3)),
+      chartTitle: typeof raw.chartTitle === "string" ? raw.chartTitle : fallback.chartTitle,
+      chartBars: chartBars.map((bar, index) => ({
+        label: (bar && bar.label) || (fallback.chartBars[index] ? fallback.chartBars[index].label : ""),
+        value: Number.isFinite(Number(bar && bar.value)) ? Math.max(0, Math.min(100, Number(bar.value))) : (fallback.chartBars[index] ? fallback.chartBars[index].value : 0),
+        color: /^#[0-9a-fA-F]{6}$/.test(bar && bar.color) ? bar.color : (fallback.chartBars[index] ? fallback.chartBars[index].color : "#60b2e5"),
+      })),
+    };
+  }
+
+  function createVisualArrowMarkup(direction, color) {
+    const arrowDirection = direction === "up" || direction === "down" || direction === "left" ? direction : "right";
+    const rotation = arrowDirection === "down" ? "90" : arrowDirection === "left" ? "180" : arrowDirection === "up" ? "-90" : "0";
+    return `
+      <svg class="slide-visual-arrow-svg" viewBox="0 0 200 56" aria-hidden="true">
+        <g transform="rotate(${rotation} 100 28)">
+          <path
+            d="M16 24h124l-20-18 8-6 40 28-40 28-8-6 20-18H16z"
+            fill="${ns.utils.escapeHtml(color || "#60b2e5")}"
+          ></path>
+        </g>
+      </svg>
+    `;
+  }
+
+  function createVisualMediaCardMarkup(media, options, className, placeholder, revealStep) {
+    const mediaMarkup = media ? createResolvedMediaMarkup(media, options) : `<div class="slide-visual-media-placeholder">${ns.utils.escapeHtml(placeholder)}</div>`;
+    const revealAttrs = Number.isInteger(revealStep) && revealStep > 0 ? ` data-reveal-step="${revealStep}" class="${className} slide-reveal-item"` : ` class="${className}"`;
+    return `<div${revealAttrs}><div class="slide-visual-media-frame">${mediaMarkup}</div></div>`;
+  }
+
+  function createVisualMarkup(slide, options) {
+    const visualData = getVisualData(slide);
+    const arrowDirection = visualData.arrowDirection === "up" || visualData.arrowDirection === "down" || visualData.arrowDirection === "left" ? visualData.arrowDirection : "right";
+    const isHorizontal = arrowDirection === "left" || arrowDirection === "right";
+    const primaryMedia = getResolvedMediaById(visualData.primaryMediaId, options);
+    const secondaryMedia = getResolvedMediaById(visualData.secondaryMediaId, options);
+    const showImages = visualData.showImages !== false;
+    const mediaCards = [
+      {
+        media: primaryMedia,
+        placeholder: "Ajoutez une image principale",
+        revealStep: primaryMedia && visualData.primaryMediaReveal ? 1 : null,
+      },
+      {
+        media: secondaryMedia,
+        placeholder: "Ajoutez une image secondaire",
+        revealStep: secondaryMedia && visualData.secondaryMediaReveal ? (primaryMedia && visualData.primaryMediaReveal ? 2 : 1) : null,
+      },
+    ];
+    const orderedMediaCards = arrowDirection === "left" || arrowDirection === "up" ? mediaCards.slice().reverse() : mediaCards;
+    const visibleMediaCards = showImages ? orderedMediaCards.filter((item) => item.media) : [];
+    const hasAnyMedia = visibleMediaCards.length > 0;
+    const hasTwoMedia = visibleMediaCards.length > 1;
+    const arrowRevealStep = hasTwoMedia
+      ? visibleMediaCards.reduce((maxStep, item) => Math.max(maxStep, item.revealStep || 0), 0) || null
+      : null;
+    const bodyRevealStep = primaryMedia && visualData.primaryMediaReveal ? 1 : null;
+    const calloutRevealStep = secondaryMedia && visualData.secondaryMediaReveal
+      ? (primaryMedia && visualData.primaryMediaReveal ? 2 : 1)
+      : null;
+    const chartRevealBase = visibleMediaCards.reduce((maxStep, item) => Math.max(maxStep, item.revealStep || 0), 0);
+    const chartRevealStep = visualData.showChart && visualData.chartReveal ? chartRevealBase + 1 : null;
+    const bodyMarkup = ns.utils.plainTextToRichHtml(visualData.body || "", 320);
+    const calloutMarkup = ns.utils.plainTextToRichHtml(visualData.callout || "", 180);
+    const chartTitle = visualData.chartTitle || "";
+    const chartBars = visualData.chartBars
+      .slice(0, Math.max(1, Math.min(6, Number(visualData.chartBarCount) || 3)));
+    const chartBarsData = ns.utils.escapeHtml(JSON.stringify(
+      chartBars.map((bar) => ({
+        label: bar.label || "Point",
+        value: Math.round(Number(bar.value) || 0),
+        color: bar.color || visualData.arrowColor,
+      }))
+    ));
+    const chartBarsMarkup = chartBars
+      .map((bar) => {
+        const height = Math.max(6, Math.round(Math.max(0, Math.min(100, Number(bar.value) || 0))));
+        return `
+          <div class="slide-visual-chart-bar-card">
+            <div class="slide-visual-chart-bar-shell">
+              <div class="slide-visual-chart-bar-fill" style="height:${height}%; background:${ns.utils.escapeHtml(bar.color || visualData.arrowColor)};"></div>
+            </div>
+            <div class="slide-visual-chart-meta">
+              <span class="slide-visual-chart-label">${ns.utils.escapeHtml(bar.label || "Point")}</span>
+              <strong class="slide-visual-chart-value">${Math.round(Number(bar.value) || 0)}%</strong>
+            </div>
+          </div>
+        `;
+      })
+      .join("");
+
+    return `
+      <div class="slide-visual-layout slide-visual-layout-${ns.utils.escapeHtml(arrowDirection)}${hasAnyMedia ? "" : " is-media-hidden"}${hasTwoMedia ? " has-two-media" : hasAnyMedia ? " has-single-media" : ""}">
+        ${hasAnyMedia ? `
+          <div class="slide-visual-flow slide-visual-flow-${isHorizontal ? "horizontal" : "vertical"} slide-visual-flow-count-${visibleMediaCards.length}">
+            ${visibleMediaCards
+              .map((item) => createVisualMediaCardMarkup(item.media, options, "slide-visual-media-card", item.placeholder, item.revealStep))
+              .join("")}
+            ${hasTwoMedia ? `
+              <div class="slide-visual-relation-card${arrowRevealStep ? " slide-reveal-item" : ""}" aria-hidden="true"${arrowRevealStep ? ` data-reveal-step="${arrowRevealStep}"` : ""}>
+                <div class="slide-visual-arrow-wrap">
+                  ${createVisualArrowMarkup(arrowDirection, visualData.arrowColor)}
+                </div>
+              </div>
+            ` : ""}
+          </div>
+        ` : ""}
+        <div class="slide-visual-support-column${visualData.showChart ? " has-chart" : ""}${hasAnyMedia ? "" : " is-expanded"}">
+          ${bodyMarkup ? `
+            <div class="slide-visual-text-card${bodyRevealStep ? " slide-reveal-item" : ""}"${bodyRevealStep ? ` data-reveal-step="${bodyRevealStep}"` : ""}>
+              ${bodyMarkup}
+            </div>
+          ` : ""}
+          ${calloutMarkup ? `
+            <div class="slide-visual-callout-card${calloutRevealStep ? " slide-reveal-item" : ""}"${calloutRevealStep ? ` data-reveal-step="${calloutRevealStep}"` : ""}>
+              <div class="slide-visual-callout-text">${calloutMarkup}</div>
+            </div>
+          ` : ""}
+          ${visualData.showChart ? `
+            <div class="slide-visual-chart-card${chartRevealStep ? " slide-reveal-item" : ""}"${chartRevealStep ? ` data-reveal-step="${chartRevealStep}"` : ""} data-chart-title="${ns.utils.escapeHtml(chartTitle)}" data-chart-body="${ns.utils.escapeHtml(visualData.body || "")}" data-chart-callout="${ns.utils.escapeHtml(visualData.callout || "")}" data-chart-bars="${chartBarsData}">
+              ${chartTitle ? `<p class="slide-visual-chart-title">${ns.utils.escapeHtml(chartTitle)}</p>` : ""}
+              <div class="slide-visual-chart-grid${chartBars.length > 4 ? " is-dense" : ""}" data-chart-count="${chartBars.length}" style="grid-template-columns: repeat(${chartBars.length}, minmax(0, 1fr));">
+                ${chartBarsMarkup}
+              </div>
+            </div>
+          ` : ""}
+        </div>
+      </div>
+    `;
+  }
+
   function createSlideMarkup(slide, settings, options) {
     const opts = options || {};
     const utils = ns.utils;
     const bloomMeta = getBloomMeta(slide.bloomLevel);
     const logoSources = getSlideLogoSources(opts);
-    const slideMedia = getSlideMedia(slide, opts);
+    const slideMediaItems = getSlideMediaItems(slide, opts);
+    const slideMedia = slideMediaItems[0] || null;
     const isTableMode = slide.contentType === "table";
     const isFreeMode = slide.contentType === "free";
+    const isVisualMode = slide.contentType === "visual";
     const allBullets = buildBulletItems(slide);
     const bulletColumns = splitBulletsForLayout(allBullets);
     const mainBullets = bulletColumns.mainBullets;
     const extraBullets = bulletColumns.extraBullets;
     const bulletsNumbered = Boolean(slide.bulletsNumbered);
-    const bulletsProgressive = Boolean(slide.bulletsProgressive) && !opts.compact && !isFreeMode && !isTableMode;
+    const bulletsProgressive = Boolean(slide.bulletsProgressive) && !opts.compact && !isFreeMode && !isTableMode && !isVisualMode;
     const tableProgressive = Boolean(slide.tableProgressive) && !opts.compact && isTableMode;
     const tableProgressiveOrder = slide.tableProgressiveOrder === "column" ? "column" : "row";
+    const visualData = slide.visualData || {};
+    const visualShowsImages = visualData.showImages !== false;
+    const visualProgressive = !opts.compact && isVisualMode && Boolean(
+      (visualShowsImages && visualData.primaryMediaReveal && visualData.primaryMediaId) ||
+      (visualShowsImages && visualData.secondaryMediaReveal && visualData.secondaryMediaId) ||
+      (visualData.chartReveal && visualData.showChart)
+    );
     const canKeepMediaWithExtendedBullets = Boolean(slideMedia) && allBullets.length > 3 && allBullets.length <= 6;
     const bulletMarkup = mainBullets.length
       ? createBulletListMarkup(mainBullets, {
@@ -413,6 +609,7 @@
           progressive: bulletsProgressive,
         })
       : createSlideMediaMarkup(slide, opts);
+    const headline = slide.title ? `<h3 class="slide-headline">${utils.escapeHtml(slide.title)}</h3>` : "";
     const subtitle = slide.subtitle ? `<p class="slide-subtitle-text">${utils.escapeHtml(slide.subtitle)}</p>` : "";
     const signature = settings.footer ? `<span class="slide-signature">${utils.escapeHtml(settings.footer)}</span>` : "";
     const note = slide.note
@@ -425,6 +622,8 @@
 
     if (isFreeMode) {
       contentMarkup = createFreeMarkup(slide, opts);
+    } else if (isVisualMode) {
+      contentMarkup = createVisualMarkup(slide, opts);
     } else if (isTableMode) {
       contentMarkup = createTableMarkup(slide.table, slide.tableHighlights, {
         progressive: tableProgressive,
@@ -445,9 +644,12 @@
 
     const themeName = resolveThemeName(slide, settings);
     const paletteStyle = createSlidePaletteStyle(slide, settings);
+    const visualModeClass = isVisualMode ? " is-visual-slide" : "";
+    const visualHeaderClass = isVisualMode && (slide.title || slide.subtitle) ? " is-visual-has-header" : "";
+    const stackedMediaLayoutClass = slideMediaItems.length > 1 ? " has-media-stack-layout" : "";
 
     return `
-      <article class="deck-slide theme-${utils.escapeHtml(themeName)}${compactClass}" data-progressive-content="${bulletsProgressive || tableProgressive ? "true" : "false"}" style="${utils.escapeHtml(paletteStyle)}">
+      <article class="deck-slide theme-${utils.escapeHtml(themeName)}${compactClass}${visualModeClass}${visualHeaderClass}" data-progressive-content="${bulletsProgressive || tableProgressive || visualProgressive ? "true" : "false"}" style="${utils.escapeHtml(paletteStyle)}">
         <div class="slide-wave" aria-hidden="true"></div>
         <img class="slide-logo slide-logo-region" src="${utils.escapeHtml(logoSources.region)}" alt="Logo region academique" />
         <img class="slide-logo slide-logo-drane" src="${utils.escapeHtml(logoSources.drane)}" alt="Logo Drane" />
@@ -458,13 +660,13 @@
               <span class="slide-number-badge">${utils.escapeHtml(slide.number || "")}</span>
             </div>
           </div>
-          <div class="${slideMedia && (!extraBullets.length || isTableMode || canKeepMediaWithExtendedBullets) && !isFreeMode ? "slide-body" : "slide-body slide-body-no-media"}">
+          <div class="${isVisualMode ? "slide-body slide-body-no-media slide-body-visual" : slideMedia && (!extraBullets.length || isTableMode || canKeepMediaWithExtendedBullets) && !isFreeMode ? `slide-body${stackedMediaLayoutClass}` : "slide-body slide-body-no-media"}">
             <div class="slide-main">
-              <h3 class="slide-headline">${utils.escapeHtml(slide.title || "Titre Ã  complÃ©ter")}</h3>
+              ${headline}
               ${subtitle}
               ${contentMarkup}
             </div>
-            ${slideMedia && (!extraBullets.length || isTableMode || canKeepMediaWithExtendedBullets) && !isFreeMode ? `<aside class="slide-media-slot">${mediaMarkup}</aside>` : ""}
+            ${slideMediaItems.length && (!extraBullets.length || isTableMode || canKeepMediaWithExtendedBullets) && !isFreeMode && !isVisualMode ? `<aside class="slide-media-slot${slideMediaItems.length > 1 ? " has-media-stack" : ""}">${mediaMarkup}</aside>` : ""}
           </div>
           <div class="slide-footer">
             ${footerNoteMarkup}
@@ -483,7 +685,9 @@
       (slide.objective || "").length +
       (slide.evidence || "").length +
       (slide.bullets || []).join("").length +
-      Object.values(slide.subBullets || {}).flat().join("").length;
+      Object.values(slide.subBullets || {}).flat().join("").length +
+      (((slide.visualData || {}).body) || "").length +
+      (((slide.visualData || {}).callout) || "").length;
     const bulletCount = (slide.bullets || []).filter((item) => item && item.trim()).length;
 
     if (totalChars > 420 || (slide.subtitle || "").length > 150 || (slide.objective || "").length > 160) {

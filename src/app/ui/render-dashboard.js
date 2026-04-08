@@ -12,6 +12,7 @@
     const fontOptions = ns.data.fontOptions || [];
     const principles = ns.data.cognitivePrinciples || [];
     const density = ns.ui.computeDensity(selectedSlide);
+    const visualData = selectedSlide.visualData || {};
 
     refs.deckTitle.value = state.settings.title;
     refs.deckSubtitle.value = state.settings.subtitle;
@@ -26,6 +27,7 @@
       .join("");
     refs.deckFont.value = state.settings.font || "studio";
     refs.deckTransition.value = state.settings.transition || "fade";
+    refs.deckFrameShadow.checked = Boolean(state.settings.frameShadow);
     refs.slideCount.textContent = `${state.slides.length} slides`;
     refs.taxonomyCount.textContent = `${bloomLevels.length} niveaux`;
     refs.appShell.setAttribute("data-view", state.view || "engineering");
@@ -109,17 +111,38 @@
       refs.slideFreeBody.innerHTML = sanitizedFreeBody;
     }
     refs.freeLinksList.innerHTML = renderFreeLinks(selectedSlide);
+    refs.visualPrimaryMedia.innerHTML = renderVisualMediaOptions(state.mediaLibrary, "Image principale");
+    refs.visualSecondaryMedia.innerHTML = renderVisualMediaOptions(state.mediaLibrary, "Image secondaire");
+    refs.visualPrimaryMedia.value = visualData.primaryMediaId || "";
+    refs.visualSecondaryMedia.value = visualData.secondaryMediaId || "";
+    refs.visualShowImages.checked = visualData.showImages !== false;
+    refs.visualPrimaryMediaReveal.checked = Boolean(visualData.primaryMediaReveal);
+    refs.visualSecondaryMediaReveal.checked = Boolean(visualData.secondaryMediaReveal);
+    refs.visualBody.value = visualData.body || "";
+    refs.visualCallout.value = visualData.callout || "";
+    refs.visualArrowDirection.value = visualData.arrowDirection || "right";
+    refs.visualArrowColor.value = visualData.arrowColor || "#60b2e5";
+    refs.visualShowChart.checked = visualData.showChart !== false;
+    refs.visualChartEditor.hidden = visualData.showChart === false;
+    refs.visualChartReveal.checked = Boolean(visualData.chartReveal);
+    refs.visualChartTitle.value = visualData.chartTitle || "";
+    refs.visualChartBars.innerHTML = renderVisualChartEditor(visualData);
+    refs.visualChartAddColumn.disabled = (visualData.chartBarCount || 3) >= 6;
+    refs.visualChartRemoveColumn.disabled = (visualData.chartBarCount || 3) <= 1;
     refs.slideNote.value = selectedSlide.note;
     const isTableMode = (selectedSlide.contentType || "bullets") === "table";
     const isFreeMode = (selectedSlide.contentType || "bullets") === "free";
-    refs.slideBulletsEditor.hidden = isTableMode || isFreeMode;
+    const isVisualMode = (selectedSlide.contentType || "bullets") === "visual";
+    refs.slideBulletsEditor.hidden = isTableMode || isFreeMode || isVisualMode;
     refs.slideTableEditor.hidden = !isTableMode;
     refs.slideFreeEditor.hidden = !isFreeMode;
+    refs.slideVisualEditor.hidden = !isVisualMode;
     refs.slideNoteEditor.hidden = false;
-    refs.slideBulletsEditor.classList.toggle("is-collapsed", isTableMode || isFreeMode);
+    refs.slideBulletsEditor.classList.toggle("is-collapsed", isTableMode || isFreeMode || isVisualMode);
     refs.slideTableEditor.classList.toggle("is-collapsed", !isTableMode);
     refs.slideFreeEditor.classList.toggle("is-collapsed", !isFreeMode);
-    refs.clearSlideMedia.hidden = isFreeMode;
+    refs.slideVisualEditor.classList.toggle("is-collapsed", !isVisualMode);
+    refs.clearSlideMedia.hidden = isFreeMode || isVisualMode;
     refs.slideMediaPanelBody.hidden = Boolean(state.uiMediaPanelCollapsed);
     refs.toggleMediaPanel.textContent = state.uiMediaPanelCollapsed ? "Déplier" : "Replier";
     refs.toggleMediaPanel.setAttribute("aria-expanded", state.uiMediaPanelCollapsed ? "false" : "true");
@@ -131,17 +154,23 @@
     refs.subtitleMeta.textContent = `${selectedSlide.subtitle.length}/170 caractères`;
     refs.noteMeta.textContent = `${selectedSlide.note.length}/180 caractères`;
     refs.freeBodyMeta.textContent = `${ns.utils.richTextLength(selectedSlide.freeBody || "")}/1600 caractères`;
+    refs.visualBodyMeta.textContent = `${(visualData.body || "").length}/320 caractères`;
+    refs.visualCalloutMeta.textContent = `${(visualData.callout || "").length}/180 caractères`;
     refs.objectiveMeta.textContent = `${selectedSlide.objective.length}/180 caractères`;
     refs.evidenceMeta.textContent = `${selectedSlide.evidence.length}/120 caractères`;
 
     refs.densityBadge.className = density.className;
     refs.densityBadge.textContent = density.label;
-    refs.slideHint.textContent = isFreeMode
+    refs.slideHint.textContent = isVisualMode
+      ? "Mode visuel : images, texte, flèche et mini graphe dans une composition éditoriale."
+      : isFreeMode
       ? "Mode libre : texte long, liens et plusieurs médias pour les annexes."
       : "Modèle : un niveau Bloom, une idée forte, trois points maximum.";
-    refs.slideMediaSelection.textContent = isFreeMode
+    refs.slideMediaSelection.textContent = isVisualMode
+      ? getVisualMediaSelectionText(selectedSlide, state.mediaLibrary)
+      : isFreeMode
       ? `${(selectedSlide.freeMediaIds || []).length} média(x) dans l'annexe libre.`
-      : selectedSlide.mediaId
+      : (selectedSlide.mediaId || selectedSlide.secondaryMediaId)
         ? getMediaSelectionText(selectedSlide, state.mediaLibrary)
         : "Aucun média affecté à cette slide.";
     refs.slideList.innerHTML = renderSlideList(state, selectedSlide.id);
@@ -159,13 +188,19 @@
   }
 
   function getMediaSelectionText(selectedSlide, mediaItems) {
-    const mediaItem = (mediaItems || []).find((item) => item.id === selectedSlide.mediaId);
-    if (!mediaItem) {
+    const selectedMedia = [selectedSlide.mediaId, selectedSlide.secondaryMediaId]
+      .filter(Boolean)
+      .map((mediaId) => (mediaItems || []).find((item) => item.id === mediaId))
+      .filter(Boolean);
+    if (!selectedMedia.length) {
       return "Aucun média affecté à cette slide.";
     }
-
-    const kindLabel = mediaItem.kind === "embed" ? "Embed" : mediaItem.kind === "video" ? "Vidéo" : "Image";
-    return `${kindLabel} sélectionnée : ${mediaItem.name}`;
+    if (selectedMedia.length === 1) {
+      const mediaItem = selectedMedia[0];
+      const kindLabel = mediaItem.kind === "embed" ? "Embed" : mediaItem.kind === "video" ? "Vidéo" : "Image";
+      return `${kindLabel} sélectionnée : ${mediaItem.name}`;
+    }
+    return `${selectedMedia.length} médias sélectionnés : ${selectedMedia.map((item) => item.name).join(" / ")}`;
   }
   function renderSlideList(state, activeId) {
     return state.slides
@@ -301,6 +336,31 @@
       .join("");
   }
 
+  function getVisualMediaSelectionText(selectedSlide, mediaItems) {
+    const visualData = selectedSlide.visualData || {};
+    const selectedNames = [visualData.primaryMediaId, visualData.secondaryMediaId]
+      .filter(Boolean)
+      .map((mediaId) => (mediaItems || []).find((item) => item.id === mediaId))
+      .filter(Boolean)
+      .map((item) => item.name);
+
+    if (!selectedNames.length) {
+      return "Aucun média visuel sélectionné. Importez puis assignez une image principale et secondaire.";
+    }
+
+    return `${selectedNames.length} média(x) dans la composition visuelle : ${selectedNames.join(" / ")}`;
+  }
+
+  function renderVisualMediaOptions(mediaItems, placeholder) {
+    return [
+      `<option value="">${ns.utils.escapeHtml(placeholder)}</option>`,
+      ...(mediaItems || []).map((item) => {
+        const kindLabel = item.kind === "embed" ? "Embed" : item.kind === "video" ? "Vidéo" : "Image";
+        return `<option value="${ns.utils.escapeHtml(item.id)}">${ns.utils.escapeHtml(kindLabel)} - ${ns.utils.escapeHtml(item.name)}</option>`;
+      }),
+    ].join("");
+  }
+
   function renderPresentationProgress(state, activeId) {
     return state.slides
       .map((slide, index) => {
@@ -331,11 +391,20 @@
 
     const mediaUrls = ns.services.media.getUrlMap();
     const isFreeMode = (selectedSlide.contentType || "bullets") === "free";
+    const isVisualMode = (selectedSlide.contentType || "bullets") === "visual";
     const freeMediaIds = Array.isArray(selectedSlide.freeMediaIds) ? selectedSlide.freeMediaIds : [];
+    const visualMediaIds = selectedSlide.visualData
+      ? [selectedSlide.visualData.primaryMediaId, selectedSlide.visualData.secondaryMediaId].filter(Boolean)
+      : [];
 
     return mediaItems
       .map((item) => {
-        const activeClass = isFreeMode ? (freeMediaIds.includes(item.id) ? " is-active" : "") : (item.id === selectedSlide.mediaId ? " is-active" : "");
+        const bulletMediaIds = [selectedSlide.mediaId, selectedSlide.secondaryMediaId].filter(Boolean);
+        const activeClass = isVisualMode
+          ? (visualMediaIds.includes(item.id) ? " is-active" : "")
+          : isFreeMode
+            ? (freeMediaIds.includes(item.id) ? " is-active" : "")
+            : (bulletMediaIds.includes(item.id) ? " is-active" : "");
         const preview = item.kind === "video"
           ? `<video class="media-thumb-preview" src="${ns.utils.escapeHtml(mediaUrls[item.id] || "")}" muted preload="metadata"></video>`
           : `<img class="media-thumb-preview" src="${ns.utils.escapeHtml(mediaUrls[item.id] || "")}" alt="${ns.utils.escapeHtml(item.name)}" />`;
@@ -425,7 +494,7 @@
               <div class="sub-bullet-row">
                 <input
                   type="text"
-                  maxlength="180"
+                  maxlength="320"
                   value="${ns.utils.escapeHtml(item || "")}"
                   data-sub-bullet-parent="${bulletIndex}"
                   data-sub-bullet-index="${subIndex}"
@@ -518,6 +587,58 @@
         ${rows}
       </div>
     `;
+  }
+
+  function renderVisualChartEditor(visualData) {
+    const chartBarCount = Math.max(1, Math.min(6, Number(visualData.chartBarCount) || 3));
+    const chartBars = Array.isArray(visualData.chartBars) ? visualData.chartBars.slice(0, chartBarCount) : [];
+    return chartBars.map((bar, index) => `
+      <div class="visual-chart-bar-row bullet-editor-row" data-visual-chart-row="${index}">
+        <button
+          class="bullet-drag-handle"
+          type="button"
+          draggable="true"
+          data-visual-chart-drag-handle="${index}"
+          aria-label="Glisser l'indicateur ${index + 1}"
+          title="Glisser pour réordonner"
+        >
+          ::
+        </button>
+        <input
+          type="text"
+          maxlength="18"
+          value="${ns.utils.escapeHtml((bar && bar.label) || "")}"
+          data-visual-chart-field="label"
+          data-visual-chart-index="${index}"
+          placeholder="Libellé ${index + 1}"
+        />
+        <input
+          type="number"
+          min="0"
+          max="100"
+          step="1"
+          value="${ns.utils.escapeHtml(String((bar && bar.value) ?? 0))}"
+          data-visual-chart-field="value"
+          data-visual-chart-index="${index}"
+          placeholder="0-100"
+        />
+        <input
+          type="color"
+          value="${ns.utils.escapeHtml((bar && bar.color) || "#60b2e5")}"
+          data-visual-chart-field="color"
+          data-visual-chart-index="${index}"
+          aria-label="Couleur de l'indicateur ${index + 1}"
+        />
+        <button
+          class="icon-button icon-button-danger"
+          type="button"
+          data-remove-visual-chart-bar="${index}"
+          aria-label="Supprimer l'indicateur ${index + 1}"
+        >
+          x
+        </button>
+      </div>
+    `).join("");
   }
 
   function normalizeTable(tableInput) {

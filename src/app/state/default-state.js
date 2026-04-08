@@ -11,6 +11,32 @@
     create: ["segmentation", "spacing"],
   };
 
+  function createDefaultVisualData() {
+    return {
+      primaryMediaId: "",
+      secondaryMediaId: "",
+      showImages: true,
+      primaryMediaReveal: false,
+      secondaryMediaReveal: false,
+      body: "Présentez ici le message visuel principal en 2 ou 3 lignes utiles.",
+      callout: "Mettez en évidence une relation, une progression ou un point d'attention.",
+      arrowDirection: "right",
+      arrowColor: "#60b2e5",
+      showChart: true,
+      chartReveal: false,
+      chartTitle: "Indicateurs clés",
+      chartBarCount: 3,
+      chartBars: [
+        { label: "Usage", value: 72, color: "#60b2e5" },
+        { label: "Impact", value: 54, color: "#294c60" },
+        { label: "Suivi", value: 38, color: "#fcba04" },
+        { label: "Adoption", value: 46, color: "#083d77" },
+        { label: "Portee", value: 61, color: "#ff6978" },
+        { label: "Qualite", value: 49, color: "#71a2b6" },
+      ],
+    };
+  }
+
   function createSlideFromBloom(level, index) {
     return {
       id: `slide-${index + 1}`,
@@ -31,8 +57,10 @@
       freeBody: "",
       freeLinks: [],
       freeMediaIds: [],
+      visualData: createDefaultVisualData(),
       subBullets: {},
       mediaId: "",
+      secondaryMediaId: "",
       bloomLevel: level.id,
       objective: `Amener le groupe à ${level.verbs[0]} et formaliser une preuve exploitable.`,
       evidence: "Trace à définir",
@@ -72,8 +100,10 @@
       freeBody: "",
       freeLinks: [],
       freeMediaIds: [],
+      visualData: createDefaultVisualData(),
       subBullets: {},
       mediaId: "",
+      secondaryMediaId: "",
       bloomLevel: fallbackLevel ? fallbackLevel.id : "identify",
       objective: "Formuler l'objectif d'apprentissage visé par cette slide.",
       evidence: "Trace ou preuve attendue",
@@ -99,6 +129,7 @@
         palette: "ocean",
         font: "studio",
         transition: "fade",
+        frameShadow: false,
       },
       mediaLibrary: [],
       selectedSlideId: slides[0] ? slides[0].id : null,
@@ -109,5 +140,6 @@
   ns.stateFactory.createSlideFromBloom = createSlideFromBloom;
   ns.stateFactory.createBloomDeckSlides = createBloomDeckSlides;
   ns.stateFactory.createBlankSlide = createBlankSlide;
+  ns.stateFactory.createDefaultVisualData = createDefaultVisualData;
   ns.stateFactory.createDefaultState = createDefaultState;
 })();

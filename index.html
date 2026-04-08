@@ -124,6 +124,10 @@
                   <option value="none">Aucune</option>
                 </select>
               </label>
+              <label class="checkbox-field">
+                <input id="deck-frame-shadow" type="checkbox" />
+                <span>Ombre légère sous les cadres</span>
+              </label>
             </div>
 
             <div class="guidance">
@@ -246,6 +250,7 @@
                     <option value="bullets">Points</option>
                     <option value="table">Tableau</option>
                     <option value="free">Libre</option>
+                    <option value="visual">Visuel</option>
                   </select>
                 </label>
                 <label>
@@ -376,6 +381,89 @@
                 </div>
               </div>
 
+              <div id="slide-visual-editor" class="slide-content-mode" hidden>
+                <div class="visual-editor-grid">
+                  <label>
+                    Image principale
+                    <select id="visual-primary-media"></select>
+                  </label>
+                  <label>
+                    Image secondaire
+                    <select id="visual-secondary-media"></select>
+                  </label>
+                </div>
+
+                <div class="visual-editor-grid visual-editor-grid-tight">
+                  <label class="checkbox-field">
+                    <input id="visual-show-images" type="checkbox" checked />
+                    <span>Afficher les images</span>
+                  </label>
+                  <label class="checkbox-field">
+                    <input id="visual-primary-media-reveal" type="checkbox" />
+                    <span>Révéler l'image principale</span>
+                  </label>
+                  <label class="checkbox-field">
+                    <input id="visual-secondary-media-reveal" type="checkbox" />
+                    <span>Révéler l'image secondaire</span>
+                  </label>
+                </div>
+
+                <label>
+                  Texte d'accompagnement
+                  <textarea id="visual-body" rows="4" maxlength="320"></textarea>
+                  <span id="visual-body-meta" class="field-meta"></span>
+                </label>
+
+                <div class="visual-editor-grid visual-editor-grid-tight">
+                  <label>
+                    Flèche
+                    <select id="visual-arrow-direction">
+                      <option value="right">Vers la droite</option>
+                      <option value="left">Vers la gauche</option>
+                      <option value="up">Vers le haut</option>
+                      <option value="down">Vers le bas</option>
+                    </select>
+                  </label>
+                  <label>
+                    Couleur de la flèche
+                    <input id="visual-arrow-color" type="color" value="#60b2e5" />
+                  </label>
+                </div>
+
+                <label>
+                  Texte mis en évidence
+                  <textarea id="visual-callout" rows="3" maxlength="180"></textarea>
+                  <span id="visual-callout-meta" class="field-meta"></span>
+                </label>
+
+                <label class="checkbox-field">
+                  <input id="visual-show-chart" type="checkbox" checked />
+                  <span>Afficher le mini graphe</span>
+                </label>
+
+                <div id="visual-chart-editor" class="visual-chart-editor">
+                  <div class="extra-bullets-header">
+                    <span>Mini graphe</span>
+                  </div>
+
+                  <label class="checkbox-field">
+                    <input id="visual-chart-reveal" type="checkbox" />
+                    <span>Révéler le mini graphe</span>
+                  </label>
+
+                  <label>
+                    Titre du graphe
+                    <input id="visual-chart-title" type="text" maxlength="48" />
+                  </label>
+
+                  <div id="visual-chart-bars" class="visual-chart-bars"></div>
+                  <div class="visual-chart-actions">
+                    <button id="visual-chart-add-column" class="button button-soft" type="button">Ajouter une colonne</button>
+                    <button id="visual-chart-remove-column" class="button button-ghost" type="button">Retirer la dernière</button>
+                  </div>
+                </div>
+              </div>
+
               <div id="slide-note-editor" class="slide-content-mode">
               <label>
                 Note de fermeture
@@ -450,6 +538,12 @@
           </section>
         </section>
       </main>
+    </div>
+    <div class="chart-lightbox" id="chart-lightbox" aria-hidden="true">
+      <div class="chart-lightbox-frame">
+        <button class="chart-lightbox-close" type="button" id="chart-lightbox-close" aria-label="Fermer le graphique">×</button>
+        <div class="chart-lightbox-content" id="chart-lightbox-content"></div>
+      </div>
     </div>
   </body>
 </html>
