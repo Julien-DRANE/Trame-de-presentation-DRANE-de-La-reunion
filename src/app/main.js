@@ -142,6 +142,8 @@
   let pendingVisualChartFocus = null;
   let pendingPreviewPanelFocus = false;
   let freeEditorRange = null;
+  let isPptxExportRunning = false;
+  const defaultPptxButtonLabel = refs.exportPptx ? refs.exportPptx.textContent : "Exporter PPTX";
   const isPresentationMode = new URLSearchParams(window.location.search).get("present") === "1";
 
   if (isPresentationMode) {
@@ -151,6 +153,53 @@
 
   function getSelectedSlide() {
     return state.slides.find((slide) => slide.id === state.selectedSlideId) || state.slides[0];
+  }
+
+  function updatePptxExportButton(progress) {
+    if (!refs.exportPptx) {
+      return;
+    }
+
+    const detail = progress || {};
+    const percent = Math.max(0, Math.min(100, Number(detail.percent) || 0));
+    const stateName = detail.state || "idle";
+    const label = detail.label || defaultPptxButtonLabel;
+    const buttonText = stateName === "running"
+      ? `${label} ${percent}%`
+      : label;
+
+    refs.exportPptx.textContent = buttonText;
+    refs.exportPptx.style.setProperty("--pptx-progress", `${percent}%`);
+    refs.exportPptx.classList.toggle("is-exporting", stateName === "running");
+    refs.exportPptx.classList.toggle("is-complete", stateName === "completed");
+    refs.exportPptx.disabled = stateName === "running";
+    refs.exportPptx.setAttribute("aria-busy", stateName === "running" ? "true" : "false");
+    refs.exportPptx.title = detail.detail || defaultPptxButtonLabel;
+
+    if (stateName === "completed") {
+      window.setTimeout(() => {
+        if (isPptxExportRunning) {
+          return;
+        }
+        refs.exportPptx.textContent = defaultPptxButtonLabel;
+        refs.exportPptx.style.setProperty("--pptx-progress", "0%");
+        refs.exportPptx.classList.remove("is-complete");
+        refs.exportPptx.title = defaultPptxButtonLabel;
+      }, 1800);
+    }
+
+    if (stateName === "idle" || stateName === "error") {
+      refs.exportPptx.textContent = defaultPptxButtonLabel;
+      refs.exportPptx.style.setProperty("--pptx-progress", "0%");
+      refs.exportPptx.classList.remove("is-exporting", "is-complete");
+      refs.exportPptx.disabled = false;
+      refs.exportPptx.setAttribute("aria-busy", "false");
+      refs.exportPptx.title = defaultPptxButtonLabel;
+    }
+  }
+
+  if (ns.services.exporter && typeof ns.services.exporter.setPptxProgressListener === "function") {
+    ns.services.exporter.setPptxProgressListener(updatePptxExportButton);
   }
 
   function render() {
@@ -1726,7 +1775,30 @@
   refs.deleteSlideInline.addEventListener("click", deleteCurrentSlide);
   refs.exportJson.addEventListener("click", () => ns.services.exporter.exportJson(state));
   refs.exportPdf.addEventListener("click", () => ns.services.exporter.exportPdf(state));
-  refs.exportPptx.addEventListener("click", () => ns.services.exporter.exportPptx(state));
+  refs.exportPptx.addEventListener("click", async () => {
+    if (isPptxExportRunning) {
+      return;
+    }
+    isPptxExportRunning = true;
+    updatePptxExportButton({
+      state: "running",
+      percent: 1,
+      label: "Préparation",
+      detail: "Lancement de l'export PowerPoint",
+    });
+    try {
+      await ns.services.exporter.exportPptx(state);
+    } catch (error) {
+      console.error(error);
+      window.alert("L'export PPTX a rencontre un probleme. Consulte la console pour plus de details.");
+      updatePptxExportButton({ state: "error" });
+    } finally {
+      isPptxExportRunning = false;
+      if (refs.exportPptx.classList.contains("is-exporting")) {
+        updatePptxExportButton({ state: "idle" });
+      }
+    }
+  });
   refs.exportHtml.addEventListener("click", () => ns.services.exporter.exportHtml(state, false));
   refs.openPresentation.addEventListener("click", () => {
     ns.services.storage.saveState(STORAGE_KEY, state);
