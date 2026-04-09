@@ -290,6 +290,25 @@
       .filter(Boolean);
   }
 
+  function getResolvedFreeMedia(slide, state, assets) {
+    const ids = Array.isArray(slide && slide.freeMediaIds) ? slide.freeMediaIds.slice(0, 12) : [];
+    return ids
+      .map((id) => {
+        const item = getMediaItemById(state.mediaLibrary, id);
+        if (!item || item.kind !== "image") {
+          return null;
+        }
+        return {
+          id,
+          kind: item.kind,
+          name: item.name || "Media",
+          data: (assets.previewMap && assets.previewMap[id]) || item.thumbnailUrl || item.externalUrl || "",
+          link: item.externalUrl || "",
+        };
+      })
+      .filter(Boolean);
+  }
+
   function buildBulletItems(slide) {
     const bullets = Array.isArray(slide && slide.bullets)
       ? slide.bullets.filter((item) => item && item.trim())
@@ -352,6 +371,139 @@
       runs.push({ text: tail, options: Object.assign({}, baseOptions) });
     }
     return runs.length ? runs : [{ text: "", options: Object.assign({}, baseOptions) }];
+  }
+
+  function parseRichTextParagraphs(html) {
+    const source = String(html || "").trim();
+    if (!source) {
+      return [];
+    }
+
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(`<div>${source}</div>`, "text/html");
+    const root = doc.body.firstElementChild || doc.body;
+    const paragraphs = [];
+
+    function walk(node, style, runs) {
+      if (!node) {
+        return;
+      }
+
+      if (node.nodeType === Node.TEXT_NODE) {
+        const value = node.textContent || "";
+        if (value) {
+          runs.push({
+            text: value,
+            bold: Boolean(style.bold),
+            underline: Boolean(style.underline),
+            fontScale: style.fontScale || 1,
+          });
+        }
+        return;
+      }
+
+      if (node.nodeType !== Node.ELEMENT_NODE) {
+        return;
+      }
+
+      const tag = node.tagName.toLowerCase();
+      if (tag === "br") {
+        runs.push({ text: "\n", breakLine: true, fontScale: style.fontScale || 1 });
+        return;
+      }
+
+      const nextStyle = Object.assign({}, style);
+      if (tag === "strong" || tag === "b") {
+        nextStyle.bold = true;
+      }
+      if (tag === "u") {
+        nextStyle.underline = true;
+      }
+      if (tag === "span") {
+        const styleAttr = String(node.getAttribute("style") || "");
+        const sizeMatch = styleAttr.match(/font-size\s*:\s*(90|100|110|120|130|140)%/i);
+        if (sizeMatch) {
+          nextStyle.fontScale = Number(sizeMatch[1]) / 100;
+        }
+      }
+
+      Array.from(node.childNodes).forEach((child) => walk(child, nextStyle, runs));
+    }
+
+    Array.from(root.childNodes).forEach((node) => {
+      if (node.nodeType === Node.ELEMENT_NODE) {
+        const tag = node.tagName.toLowerCase();
+        if (tag === "p" || tag === "div") {
+          const runs = [];
+          Array.from(node.childNodes).forEach((child) => walk(child, {}, runs));
+          if (runs.some((run) => String(run.text || "").trim())) {
+            paragraphs.push(runs);
+          }
+          return;
+        }
+      }
+
+      const runs = [];
+      walk(node, {}, runs);
+      if (runs.some((run) => String(run.text || "").trim())) {
+        paragraphs.push(runs);
+      }
+    });
+
+    return paragraphs;
+  }
+
+  function estimateParagraphHeight(paragraphs, baseFontSize) {
+    return paragraphs.reduce((sum, paragraph) => {
+      const charCount = paragraph.reduce((count, run) => count + String(run.text || "").length, 0);
+      const lineEstimate = Math.max(1, Math.ceil(charCount / 78));
+      return sum + (lineEstimate * baseFontSize * 0.022) + 0.08;
+    }, 0);
+  }
+
+  function addRichParagraphs(pptSlide, paragraphs, box, deckFont, palette) {
+    if (!paragraphs.length) {
+      return box.y;
+    }
+
+    const totalChars = paragraphs.reduce((sum, paragraph) => sum + paragraph.reduce((count, run) => count + String(run.text || "").length, 0), 0);
+    const baseFontSize = totalChars > 900 ? 12.5 : totalChars > 520 ? 14 : 15.5;
+    const estimatedHeight = estimateParagraphHeight(paragraphs, baseFontSize);
+    const scale = estimatedHeight > box.h ? Math.max(0.78, box.h / estimatedHeight) : 1;
+    let cursorY = box.y;
+
+    paragraphs.forEach((paragraph) => {
+      const charCount = paragraph.reduce((count, run) => count + String(run.text || "").length, 0);
+      const lineEstimate = Math.max(1, Math.ceil(charCount / 78));
+      const paraHeight = Math.max(0.26, (lineEstimate * baseFontSize * 0.022 * scale) + 0.04);
+      const runs = paragraph.map((run) => ({
+        text: String(run.text || "").replace(/\n/g, ""),
+        options: {
+          bold: Boolean(run.bold),
+          underline: Boolean(run.underline),
+          breakLine: Boolean(run.breakLine),
+          fontSize: Math.max(10, baseFontSize * (run.fontScale || 1) * scale),
+          color: palette.textMuted,
+          fontFace: deckFont.pptBody || "Aptos",
+        },
+      })).filter((run) => run.text || run.options.breakLine);
+
+      if (runs.length) {
+        pptSlide.addText(runs, {
+          x: box.x,
+          y: cursorY,
+          w: box.w,
+          h: paraHeight,
+          margin: 0,
+          fit: "shrink",
+          breakLine: false,
+          valign: "mid",
+        });
+      }
+      cursorY += paraHeight + 0.04;
+    });
+
+    return cursorY;
   }
 
   function addLinkedTextBox(pptSlide, value, box, textOptions) {
@@ -816,6 +968,92 @@
     addFooter(pptSlide, slide, state, deckFont, palette);
   }
 
+  async function addFreeLinksBlock(pptSlide, slide, startY, deckFont, palette) {
+    const freeLinks = Array.isArray(slide && slide.freeLinks) ? slide.freeLinks.filter((item) => item && item.url).slice(0, 12) : [];
+    if (!freeLinks.length) {
+      return startY;
+    }
+
+    let cursorX = 0.82;
+    let cursorY = startY;
+    const maxX = 11.82;
+    for (const item of freeLinks) {
+      const label = String(item.label || ns.utils.formatUrlLabel(item.url) || item.url).trim();
+      const width = Math.min(3.4, Math.max(1.2, 0.52 + (label.length * 0.082)));
+      if (cursorX + width > maxX) {
+        cursorX = 0.82;
+        cursorY += 0.38;
+      }
+      pptSlide.addShape(((window.PptxGenJS && window.PptxGenJS.ShapeType) || {}).roundRect || "roundRect", {
+        x: cursorX,
+        y: cursorY,
+        w: width,
+        h: 0.28,
+        rectRadius: 0.14,
+        line: { color: palette.line, transparency: 100 },
+        fill: { color: lightenHex(palette.accent, 0.82) },
+      });
+      pptSlide.addText(label, {
+        x: cursorX + 0.08,
+        y: cursorY + 0.04,
+        w: width - 0.16,
+        h: 0.16,
+        margin: 0,
+        fit: "shrink",
+        align: "center",
+        fontFace: deckFont.pptBody || "Aptos",
+        fontSize: 9,
+        bold: true,
+        color: palette.accentStrong,
+        hyperlink: { url: item.url },
+      });
+      cursorX += width + 0.12;
+    }
+
+    return cursorY + 0.42;
+  }
+
+  async function addFreeGallery(pptSlide, mediaItems, startY, maxHeight, palette, deckFont) {
+    if (!mediaItems.length || maxHeight <= 0.32) {
+      return;
+    }
+
+    const columns = Math.min(3, Math.max(1, mediaItems.length));
+    const rows = Math.ceil(mediaItems.length / columns);
+    const gap = 0.18;
+    const itemW = (11.76 - (gap * (columns - 1))) / columns;
+    const itemH = Math.max(0.9, Math.min((maxHeight - (gap * (rows - 1))) / rows, 1.7));
+
+    for (let index = 0; index < mediaItems.length; index += 1) {
+      const media = mediaItems[index];
+      const col = index % columns;
+      const row = Math.floor(index / columns);
+      const x = 0.82 + (col * (itemW + gap));
+      const y = startY + (row * (itemH + gap));
+      await addMediaFrame(pptSlide, media, { x, y, w: itemW, h: itemH }, palette, deckFont);
+    }
+  }
+
+  async function addFreeSlide(pptSlide, slide, state, assets, deckFont, palette) {
+    const chrome = await addSlideChrome(pptSlide, slide, state, assets, deckFont, palette);
+    const paragraphs = parseRichTextParagraphs(slide.freeBody || "");
+    const mediaItems = getResolvedFreeMedia(slide, state, assets);
+    let cursorY = chrome.bodyTop;
+
+    if (paragraphs.length) {
+      cursorY = addRichParagraphs(pptSlide, paragraphs, {
+        x: 0.82,
+        y: chrome.bodyTop,
+        w: 11.1,
+        h: 3.1,
+      }, deckFont, palette);
+    }
+
+    cursorY = await addFreeLinksBlock(pptSlide, slide, cursorY + 0.06, deckFont, palette);
+    await addFreeGallery(pptSlide, mediaItems, cursorY + 0.08, chrome.bodyBottom - (cursorY + 0.08), palette, deckFont);
+    addFooter(pptSlide, slide, state, deckFont, palette);
+  }
+
   async function waitForRenderAssets(root) {
     const images = Array.from(root.querySelectorAll("img"));
     const videos = Array.from(root.querySelectorAll("video"));
@@ -964,6 +1202,8 @@
         label: `Slide ${index + 1}/${totalSlides}`,
         detail: slide.contentType === "table"
           ? "Construction du tableau éditable"
+          : slide.contentType === "free"
+            ? "Construction de la slide libre hybride"
           : slide.contentType === "bullets" || !slide.contentType
             ? "Construction de la slide éditable"
             : "Rendu de la slide en image",
@@ -972,6 +1212,8 @@
 
       if (slide.contentType === "table") {
         await addTableSlide(pptSlide, slide, state, assets, deckFont, palette);
+      } else if (slide.contentType === "free") {
+        await addFreeSlide(pptSlide, slide, state, assets, deckFont, palette);
       } else if (slide.contentType === "bullets" || !slide.contentType) {
         await addBulletSlide(pptSlide, slide, state, assets, deckFont, palette);
       } else {
