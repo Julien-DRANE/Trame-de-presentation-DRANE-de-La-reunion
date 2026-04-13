@@ -83,7 +83,7 @@
     const decorativeAccent = getDecorativeAccent(slide && slide.decorativeAccentOverride);
     const font = getDeckFont(settings);
     const frameShadow = settings && settings.frameShadow
-      ? "0 12px 30px rgba(18, 32, 51, 0.12)"
+      ? "0 14px 34px rgba(18, 32, 51, 0.16)"
       : "none";
     return [
       `--slide-bg-start:${palette.bgStart}`,
@@ -322,11 +322,55 @@
   function splitBulletsForLayout(bulletsInput) {
     const bullets = Array.isArray(bulletsInput) ? bulletsInput : [];
 
-    if (bullets.length > 3) {
-      const leftCount = Math.ceil(bullets.length / 2);
+    if (bullets.length <= 1) {
       return {
-        mainBullets: bullets.slice(0, leftCount),
-        extraBullets: bullets.slice(leftCount),
+        mainBullets: bullets.slice(0, 3),
+        extraBullets: bullets.slice(3),
+      };
+    }
+
+    const getBulletWeight = (item) => {
+      const bulletItem = item && typeof item === "object" ? item : { text: String(item || ""), children: [] };
+      const mainTextLength = String(bulletItem.text || "").trim().length;
+      const mainWeight = 1 + Math.min(0.45, mainTextLength / 280);
+      const childrenWeight = (Array.isArray(bulletItem.children) ? bulletItem.children : []).reduce((sum, child) => {
+        const childLength = String(child || "").trim().length;
+        return sum + 0.78 + Math.min(0.3, childLength / 360);
+      }, 0);
+      return mainWeight + childrenWeight;
+    };
+
+    const weights = bullets.map(getBulletWeight);
+    const totalWeight = weights.reduce((sum, value) => sum + value, 0);
+    const splitThreshold = 5.15;
+
+    if (bullets.length <= 3 && totalWeight <= splitThreshold) {
+      return {
+        mainBullets: bullets.slice(0, 3),
+        extraBullets: bullets.slice(3),
+      };
+    }
+
+    let bestSplitIndex = -1;
+    let bestScore = Number.POSITIVE_INFINITY;
+    let runningWeight = 0;
+
+    for (let index = 0; index < bullets.length - 1; index += 1) {
+      runningWeight += weights[index];
+      const leftWeight = runningWeight;
+      const rightWeight = totalWeight - runningWeight;
+      const score = Math.max(leftWeight, rightWeight) + (Math.abs(leftWeight - rightWeight) * 0.22);
+
+      if (score < bestScore) {
+        bestScore = score;
+        bestSplitIndex = index + 1;
+      }
+    }
+
+    if (bestSplitIndex > 0) {
+      return {
+        mainBullets: bullets.slice(0, bestSplitIndex),
+        extraBullets: bullets.slice(bestSplitIndex),
       };
     }
 
@@ -416,6 +460,42 @@
         ${bodyMarkup}
         ${linksMarkup}
         ${galleryMarkup}
+      </div>
+    `;
+  }
+
+  function createBulletSideColumnMarkup(extraBullets, slide, options, numberingStart, progressive) {
+    const sideBulletsMarkup = Array.isArray(extraBullets) && extraBullets.length
+      ? createBulletListMarkup(extraBullets, {
+          className: "slide-side-bullets",
+          numbered: Boolean(slide && slide.bulletsNumbered),
+          startAt: numberingStart,
+          progressive: Boolean(progressive),
+        })
+      : "";
+    const mediaMarkup = createSlideMediaMarkup(slide, options);
+
+    if (sideBulletsMarkup && mediaMarkup) {
+      return `
+        <div class="slide-side-column">
+          <div class="slide-side-column-bullets">${sideBulletsMarkup}</div>
+          <div class="slide-side-column-media">${mediaMarkup}</div>
+        </div>
+      `;
+    }
+
+    return sideBulletsMarkup || mediaMarkup;
+  }
+
+  function createBulletPrimaryColumnMarkup(bulletMarkup, mediaMarkup, mediaCount) {
+    if (!mediaMarkup) {
+      return bulletMarkup;
+    }
+
+    return `
+      <div class="slide-primary-column">
+        <div class="slide-primary-column-bullets">${bulletMarkup}</div>
+        <div class="slide-primary-column-media slide-media-slot is-media-bare${mediaCount > 1 ? " has-media-stack" : ""}">${mediaMarkup}</div>
       </div>
     `;
   }
@@ -642,13 +722,15 @@
     );
     const compactClass = opts.compact ? " deck-slide-compact" : "";
     const bloomPill = opts.compact ? `<span class="slide-bloom-pill">${utils.escapeHtml(bloomMeta.title)}</span>` : "";
+    const moveMediaBelowPrimaryBullets = extraBullets.length >= 2 && mainBullets.length === 1 && slideMediaItems.length > 0;
     const sideMarkup = extraBullets.length
-      ? createBulletListMarkup(extraBullets, {
-          className: "slide-side-bullets",
-          numbered: bulletsNumbered,
-          startAt: mainBullets.length + 1,
-          progressive: bulletsProgressive,
-        })
+      ? createBulletSideColumnMarkup(
+          extraBullets,
+          moveMediaBelowPrimaryBullets ? Object.assign({}, slide, { mediaId: "", secondaryMediaId: "" }) : slide,
+          opts,
+          mainBullets.length + 1,
+          bulletsProgressive
+        )
       : createSlideMediaMarkup(slide, opts);
     const headline = slide.title ? `<h3 class="slide-headline">${utils.escapeHtml(slide.title)}</h3>` : "";
     const subtitle = slide.subtitle ? `<p class="slide-subtitle-text">${utils.escapeHtml(slide.subtitle)}</p>` : "";
@@ -675,7 +757,7 @@
     } else if (extraBullets.length) {
       contentMarkup = `
         <div class="slide-bullets-row slide-bullets-row-extra">
-          ${bulletMarkup}
+          ${moveMediaBelowPrimaryBullets ? createBulletPrimaryColumnMarkup(bulletMarkup, mediaMarkup, slideMediaItems.length) : bulletMarkup}
           <aside class="slide-media-slot slide-side-bullets-slot">${sideMarkup}</aside>
         </div>
       `;
