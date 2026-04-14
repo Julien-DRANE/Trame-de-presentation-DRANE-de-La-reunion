@@ -66,6 +66,7 @@
     slideContentType: document.querySelector("#slide-content-type"),
     slidePaletteOverride: document.querySelector("#slide-palette-override"),
     slideDecorativeAccentOverride: document.querySelector("#slide-decorative-accent-override"),
+    slideDecorativeAccentSolid: document.querySelector("#slide-decorative-accent-solid"),
     slideBulletsEditor: document.querySelector("#slide-bullets-editor"),
     slideTableEditor: document.querySelector("#slide-table-editor"),
     slideFreeEditor: document.querySelector("#slide-free-editor"),
@@ -97,6 +98,7 @@
     tableFillList: document.querySelector("#table-fill-list"),
     tableEditorGrid: document.querySelector("#table-editor-grid"),
     slideFreeBody: document.querySelector("#slide-free-body"),
+    freeTextColor: document.querySelector("#free-text-color"),
     freeBodyMeta: document.querySelector("#free-body-meta"),
     freeLinkLabel: document.querySelector("#free-link-label"),
     freeLinkUrl: document.querySelector("#free-link-url"),
@@ -142,6 +144,7 @@
   let pendingVisualChartFocus = null;
   let pendingPreviewPanelFocus = false;
   let freeEditorRange = null;
+  let suppressFreeEditorBlur = false;
   let isPptxExportRunning = false;
   const defaultPptxButtonLabel = refs.exportPptx ? refs.exportPptx.textContent : "Exporter PPTX";
   const isPresentationMode = new URLSearchParams(window.location.search).get("present") === "1";
@@ -787,6 +790,10 @@
     return /^#[0-9a-fA-F]{6}$/.test(value || "") ? value.toLowerCase() : "#dcecff";
   }
 
+  function normalizeFreeEditorTextColor(value) {
+    return /^#[0-9a-fA-F]{6}$/.test(value || "") ? value.toLowerCase() : "#1d1917";
+  }
+
   function getSelectedTableFillColor() {
     const slide = getSelectedSlide();
     const target = refs.tableFillTarget.value === "column" ? "columns" : "rows";
@@ -1020,6 +1027,13 @@
     updateFreeBodyPreview();
   }
 
+  function markFreeEditorToolbarInteraction() {
+    suppressFreeEditorBlur = true;
+    window.setTimeout(() => {
+      suppressFreeEditorBlur = false;
+    }, 0);
+  }
+
   function applyFreeEditorFontSize(size) {
     if (!restoreFreeEditorSelection()) {
       refs.slideFreeBody.focus();
@@ -1046,7 +1060,40 @@
       selection.removeAllRanges();
       selection.addRange(range);
       saveFreeEditorSelection();
-      normalizeFreeEditorMarkup(true);
+      normalizeFreeEditorMarkup(false);
+    } catch (error) {
+      return;
+    }
+  }
+
+  function applyFreeEditorTextColor(color) {
+    if (!restoreFreeEditorSelection()) {
+      refs.slideFreeBody.focus();
+      return;
+    }
+
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0 || selection.isCollapsed) {
+      return;
+    }
+
+    const range = selection.getRangeAt(0);
+    if (!refs.slideFreeBody.contains(range.commonAncestorContainer)) {
+      return;
+    }
+
+    const normalizedColor = normalizeFreeEditorTextColor(color);
+    const wrapper = document.createElement("span");
+    wrapper.setAttribute("style", `color:${normalizedColor};`);
+    try {
+      const content = range.extractContents();
+      wrapper.appendChild(content);
+      range.insertNode(wrapper);
+      range.selectNodeContents(wrapper);
+      selection.removeAllRanges();
+      selection.addRange(range);
+      saveFreeEditorSelection();
+      normalizeFreeEditorMarkup(false);
     } catch (error) {
       return;
     }
@@ -1068,11 +1115,11 @@
       return;
     }
 
-    const formatAncestor = findFreeEditorFormatAncestor(range.commonAncestorContainer, tagName);
+    const formatAncestor = findFreeEditorFormatAncestor(range, tagName);
     if (formatAncestor) {
       unwrapFreeEditorFormat(formatAncestor);
       saveFreeEditorSelection();
-      normalizeFreeEditorMarkup(true);
+      normalizeFreeEditorMarkup(false);
       return;
     }
 
@@ -1085,13 +1132,13 @@
       selection.removeAllRanges();
       selection.addRange(range);
       saveFreeEditorSelection();
-      normalizeFreeEditorMarkup(true);
+      normalizeFreeEditorMarkup(false);
     } catch (error) {
       return;
     }
   }
 
-  function findFreeEditorFormatAncestor(node, tagName) {
+  function getFreeEditorFormatAncestorForNode(node, tagName) {
     let current = node && node.nodeType === Node.ELEMENT_NODE ? node : node.parentNode;
     while (current && current !== refs.slideFreeBody) {
       if (current.nodeType === Node.ELEMENT_NODE && current.tagName.toLowerCase() === tagName) {
@@ -1099,6 +1146,25 @@
       }
       current = current.parentNode;
     }
+    return null;
+  }
+
+  function findFreeEditorFormatAncestor(range, tagName) {
+    if (!range) {
+      return null;
+    }
+
+    const commonAncestor = getFreeEditorFormatAncestorForNode(range.commonAncestorContainer, tagName);
+    if (commonAncestor) {
+      return commonAncestor;
+    }
+
+    const startAncestor = getFreeEditorFormatAncestorForNode(range.startContainer, tagName);
+    const endAncestor = getFreeEditorFormatAncestorForNode(range.endContainer, tagName);
+    if (startAncestor && endAncestor && startAncestor === endAncestor) {
+      return startAncestor;
+    }
+
     return null;
   }
 
@@ -1465,6 +1531,9 @@
   refs.slideDecorativeAccentOverride.addEventListener("change", (event) => updateSelectedSlide({
     decorativeAccentOverride: event.target.value,
   }));
+  refs.slideDecorativeAccentSolid.addEventListener("change", (event) => updateSelectedSlide({
+    decorativeAccentSolid: Boolean(event.target.checked),
+  }));
   refs.slideBulletsNumbered.addEventListener("change", (event) => updateSelectedSlide({
     bulletsNumbered: Boolean(event.target.checked),
   }));
@@ -1503,7 +1572,12 @@
   refs.slideFreeBody.addEventListener("click", () => {
     setTimeout(saveFreeEditorSelection, 0);
   });
-  refs.slideFreeBody.addEventListener("blur", () => normalizeFreeEditorMarkup(true));
+  refs.slideFreeBody.addEventListener("blur", () => {
+    if (suppressFreeEditorBlur) {
+      return;
+    }
+    normalizeFreeEditorMarkup(true);
+  });
   refs.slideFreeBody.addEventListener("paste", (event) => {
     event.preventDefault();
     const pastedText = event.clipboardData ? event.clipboardData.getData("text/plain") : "";
@@ -1818,12 +1892,20 @@
   });
 
   document.querySelectorAll("[data-free-command]").forEach((button) => {
-    button.addEventListener("mousedown", (event) => event.preventDefault());
+    button.addEventListener("mousedown", (event) => {
+      event.preventDefault();
+      markFreeEditorToolbarInteraction();
+      saveFreeEditorSelection();
+    });
     button.addEventListener("click", () => {
       refs.slideFreeBody.focus();
       const command = button.getAttribute("data-free-command");
       if (command === "bold") {
         applyFreeEditorInlineTag("strong");
+        return;
+      }
+      if (command === "italic") {
+        applyFreeEditorInlineTag("em");
         return;
       }
       if (command === "underline") {
@@ -1835,6 +1917,7 @@
   document.querySelectorAll("[data-free-size]").forEach((button) => {
     button.addEventListener("mousedown", (event) => {
       event.preventDefault();
+      markFreeEditorToolbarInteraction();
       saveFreeEditorSelection();
     });
     button.addEventListener("click", () => {
@@ -1842,6 +1925,21 @@
       applyFreeEditorFontSize(button.getAttribute("data-free-size"));
     });
   });
+
+  if (refs.freeTextColor) {
+    refs.freeTextColor.addEventListener("mousedown", () => {
+      markFreeEditorToolbarInteraction();
+      saveFreeEditorSelection();
+    });
+    refs.freeTextColor.addEventListener("input", (event) => {
+      refs.slideFreeBody.focus();
+      applyFreeEditorTextColor(event.target.value);
+    });
+    refs.freeTextColor.addEventListener("change", (event) => {
+      refs.slideFreeBody.focus();
+      applyFreeEditorTextColor(event.target.value);
+    });
+  }
 
   document.addEventListener("selectionchange", () => {
     if (document.activeElement === refs.slideFreeBody) {

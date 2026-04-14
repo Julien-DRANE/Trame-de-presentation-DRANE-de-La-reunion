@@ -260,6 +260,10 @@
                   <span class="field-label-secondary">Teinte decorative</span>
                   <select id="slide-decorative-accent-override"></select>
                 </label>
+                <label class="checkbox-field">
+                  <input id="slide-decorative-accent-solid" type="checkbox" />
+                  <span>Habillage décoratif plus marqué</span>
+                </label>
               </div>
 
               <div id="slide-bullets-editor" class="slide-content-mode">
@@ -355,7 +359,12 @@
                   <div class="free-editor-shell">
                     <div class="free-editor-toolbar">
                       <button class="button button-ghost free-editor-action" type="button" data-free-command="bold"><strong>G</strong></button>
+                      <button class="button button-ghost free-editor-action" type="button" data-free-command="italic"><em>I</em></button>
                       <button class="button button-ghost free-editor-action" type="button" data-free-command="underline"><u>S</u></button>
+                      <label class="free-editor-color-control">
+                        <span>Couleur</span>
+                        <input id="free-text-color" type="color" value="#1d1917" aria-label="Couleur du texte sélectionné" />
+                      </label>
                       <div class="free-editor-size-group" aria-label="Taille du texte">
                         <button class="button button-ghost free-editor-size" type="button" data-free-size="100">100%</button>
                         <button class="button button-ghost free-editor-size" type="button" data-free-size="110">110%</button>

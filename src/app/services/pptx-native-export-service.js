@@ -205,19 +205,50 @@
     return variants[hash % variants.length];
   }
 
+  function intensifyAccentColor(value) {
+    const match = String(value || "").match(/^rgba?\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})(?:\s*,\s*([0-9.]+))?\s*\)$/i);
+    if (!match) {
+      return value;
+    }
+    const alpha = match[4] === undefined ? 1 : Number(match[4]);
+    const nextAlpha = Math.min(0.92, Math.max(0.34, (Number.isFinite(alpha) ? alpha : 1) * 1.75));
+    return `rgba(${match[1]}, ${match[2]}, ${match[3]}, ${nextAlpha.toFixed(2)})`;
+  }
+
+  function getDecorativeStyleSet(slide, palette, decorativeAccent) {
+    const source = decorativeAccent || palette;
+    if (!slide || !slide.decorativeAccentSolid) {
+      return source;
+    }
+    return {
+      accentSoft: intensifyAccentColor(source.accentSoft),
+      accentSofter: intensifyAccentColor(source.accentSofter),
+      accentWave: intensifyAccentColor(source.accentWave),
+      accentWaveSoft: intensifyAccentColor(source.accentWaveSoft),
+      accentDeepSoft: intensifyAccentColor(source.accentDeepSoft),
+    };
+  }
+
   function createSlidePaletteStyle(slide, settings) {
     const palette = getPalette(settings, slide);
     const decorativeAccent = getDecorativeAccent(slide);
+    const accentStyleSet = decorativeAccent || palette;
+    const decorativeStyleSet = getDecorativeStyleSet(slide, palette, decorativeAccent);
     return [
       `--slide-bg-start:${palette.bgStart}`,
       `--slide-bg-end:${palette.bgEnd}`,
       `--slide-accent:${palette.accent}`,
       `--slide-accent-strong:${palette.accentStrong}`,
-      `--slide-accent-soft:${decorativeAccent ? decorativeAccent.accentSoft : palette.accentSoft}`,
-      `--slide-accent-softer:${decorativeAccent ? decorativeAccent.accentSofter : palette.accentSofter}`,
-      `--slide-accent-wave:${decorativeAccent ? decorativeAccent.accentWave : palette.accentWave}`,
-      `--slide-accent-wave-soft:${decorativeAccent ? decorativeAccent.accentWaveSoft : palette.accentWaveSoft}`,
-      `--slide-accent-deep-soft:${decorativeAccent ? decorativeAccent.accentDeepSoft : palette.accentDeepSoft}`,
+      `--slide-accent-soft:${accentStyleSet.accentSoft}`,
+      `--slide-accent-softer:${accentStyleSet.accentSofter}`,
+      `--slide-accent-wave:${accentStyleSet.accentWave}`,
+      `--slide-accent-wave-soft:${accentStyleSet.accentWaveSoft}`,
+      `--slide-accent-deep-soft:${accentStyleSet.accentDeepSoft}`,
+      `--slide-decor-soft:${decorativeStyleSet.accentSoft}`,
+      `--slide-decor-softer:${decorativeStyleSet.accentSofter}`,
+      `--slide-decor-wave:${decorativeStyleSet.accentWave}`,
+      `--slide-decor-wave-soft:${decorativeStyleSet.accentWaveSoft}`,
+      `--slide-decor-deep-soft:${decorativeStyleSet.accentDeepSoft}`,
       `--slide-surface:${palette.surface}`,
       `--slide-surface-strong:${palette.surfaceStrong}`,
       `--slide-text:${palette.text}`,
@@ -395,8 +426,10 @@
           runs.push({
             text: value,
             bold: Boolean(style.bold),
+            italic: Boolean(style.italic),
             underline: Boolean(style.underline),
             fontScale: style.fontScale || 1,
+            color: style.color || "",
           });
         }
         return;
@@ -416,6 +449,9 @@
       if (tag === "strong" || tag === "b") {
         nextStyle.bold = true;
       }
+      if (tag === "em" || tag === "i") {
+        nextStyle.italic = true;
+      }
       if (tag === "u") {
         nextStyle.underline = true;
       }
@@ -424,6 +460,10 @@
         const sizeMatch = styleAttr.match(/font-size\s*:\s*(90|100|110|120|130|140)%/i);
         if (sizeMatch) {
           nextStyle.fontScale = Number(sizeMatch[1]) / 100;
+        }
+        const colorMatch = styleAttr.match(/color\s*:\s*(#[0-9a-fA-F]{6})/i);
+        if (colorMatch) {
+          nextStyle.color = colorMatch[1].toLowerCase();
         }
       }
 
@@ -480,10 +520,11 @@
         text: String(run.text || "").replace(/\n/g, ""),
         options: {
           bold: Boolean(run.bold),
+          italic: Boolean(run.italic),
           underline: Boolean(run.underline),
           breakLine: Boolean(run.breakLine),
           fontSize: Math.max(10, baseFontSize * (run.fontScale || 1) * scale),
-          color: palette.textMuted,
+          color: stripHex(run.color || palette.text),
           fontFace: deckFont.pptBody || "Aptos",
         },
       })).filter((run) => run.text || run.options.breakLine);

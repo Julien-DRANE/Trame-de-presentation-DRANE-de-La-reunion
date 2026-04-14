@@ -99,6 +99,10 @@
         return `<strong>${inner}</strong>`;
       }
 
+      if (tag === "em" || tag === "i") {
+        return `<em>${inner}</em>`;
+      }
+
       if (tag === "u") {
         return `<u>${inner}</u>`;
       }
@@ -107,7 +111,13 @@
         const style = String(node.getAttribute("style") || "");
         const match = style.match(/font-size\s*:\s*(90|100|110|120|130|140)%/i);
         const fontSize = match ? match[1] : "";
-        return fontSize ? `<span style="font-size:${fontSize}%;">${inner}</span>` : inner;
+        const colorMatch = style.match(/color\s*:\s*(#[0-9a-fA-F]{6})/i);
+        const color = colorMatch ? colorMatch[1].toLowerCase() : "";
+        const supportedStyles = [
+          fontSize ? `font-size:${fontSize}%` : "",
+          color ? `color:${color}` : "",
+        ].filter(Boolean);
+        return supportedStyles.length ? `<span style="${supportedStyles.join(";")};">${inner}</span>` : inner;
       }
 
       if (tag === "p" || tag === "div") {

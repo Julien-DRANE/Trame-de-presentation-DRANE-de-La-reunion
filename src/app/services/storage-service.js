@@ -103,6 +103,7 @@
       tableProgressiveOrder: slide.tableProgressiveOrder === "column" ? "column" : "row",
       paletteOverride: paletteOptions.includes(slide.paletteOverride) ? slide.paletteOverride : "",
       decorativeAccentOverride: decorativeAccentOptions.includes(slide.decorativeAccentOverride) ? slide.decorativeAccentOverride : "",
+      decorativeAccentSolid: Boolean(slide.decorativeAccentSolid),
       tableHighlights,
       table,
       freeBody: utils.sanitizeRichText(slide.freeBody, 1600),

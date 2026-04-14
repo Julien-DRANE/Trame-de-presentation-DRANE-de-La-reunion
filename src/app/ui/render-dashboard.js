@@ -85,6 +85,7 @@
       ...decorativeAccents.map((accent) => `<option value="${ns.utils.escapeHtml(accent.id)}">${ns.utils.escapeHtml(accent.label)}</option>`),
     ].join("");
     refs.slideDecorativeAccentOverride.value = selectedSlide.decorativeAccentOverride || "";
+    refs.slideDecorativeAccentSolid.checked = Boolean(selectedSlide.decorativeAccentSolid);
     refs.slideBulletsNumbered.checked = Boolean(selectedSlide.bulletsNumbered);
     refs.slideBulletsProgressive.checked = Boolean(selectedSlide.bulletsProgressive);
     refs.slideTableProgressive.checked = Boolean(selectedSlide.tableProgressive);

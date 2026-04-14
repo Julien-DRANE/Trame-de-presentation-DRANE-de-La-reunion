@@ -8,6 +8,11 @@
   --slide-accent-wave: rgba(44, 115, 218, 0.2);
   --slide-accent-wave-soft: rgba(44, 115, 218, 0.08);
   --slide-accent-deep-soft: rgba(23, 71, 139, 0.14);
+  --slide-decor-soft: rgba(44, 115, 218, 0.22);
+  --slide-decor-softer: rgba(44, 115, 218, 0.08);
+  --slide-decor-wave: rgba(44, 115, 218, 0.2);
+  --slide-decor-wave-soft: rgba(44, 115, 218, 0.08);
+  --slide-decor-deep-soft: rgba(23, 71, 139, 0.14);
   --slide-surface: rgba(255, 255, 255, 0.72);
   --slide-surface-strong: rgba(255, 255, 255, 0.76);
   --slide-text: var(--ink);
@@ -44,7 +49,7 @@
   border-radius: 50%;
   background:
     radial-gradient(circle at 45% 40%, rgba(255, 255, 255, 0.9) 0 18%, transparent 19%),
-    radial-gradient(circle at center, var(--slide-accent-soft) 0 56%, var(--slide-accent-softer) 57% 74%, transparent 75%);
+    radial-gradient(circle at center, var(--slide-decor-soft) 0 56%, var(--slide-decor-softer) 57% 74%, transparent 75%);
 }
 
 .deck-slide.theme-circles::after,
@@ -55,7 +60,7 @@
   aspect-ratio: 1;
   border-radius: 50%;
   background:
-    radial-gradient(circle at center, var(--slide-accent-deep-soft) 0 56%, var(--slide-accent-softer) 57% 72%, transparent 73%);
+    radial-gradient(circle at center, var(--slide-decor-deep-soft) 0 56%, var(--slide-decor-softer) 57% 72%, transparent 73%);
 }
 
 .slide-wave {
@@ -67,7 +72,7 @@
   display: none;
   border-top-left-radius: 100% 100%;
   background:
-    linear-gradient(180deg, var(--slide-accent-softer), var(--slide-accent-wave)),
+    linear-gradient(180deg, var(--slide-decor-softer), var(--slide-decor-wave)),
     linear-gradient(90deg, rgba(255, 255, 255, 0.64), transparent);
 }
 
@@ -80,14 +85,14 @@
   height: 60%;
   border-top-left-radius: 100% 100%;
   border-top-right-radius: 18% 50%;
-  background: var(--slide-accent-wave-soft);
+  background: var(--slide-decor-wave-soft);
 }
 
 .slide-wave::after {
   bottom: 42%;
   left: 12%;
   width: 72%;
-  background: var(--slide-accent-softer);
+  background: var(--slide-decor-softer);
 }
 
 .deck-slide.theme-waves .slide-wave,
@@ -502,7 +507,7 @@
 
 .slide-free-body p {
   margin: 0;
-  color: var(--slide-text-muted);
+  color: var(--slide-text);
   line-height: 1.36;
 }
 
@@ -1222,7 +1227,7 @@
   margin-top: 0;
   left: -0.8rem;
   top: 0.48rem;
-  box-shadow: none;
+  box-shadow: 0 0 0 4px var(--slide-accent-softer);
   background: var(--slide-accent-strong);
 }
 
@@ -1305,6 +1310,7 @@
 
 .deck-slide-compact .slide-topline {
   padding-left: 4.8rem;
+  min-height: 0.95rem;
 }
 
 .deck-slide-compact .slide-label-pill,
@@ -1319,8 +1325,10 @@
 }
 
 .deck-slide-compact .slide-headline {
-  margin-top: 0.5rem;
-  font-size: clamp(0.94rem, 1.8vw, 1.18rem);
+  margin-top: 0.2rem;
+  font-size: clamp(1.02rem, 1.95vw, 1.28rem);
+  line-height: 1.04;
+  letter-spacing: -0.01em;
 }
 
 .deck-slide-compact .slide-body {

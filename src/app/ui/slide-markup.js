@@ -78,9 +78,35 @@
     return getFontOption((settings && settings.font) || "studio");
   }
 
+  function intensifyAccentColor(value) {
+    const match = String(value || "").match(/^rgba?\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})(?:\s*,\s*([0-9.]+))?\s*\)$/i);
+    if (!match) {
+      return value;
+    }
+    const alpha = match[4] === undefined ? 1 : Number(match[4]);
+    const nextAlpha = Math.min(0.92, Math.max(0.34, (Number.isFinite(alpha) ? alpha : 1) * 1.75));
+    return `rgba(${match[1]}, ${match[2]}, ${match[3]}, ${nextAlpha.toFixed(2)})`;
+  }
+
+  function getDecorativeStyleSet(slide, palette, decorativeAccent) {
+    const source = decorativeAccent || palette;
+    if (!slide || !slide.decorativeAccentSolid) {
+      return source;
+    }
+    return {
+      accentSoft: intensifyAccentColor(source.accentSoft),
+      accentSofter: intensifyAccentColor(source.accentSofter),
+      accentWave: intensifyAccentColor(source.accentWave),
+      accentWaveSoft: intensifyAccentColor(source.accentWaveSoft),
+      accentDeepSoft: intensifyAccentColor(source.accentDeepSoft),
+    };
+  }
+
   function createSlidePaletteStyle(slide, settings) {
     const palette = getSlidePalette(slide, settings);
     const decorativeAccent = getDecorativeAccent(slide && slide.decorativeAccentOverride);
+    const accentStyleSet = decorativeAccent || palette;
+    const decorativeStyleSet = getDecorativeStyleSet(slide, palette, decorativeAccent);
     const font = getDeckFont(settings);
     const frameShadow = settings && settings.frameShadow
       ? "0 14px 34px rgba(18, 32, 51, 0.16)"
@@ -90,11 +116,16 @@
       `--slide-bg-end:${palette.bgEnd}`,
       `--slide-accent:${palette.accent}`,
       `--slide-accent-strong:${palette.accentStrong}`,
-      `--slide-accent-soft:${decorativeAccent ? decorativeAccent.accentSoft : palette.accentSoft}`,
-      `--slide-accent-softer:${decorativeAccent ? decorativeAccent.accentSofter : palette.accentSofter}`,
-      `--slide-accent-wave:${decorativeAccent ? decorativeAccent.accentWave : palette.accentWave}`,
-      `--slide-accent-wave-soft:${decorativeAccent ? decorativeAccent.accentWaveSoft : palette.accentWaveSoft}`,
-      `--slide-accent-deep-soft:${decorativeAccent ? decorativeAccent.accentDeepSoft : palette.accentDeepSoft}`,
+      `--slide-accent-soft:${accentStyleSet.accentSoft}`,
+      `--slide-accent-softer:${accentStyleSet.accentSofter}`,
+      `--slide-accent-wave:${accentStyleSet.accentWave}`,
+      `--slide-accent-wave-soft:${accentStyleSet.accentWaveSoft}`,
+      `--slide-accent-deep-soft:${accentStyleSet.accentDeepSoft}`,
+      `--slide-decor-soft:${decorativeStyleSet.accentSoft}`,
+      `--slide-decor-softer:${decorativeStyleSet.accentSofter}`,
+      `--slide-decor-wave:${decorativeStyleSet.accentWave}`,
+      `--slide-decor-wave-soft:${decorativeStyleSet.accentWaveSoft}`,
+      `--slide-decor-deep-soft:${decorativeStyleSet.accentDeepSoft}`,
       `--slide-surface:${palette.surface}`,
       `--slide-surface-strong:${palette.surfaceStrong}`,
       `--slide-text:${palette.text}`,
@@ -326,6 +357,8 @@
       return {
         mainBullets: bullets.slice(0, 3),
         extraBullets: bullets.slice(3),
+        mainWeight: bullets.length ? 1 : 0,
+        extraWeight: 0,
       };
     }
 
@@ -348,6 +381,8 @@
       return {
         mainBullets: bullets.slice(0, 3),
         extraBullets: bullets.slice(3),
+        mainWeight: totalWeight,
+        extraWeight: 0,
       };
     }
 
@@ -371,12 +406,16 @@
       return {
         mainBullets: bullets.slice(0, bestSplitIndex),
         extraBullets: bullets.slice(bestSplitIndex),
+        mainWeight: weights.slice(0, bestSplitIndex).reduce((sum, value) => sum + value, 0),
+        extraWeight: weights.slice(bestSplitIndex).reduce((sum, value) => sum + value, 0),
       };
     }
 
     return {
       mainBullets: bullets.slice(0, 3),
       extraBullets: bullets.slice(3),
+      mainWeight: weights.slice(0, 3).reduce((sum, value) => sum + value, 0),
+      extraWeight: weights.slice(3).reduce((sum, value) => sum + value, 0),
     };
   }
 
@@ -675,7 +714,6 @@
   function createSlideMarkup(slide, settings, options) {
     const opts = options || {};
     const utils = ns.utils;
-    const bloomMeta = getBloomMeta(slide.bloomLevel);
     const logoSources = getSlideLogoSources(opts);
     const slideMediaItems = getSlideMediaItems(slide, opts);
     const slideMedia = slideMediaItems[0] || null;
@@ -686,6 +724,8 @@
     const bulletColumns = splitBulletsForLayout(allBullets);
     const mainBullets = bulletColumns.mainBullets;
     const extraBullets = bulletColumns.extraBullets;
+    const mainBulletsWeight = Number(bulletColumns.mainWeight) || 0;
+    const extraBulletsWeight = Number(bulletColumns.extraWeight) || 0;
     const bulletsNumbered = Boolean(slide.bulletsNumbered);
     const bulletsProgressive = Boolean(slide.bulletsProgressive) && !opts.compact && !isFreeMode && !isTableMode && !isVisualMode;
     const tableProgressive = Boolean(slide.tableProgressive) && !opts.compact && isTableMode;
@@ -721,8 +761,7 @@
       }
     );
     const compactClass = opts.compact ? " deck-slide-compact" : "";
-    const bloomPill = opts.compact ? `<span class="slide-bloom-pill">${utils.escapeHtml(bloomMeta.title)}</span>` : "";
-    const moveMediaBelowPrimaryBullets = extraBullets.length >= 2 && mainBullets.length === 1 && slideMediaItems.length > 0;
+    const moveMediaBelowPrimaryBullets = extraBullets.length > 0 && slideMediaItems.length > 0 && mainBulletsWeight <= extraBulletsWeight;
     const sideMarkup = extraBullets.length
       ? createBulletSideColumnMarkup(
           extraBullets,
@@ -780,7 +819,6 @@
         <div class="slide-content">
           <div class="slide-topline">
             <div class="slide-meta-right">
-              ${bloomPill}
               <span class="slide-number-badge">${utils.escapeHtml(slide.number || "")}</span>
             </div>
           </div>

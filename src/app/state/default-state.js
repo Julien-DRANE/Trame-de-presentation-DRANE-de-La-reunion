@@ -49,6 +49,7 @@
       tableProgressiveOrder: "row",
       paletteOverride: "",
       decorativeAccentOverride: "",
+      decorativeAccentSolid: false,
       tableHighlights: { rows: {}, columns: {} },
       table: [
         ["", ""],
@@ -92,6 +93,7 @@
       tableProgressiveOrder: "row",
       paletteOverride: "",
       decorativeAccentOverride: "",
+      decorativeAccentSolid: false,
       tableHighlights: { rows: {}, columns: {} },
       table: [
         ["", ""],
