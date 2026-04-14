@@ -37,9 +37,9 @@
 
 .deck-slide.theme-circles::before,
 .deck-slide.theme-mix::before {
-  top: -11%;
-  right: calc(-5% - 1cm);
-  width: 31%;
+  top: -15%;
+  right: calc(-10% - 1.2cm);
+  width: 29%;
   aspect-ratio: 1;
   border-radius: 50%;
   background:
@@ -49,9 +49,9 @@
 
 .deck-slide.theme-circles::after,
 .deck-slide.theme-mix::after {
-  left: -4%;
-  bottom: -10%;
-  width: 22%;
+  left: -8%;
+  bottom: -14%;
+  width: 20%;
   aspect-ratio: 1;
   border-radius: 50%;
   background:
@@ -60,10 +60,10 @@
 
 .slide-wave {
   position: absolute;
-  right: -6%;
-  bottom: -6%;
-  width: 54%;
-  height: 28%;
+  right: -10%;
+  bottom: -10%;
+  width: 50%;
+  height: 24%;
   display: none;
   border-top-left-radius: 100% 100%;
   background:
