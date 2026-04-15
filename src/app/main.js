@@ -135,6 +135,7 @@
     canvasArrowRotation: document.querySelector("#canvas-arrow-rotation"),
     canvasArrowLength: document.querySelector("#canvas-arrow-length"),
     canvasArrowLengthValue: document.querySelector("#canvas-arrow-length-value"),
+    canvasDuplicateElement: document.querySelector("#canvas-duplicate-element"),
     canvasDeleteElement: document.querySelector("#canvas-delete-element"),
     visualPrimaryMedia: document.querySelector("#visual-primary-media"),
     visualSecondaryMedia: document.querySelector("#visual-secondary-media"),
@@ -168,6 +169,7 @@
   let draggedBulletIndex = null;
   let draggedFreeLinkIndex = null;
   let draggedVisualChartIndex = null;
+  let draggedCanvasRevealElementId = null;
   let isAddSlideMenuOpen = false;
   let pendingBulletFocus = null;
   let pendingSubBulletFocus = null;
@@ -868,15 +870,15 @@
     const normalized = {
       id: typeof input.id === "string" && input.id ? input.id : ns.utils.createId("canvas"),
       type,
-      x: clampCanvasMetric(input.x, 10 + ((index % 3) * 8), 0, 92),
-      y: clampCanvasMetric(input.y, 12 + ((index % 4) * 6), 0, 92),
+      x: clampCanvasMetric(input.x, 10 + ((index % 3) * 8), 0, 94),
+      y: clampCanvasMetric(input.y, 12 + ((index % 4) * 6), -14, 94),
       w: clampCanvasMetric(input.w, type === "arrow" ? 18 : type === "image" ? 28 : 34, 6, 100),
       h: clampCanvasMetric(input.h, type === "arrow" ? 10 : type === "image" ? 30 : 18, 6, 100),
       revealOrder: Math.max(1, Math.min(24, Math.round(Number(input.revealOrder) || (index + 1)))),
     };
 
     normalized.w = Math.min(normalized.w, Math.max(6, 100 - normalized.x));
-    normalized.h = Math.min(normalized.h, Math.max(6, 100 - normalized.y));
+    normalized.h = Math.min(normalized.h, Math.max(6, 100 - Math.max(0, normalized.y)));
 
     if (type === "image") {
       normalized.mediaId = ns.utils.clampText(input.mediaId, 80);
@@ -1004,6 +1006,24 @@
     removeCanvasElementById(selectedCanvasElementId);
   }
 
+  function duplicateSelectedCanvasElement() {
+    const current = getSelectedCanvasData();
+    const source = getCanvasSelectedElement(current.elements);
+    if (!source || current.elements.length >= 24) {
+      return;
+    }
+    const nextRevealOrder = (Array.isArray(current.elements) ? current.elements : [])
+      .reduce((max, element) => Math.max(max, Math.round(Number(element.revealOrder) || 0)), 0) + 1;
+    const duplicated = normalizeCanvasElement(Object.assign({}, source, {
+      id: ns.utils.createId("canvas"),
+      x: clampCanvasMetric((Number(source.x) || 0) + 2.5, Number(source.x) || 0, 0, 94),
+      y: clampCanvasMetric((Number(source.y) || 0) + 2.5, Number(source.y) || 0, -14, 94),
+      revealOrder: nextRevealOrder,
+    }), current.elements.length);
+    selectedCanvasElementId = duplicated.id;
+    updateCanvasElements((elements) => elements.concat(duplicated));
+  }
+
   function addCanvasMediaElement(mediaId) {
     if (!mediaId) {
       return;
@@ -1058,6 +1078,27 @@
         return Object.assign({}, element, { revealOrder: currentOrder });
       }
       return element;
+    }));
+  }
+
+  function moveCanvasRevealToIndex(elementId, targetIndex) {
+    if (!elementId || !Number.isInteger(targetIndex)) {
+      return;
+    }
+    const ordered = getCanvasRevealOrderItems(getSelectedCanvasData().elements);
+    const currentIndex = ordered.findIndex((item) => item.id === elementId);
+    if (currentIndex < 0 || targetIndex < 0 || targetIndex >= ordered.length || currentIndex === targetIndex) {
+      return;
+    }
+    const reordered = ordered.slice();
+    const [movedItem] = reordered.splice(currentIndex, 1);
+    reordered.splice(targetIndex, 0, movedItem);
+    const revealOrderMap = new Map(reordered.map((item, index) => [item.id, index + 1]));
+    updateCanvasElements((elements) => elements.map((element) => {
+      if (!revealOrderMap.has(element.id)) {
+        return element;
+      }
+      return Object.assign({}, element, { revealOrder: revealOrderMap.get(element.id) });
     }));
   }
 
@@ -1580,7 +1621,7 @@
     } else {
       patch = {
         x: clampCanvasMetric(interaction.startRect.x + dxPercent, interaction.startRect.x, 0, 100 - interaction.startRect.w),
-        y: clampCanvasMetric(interaction.startRect.y + dyPercent, interaction.startRect.y, 0, 100 - interaction.startRect.h),
+        y: clampCanvasMetric(interaction.startRect.y + dyPercent, interaction.startRect.y, -14, 100 - interaction.startRect.h),
       };
     }
 
@@ -2328,6 +2369,12 @@
     });
   }
 
+  function clearCanvasRevealDropState() {
+    refs.canvasElementsList.querySelectorAll(".canvas-element-row.is-drop-target, .canvas-element-row.is-dragging").forEach((row) => {
+      row.classList.remove("is-drop-target", "is-dragging");
+    });
+  }
+
   function selectSlide(id, options) {
     const opts = options || {};
     closeAddSlideMenu();
@@ -2485,13 +2532,22 @@
   refs.canvasProgressive.addEventListener("change", (event) => updateSelectedCanvasData({
     progressive: Boolean(event.target.checked),
   }));
+  refs.canvasDuplicateElement.addEventListener("click", duplicateSelectedCanvasElement);
   refs.canvasDeleteElement.addEventListener("click", removeSelectedCanvasElement);
-  refs.canvasElementX.addEventListener("input", (event) => updateSelectedCanvasElement({
-    x: clampCanvasMetric(event.target.value, 0, 0, 94),
-  }, false));
-  refs.canvasElementY.addEventListener("input", (event) => updateSelectedCanvasElement({
-    y: clampCanvasMetric(event.target.value, 0, 0, 94),
-  }, false));
+  refs.canvasElementX.addEventListener("input", (event) => {
+    const selectedElement = getCanvasSelectedElement(getSelectedCanvasData().elements);
+    const maxX = selectedElement ? (100 - (Number(selectedElement.w) || 6)) : 94;
+    updateSelectedCanvasElement({
+      x: clampCanvasMetric(event.target.value, 0, 0, maxX),
+    }, false);
+  });
+  refs.canvasElementY.addEventListener("input", (event) => {
+    const selectedElement = getCanvasSelectedElement(getSelectedCanvasData().elements);
+    const maxY = selectedElement ? (100 - (Number(selectedElement.h) || 6)) : 94;
+    updateSelectedCanvasElement({
+      y: clampCanvasMetric(event.target.value, 0, -14, maxY),
+    }, false);
+  });
   refs.canvasElementW.addEventListener("input", (event) => {
     const selectedElement = getCanvasSelectedElement(getSelectedCanvasData().elements);
     const maxWidth = selectedElement ? (100 - (Number(selectedElement.x) || 0)) : 100;
@@ -3014,7 +3070,6 @@
     const toggleFreeMediaTrigger = event.target.closest("[data-toggle-free-media]");
     const addCanvasMediaTrigger = event.target.closest("[data-add-canvas-media]");
     const selectCanvasElementTrigger = event.target.closest("[data-select-canvas-element]");
-    const moveCanvasRevealTrigger = event.target.closest("[data-move-canvas-reveal]");
     const addSlideTrigger = event.target.closest("[data-add-slide-bloom]");
     const bloomTrigger = event.target.closest("[data-set-bloom]");
 
@@ -3025,14 +3080,6 @@
     if (selectCanvasElementTrigger) {
       selectedCanvasElementId = selectCanvasElementTrigger.getAttribute("data-select-canvas-element");
       render();
-      return;
-    }
-
-    if (moveCanvasRevealTrigger) {
-      moveCanvasRevealOrder(
-        moveCanvasRevealTrigger.getAttribute("data-canvas-element-id"),
-        moveCanvasRevealTrigger.getAttribute("data-move-canvas-reveal")
-      );
       return;
     }
 
@@ -3304,6 +3351,56 @@
   refs.slideBulletsEditor.addEventListener("dragend", () => {
     clearBulletDropState();
     draggedBulletIndex = null;
+  });
+
+  refs.canvasElementsList.addEventListener("dragstart", (event) => {
+    const handle = event.target.closest("[data-canvas-reveal-drag-handle]");
+    if (!handle) {
+      return;
+    }
+
+    draggedCanvasRevealElementId = handle.getAttribute("data-canvas-reveal-drag-handle");
+    const row = handle.closest("[data-canvas-reveal-row]");
+    if (row) {
+      row.classList.add("is-dragging");
+    }
+    if (event.dataTransfer) {
+      event.dataTransfer.effectAllowed = "move";
+      event.dataTransfer.setData("text/plain", draggedCanvasRevealElementId);
+    }
+  });
+
+  refs.canvasElementsList.addEventListener("dragover", (event) => {
+    const row = event.target.closest("[data-canvas-reveal-row]");
+    if (!row || !draggedCanvasRevealElementId) {
+      return;
+    }
+
+    event.preventDefault();
+    clearCanvasRevealDropState();
+    if (row.getAttribute("data-canvas-reveal-row") !== draggedCanvasRevealElementId) {
+      row.classList.add("is-drop-target");
+    }
+  });
+
+  refs.canvasElementsList.addEventListener("drop", (event) => {
+    const row = event.target.closest("[data-canvas-reveal-row]");
+    if (!row || !draggedCanvasRevealElementId) {
+      return;
+    }
+
+    event.preventDefault();
+    const targetId = row.getAttribute("data-canvas-reveal-row");
+    const ordered = getCanvasRevealOrderItems(getSelectedCanvasData().elements);
+    const targetIndex = ordered.findIndex((item) => item.id === targetId);
+    clearCanvasRevealDropState();
+    moveCanvasRevealToIndex(draggedCanvasRevealElementId, targetIndex);
+    draggedCanvasRevealElementId = null;
+  });
+
+  refs.canvasElementsList.addEventListener("dragend", () => {
+    clearCanvasRevealDropState();
+    draggedCanvasRevealElementId = null;
   });
 
   refs.freeLinksList.addEventListener("dragstart", (event) => {

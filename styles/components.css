@@ -1539,6 +1539,15 @@ select {
   align-items: center;
 }
 
+.canvas-element-row.is-drop-target .canvas-element-chip {
+  border-color: rgba(44, 115, 218, 0.34);
+  box-shadow: 0 0 0 2px rgba(44, 115, 218, 0.12);
+}
+
+.canvas-element-row.is-dragging {
+  opacity: 0.55;
+}
+
 .canvas-element-chip {
   display: inline-flex;
   align-items: center;
@@ -1563,6 +1572,35 @@ select {
 .canvas-element-chip-label {
   min-width: 0;
   flex: 1 1 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.canvas-element-chip-text-preview {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.canvas-element-chip-thumb {
+  flex: 0 0 auto;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.55rem;
+  object-fit: cover;
+  background: rgba(18, 32, 51, 0.08);
+  box-shadow: 0 4px 10px rgba(18, 32, 51, 0.08);
+}
+
+.canvas-element-chip-thumb-placeholder {
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
 }
 
 .canvas-element-chip-meta {
@@ -1587,9 +1625,16 @@ select {
   gap: 0.35rem;
 }
 
-.canvas-order-button {
+.canvas-order-handle {
   min-width: 2.35rem;
   padding-inline: 0.55rem;
+  cursor: grab;
+  letter-spacing: -0.08em;
+  font-weight: 800;
+}
+
+.canvas-order-handle:active {
+  cursor: grabbing;
 }
 
 .canvas-editor-selection {
@@ -1598,6 +1643,12 @@ select {
   padding: 0.95rem;
   border-radius: 20px;
   background: linear-gradient(145deg, rgba(44, 115, 218, 0.06), rgba(255, 255, 255, 0.78));
+}
+
+.canvas-element-selection-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
 }
 
 .canvas-editor-grid {

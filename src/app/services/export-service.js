@@ -367,10 +367,10 @@
         height: 100%;
         padding-top: clamp(2.15rem, 4.1vw, 3.15rem);
         padding-right: clamp(3.6rem, 7vw, 5.2rem);
-        padding-left: clamp(1.2rem, 2.4vw, 2rem);
       }
       .deck-slide.is-canvas-slide .slide-content {
-        padding-right: clamp(1.35rem, 2.8vw, 2rem);
+        padding-top: clamp(1.45rem, 2.8vw, 2.15rem);
+        padding-right: clamp(0.75rem, 1.8vw, 1.2rem);
       }
       .slide-topline {
         display: flex;
@@ -551,7 +551,9 @@
       .canvas-element-media-content .slide-media-image,
       .canvas-element-media-content .slide-media-video {
         display: block;
+        max-height: none;
         object-fit: cover;
+        object-position: center;
       }
       .canvas-element-media-content.is-transparent-png .slide-media-image {
         object-fit: contain;

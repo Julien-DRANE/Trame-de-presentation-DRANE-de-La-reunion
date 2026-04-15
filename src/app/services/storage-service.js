@@ -237,15 +237,15 @@
     const base = {
       id: typeof input.id === "string" && input.id ? input.id : utils.createId("canvas"),
       type,
-      x: clampCanvasMetric(input.x, 10 + ((index % 3) * 8), 0, 92),
-      y: clampCanvasMetric(input.y, 10 + ((index % 4) * 6), 0, 92),
+      x: clampCanvasMetric(input.x, 10 + ((index % 3) * 8), 0, 94),
+      y: clampCanvasMetric(input.y, 10 + ((index % 4) * 6), -14, 94),
       w: clampCanvasMetric(input.w, type === "arrow" ? 18 : type === "image" ? 26 : 32, 6, 100),
       h: clampCanvasMetric(input.h, type === "arrow" ? 10 : type === "image" ? 28 : 18, 6, 100),
       revealOrder: Math.max(1, Math.min(24, Math.round(Number(input.revealOrder) || (index + 1)))),
     };
 
     base.w = Math.min(base.w, Math.max(6, 100 - base.x));
-    base.h = Math.min(base.h, Math.max(6, 100 - base.y));
+    base.h = Math.min(base.h, Math.max(6, 100 - Math.max(0, base.y)));
 
     if (type === "image") {
       return Object.assign(base, {

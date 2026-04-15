@@ -411,7 +411,7 @@
                     </label>
                     <label>
                       Y
-                      <input id="canvas-element-y" type="number" min="0" max="100" step="0.5" />
+                      <input id="canvas-element-y" type="number" min="-14" max="100" step="0.5" />
                     </label>
                     <label>
                       Largeur
@@ -496,7 +496,10 @@
                     </label>
                   </div>
 
-                  <button id="canvas-delete-element" class="button button-soft" type="button">Supprimer l'élément sélectionné</button>
+                  <div class="canvas-element-selection-actions">
+                    <button id="canvas-duplicate-element" class="button button-ghost" type="button">Dupliquer l'élément sélectionné</button>
+                    <button id="canvas-delete-element" class="button button-soft" type="button">Supprimer l'élément sélectionné</button>
+                  </div>
                 </div>
                 <p id="canvas-empty-selection" class="extra-bullets-empty">Sélectionne un élément sur la slide pour régler sa position, sa taille ou son contenu.</p>
               </div>

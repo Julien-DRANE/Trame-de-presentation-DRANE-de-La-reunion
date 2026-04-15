@@ -132,7 +132,7 @@
     refs.visualChartBars.innerHTML = renderVisualChartEditor(visualData);
     refs.visualChartAddColumn.disabled = (visualData.chartBarCount || 3) >= 6;
     refs.visualChartRemoveColumn.disabled = (visualData.chartBarCount || 3) <= 1;
-    refs.canvasElementsList.innerHTML = renderCanvasElementsList(canvasData, selectedCanvasElement && selectedCanvasElement.id);
+    refs.canvasElementsList.innerHTML = renderCanvasElementsList(canvasData, selectedCanvasElement && selectedCanvasElement.id, state.mediaLibrary);
     refs.canvasProgressive.checked = Boolean(canvasData.progressive);
     refs.canvasImageMedia.innerHTML = renderVisualMediaOptions(state.mediaLibrary, "Choisir une image");
     refs.canvasElementFields.hidden = !selectedCanvasElement;
@@ -140,6 +140,9 @@
     if (selectedCanvasElement) {
       refs.canvasElementX.value = formatCanvasMetric(selectedCanvasElement.x);
       refs.canvasElementY.value = formatCanvasMetric(selectedCanvasElement.y);
+      refs.canvasElementX.max = formatCanvasMetric(Math.max(0, 100 - (Number(selectedCanvasElement.w) || 6)));
+      refs.canvasElementY.min = "-14";
+      refs.canvasElementY.max = formatCanvasMetric(Math.max(0, 100 - (Number(selectedCanvasElement.h) || 6)));
       refs.canvasElementW.value = formatCanvasMetric(selectedCanvasElement.w);
       refs.canvasElementH.value = formatCanvasMetric(selectedCanvasElement.h);
       refs.canvasTextContentWrap.hidden = selectedCanvasElement.type !== "text";
@@ -180,6 +183,9 @@
       refs.canvasArrowLength.value = selectedCanvasElement.type === "arrow" ? String(Math.round(Number(selectedCanvasElement.arrowLength) || 100)) : "100";
       refs.canvasArrowLengthValue.textContent = `${refs.canvasArrowLength.value} %`;
     } else {
+      refs.canvasElementX.max = "94";
+      refs.canvasElementY.min = "-14";
+      refs.canvasElementY.max = "94";
       refs.canvasTextContentWrap.hidden = true;
       refs.canvasTextToolbar.hidden = true;
       refs.canvasTextStyleGrid.hidden = true;
@@ -492,16 +498,45 @@
     return "Texte";
   }
 
+  function getCanvasElementTextPreview(element) {
+    if (!element || element.type !== "text") {
+      return getCanvasElementLabel(element);
+    }
+    const raw = String(element.text || "").trim();
+    if (!raw) {
+      return "Zone de texte";
+    }
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(`<div>${raw}</div>`, "text/html");
+    const plainText = String((doc.body && doc.body.textContent) || "")
+      .replace(/\s+/g, " ")
+      .trim();
+    return ns.utils.clampText(plainText || "Zone de texte", 56);
+  }
+
+  function getCanvasElementMediaPreview(element, mediaItems, mediaUrls) {
+    if (!element || element.type !== "image") {
+      return "";
+    }
+    const media = (mediaItems || []).find((item) => item.id === element.mediaId);
+    const previewUrl = (mediaUrls && mediaUrls[element.mediaId]) || (media && (media.thumbnailUrl || media.externalUrl)) || "";
+    if (!previewUrl) {
+      return '<span class="canvas-element-chip-thumb canvas-element-chip-thumb-placeholder">Img</span>';
+    }
+    return `<img class="canvas-element-chip-thumb" src="${ns.utils.escapeHtml(previewUrl)}" alt="${ns.utils.escapeHtml((media && media.name) || "Image canvas")}" />`;
+  }
+
   function formatCanvasMetric(value) {
     const numeric = Number(value);
     return Number.isFinite(numeric) ? numeric.toFixed(1).replace(/\.0$/, "") : "0";
   }
 
-  function renderCanvasElementsList(canvasData, activeId) {
+  function renderCanvasElementsList(canvasData, activeId, mediaItems) {
     const elements = canvasData && Array.isArray(canvasData.elements) ? canvasData.elements : [];
     if (!elements.length) {
       return '<p class="extra-bullets-empty">Aucun élément sur le canvas.</p>';
     }
+    const mediaUrls = ns.services.media.getUrlMap();
 
     const ordered = elements
       .slice()
@@ -510,16 +545,25 @@
     return ordered
       .map((element, index) => {
         const activeClass = element.id === activeId ? " is-active" : "";
+        const previewMarkup = element.type === "image"
+          ? getCanvasElementMediaPreview(element, mediaItems, mediaUrls)
+          : `<span class="canvas-element-chip-text-preview">${ns.utils.escapeHtml(getCanvasElementTextPreview(element))}</span>`;
         return `
-          <div class="canvas-element-row${activeClass}">
+          <div class="canvas-element-row${activeClass}" data-canvas-reveal-row="${ns.utils.escapeHtml(element.id)}">
             <button class="canvas-element-chip${activeClass}" type="button" data-select-canvas-element="${ns.utils.escapeHtml(element.id)}">
               <span class="canvas-element-chip-index">${index + 1}</span>
-              <span class="canvas-element-chip-label">${ns.utils.escapeHtml(getCanvasElementLabel(element))}</span>
+              <span class="canvas-element-chip-label">${previewMarkup}</span>
               <span class="canvas-element-chip-meta">Ordre ${index + 1}</span>
             </button>
             <div class="canvas-element-chip-actions">
-              <button class="button button-ghost canvas-order-button" type="button" data-move-canvas-reveal="up" data-canvas-element-id="${ns.utils.escapeHtml(element.id)}" ${index === 0 ? "disabled" : ""} aria-label="Monter l'ordre de révélation">↑</button>
-              <button class="button button-ghost canvas-order-button" type="button" data-move-canvas-reveal="down" data-canvas-element-id="${ns.utils.escapeHtml(element.id)}" ${index === ordered.length - 1 ? "disabled" : ""} aria-label="Descendre l'ordre de révélation">↓</button>
+              <button
+                class="button button-ghost canvas-order-handle"
+                type="button"
+                draggable="true"
+                data-canvas-reveal-drag-handle="${ns.utils.escapeHtml(element.id)}"
+                aria-label="Glisser pour changer l'ordre de révélation"
+                title="Glisser pour changer l'ordre"
+              >⋮⋮</button>
             </div>
           </div>
         `;

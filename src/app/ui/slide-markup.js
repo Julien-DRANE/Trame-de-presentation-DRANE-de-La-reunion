@@ -758,15 +758,15 @@
     const normalized = {
       id: typeof input.id === "string" && input.id ? input.id : ns.utils.createId("canvas"),
       type,
-      x: clampCanvasMetric(input.x, 10 + ((index % 3) * 8), 0, 92),
-      y: clampCanvasMetric(input.y, 12 + ((index % 4) * 6), 0, 92),
+      x: clampCanvasMetric(input.x, 10 + ((index % 3) * 8), 0, 94),
+      y: clampCanvasMetric(input.y, 12 + ((index % 4) * 6), -14, 94),
       w: clampCanvasMetric(input.w, type === "arrow" ? 18 : type === "image" ? 28 : 34, 6, 100),
       h: clampCanvasMetric(input.h, type === "arrow" ? 10 : type === "image" ? 30 : 18, 6, 100),
       revealOrder: Math.max(1, Math.min(24, Math.round(Number(input.revealOrder) || (index + 1)))),
     };
 
     normalized.w = Math.min(normalized.w, Math.max(6, 100 - normalized.x));
-    normalized.h = Math.min(normalized.h, Math.max(6, 100 - normalized.y));
+    normalized.h = Math.min(normalized.h, Math.max(6, 100 - Math.max(0, normalized.y)));
 
     if (type === "image") {
       normalized.mediaId = typeof input.mediaId === "string" ? input.mediaId : "";
