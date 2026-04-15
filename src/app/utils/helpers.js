@@ -45,6 +45,30 @@
       .join("");
   }
 
+  function normalizeRichTextColor(value) {
+    const raw = String(value || "").trim();
+    if (!raw) {
+      return "";
+    }
+
+    if (/^#[0-9a-fA-F]{6}$/.test(raw)) {
+      return raw.toLowerCase();
+    }
+
+    const probe = document.createElement("span");
+    probe.style.color = "";
+    probe.style.color = raw;
+    const normalized = String(probe.style.color || "").trim();
+    const rgbMatch = normalized.match(/^rgba?\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})/i);
+    if (!rgbMatch) {
+      return "";
+    }
+
+    return `#${[rgbMatch[1], rgbMatch[2], rgbMatch[3]]
+      .map((part) => Math.max(0, Math.min(255, Number(part) || 0)).toString(16).padStart(2, "0"))
+      .join("")}`;
+  }
+
   function sanitizeRichText(value, limit) {
     const raw = String(value || "");
     if (!raw.trim()) {
@@ -107,17 +131,34 @@
         return `<u>${inner}</u>`;
       }
 
-      if (tag === "span") {
-        const style = String(node.getAttribute("style") || "");
-        const match = style.match(/font-size\s*:\s*(90|100|110|120|130|140)%/i);
-        const fontSize = match ? match[1] : "";
-        const colorMatch = style.match(/color\s*:\s*(#[0-9a-fA-F]{6})/i);
-        const color = colorMatch ? colorMatch[1].toLowerCase() : "";
+      if (tag === "span" || tag === "font") {
+        const rawFontSize = tag === "font"
+          ? String(node.getAttribute("size") || "")
+          : String(node.style.fontSize || "").trim();
+        const fontSize = /^(90|100|110|120|130|140)%$/i.test(rawFontSize)
+          ? rawFontSize.toLowerCase()
+          : /^(1[6-9]|[2-6][0-9]|7[0-2])px$/i.test(rawFontSize)
+            ? rawFontSize.toLowerCase()
+            : "";
+        const color = normalizeRichTextColor(tag === "font" ? node.getAttribute("color") : node.style.color);
         const supportedStyles = [
-          fontSize ? `font-size:${fontSize}%` : "",
+          fontSize ? `font-size:${fontSize}` : "",
           color ? `color:${color}` : "",
         ].filter(Boolean);
-        return supportedStyles.length ? `<span style="${supportedStyles.join(";")};">${inner}</span>` : inner;
+        let content = supportedStyles.length ? `<span style="${supportedStyles.join(";")};">${inner}</span>` : inner;
+        const isBold = /^(bold|[6-9]00)$/i.test(String(node.style.fontWeight || "").trim());
+        const isItalic = /^italic$/i.test(String(node.style.fontStyle || "").trim());
+        const hasUnderline = /underline/i.test(String(node.style.textDecorationLine || node.style.textDecoration || "").trim());
+        if (isBold) {
+          content = `<strong>${content}</strong>`;
+        }
+        if (isItalic) {
+          content = `<em>${content}</em>`;
+        }
+        if (hasUnderline) {
+          content = `<u>${content}</u>`;
+        }
+        return content;
       }
 
       if (tag === "p" || tag === "div") {

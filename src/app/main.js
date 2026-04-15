@@ -70,6 +70,7 @@
     slideBulletsEditor: document.querySelector("#slide-bullets-editor"),
     slideTableEditor: document.querySelector("#slide-table-editor"),
     slideFreeEditor: document.querySelector("#slide-free-editor"),
+    slideCanvasEditor: document.querySelector("#slide-canvas-editor"),
     slideVisualEditor: document.querySelector("#slide-visual-editor"),
     slideNoteEditor: document.querySelector("#slide-note-editor"),
     slideBulletsNumbered: document.querySelector("#slide-bullets-numbered"),
@@ -104,6 +105,35 @@
     freeLinkUrl: document.querySelector("#free-link-url"),
     addFreeLink: document.querySelector("#add-free-link"),
     freeLinksList: document.querySelector("#free-links-list"),
+    canvasAddText: document.querySelector("#canvas-add-text"),
+    canvasAddArrow: document.querySelector("#canvas-add-arrow"),
+    canvasElementsList: document.querySelector("#canvas-elements-list"),
+    canvasElementFields: document.querySelector("#canvas-element-fields"),
+    canvasEmptySelection: document.querySelector("#canvas-empty-selection"),
+    canvasElementX: document.querySelector("#canvas-element-x"),
+    canvasElementY: document.querySelector("#canvas-element-y"),
+    canvasElementW: document.querySelector("#canvas-element-w"),
+    canvasElementH: document.querySelector("#canvas-element-h"),
+    canvasTextContentWrap: document.querySelector("#canvas-text-content-wrap"),
+    canvasTextContent: document.querySelector("#canvas-text-content"),
+    canvasTextToolbar: document.querySelector("#canvas-text-toolbar"),
+    canvasTextBold: document.querySelector("#canvas-text-bold"),
+    canvasTextItalic: document.querySelector("#canvas-text-italic"),
+    canvasTextUnderline: document.querySelector("#canvas-text-underline"),
+    canvasTextColorPalette: document.querySelector("#canvas-text-color-palette"),
+    canvasTextStyleGrid: document.querySelector("#canvas-text-style-grid"),
+    canvasTextSize: document.querySelector("#canvas-text-size"),
+    canvasTextSizeValue: document.querySelector("#canvas-text-size-value"),
+    canvasTextFrame: document.querySelector("#canvas-text-frame"),
+    canvasImageMediaWrap: document.querySelector("#canvas-image-media-wrap"),
+    canvasImageMedia: document.querySelector("#canvas-image-media"),
+    canvasArrowControls: document.querySelector("#canvas-arrow-controls"),
+    canvasArrowDirection: document.querySelector("#canvas-arrow-direction"),
+    canvasArrowColor: document.querySelector("#canvas-arrow-color"),
+    canvasArrowRotation: document.querySelector("#canvas-arrow-rotation"),
+    canvasArrowLength: document.querySelector("#canvas-arrow-length"),
+    canvasArrowLengthValue: document.querySelector("#canvas-arrow-length-value"),
+    canvasDeleteElement: document.querySelector("#canvas-delete-element"),
     visualPrimaryMedia: document.querySelector("#visual-primary-media"),
     visualSecondaryMedia: document.querySelector("#visual-secondary-media"),
     visualShowImages: document.querySelector("#visual-show-images"),
@@ -145,6 +175,12 @@
   let pendingPreviewPanelFocus = false;
   let freeEditorRange = null;
   let suppressFreeEditorBlur = false;
+  let canvasTextEditorRange = null;
+  let canvasTextSelectionBookmark = null;
+  let suppressCanvasTextEditorBlur = false;
+  let selectedCanvasElementId = null;
+  let activeCanvasInteraction = null;
+  let suppressCanvasClickUntil = 0;
   let isPptxExportRunning = false;
   const defaultPptxButtonLabel = refs.exportPptx ? refs.exportPptx.textContent : "Exporter PPTX";
   const isPresentationMode = new URLSearchParams(window.location.search).get("present") === "1";
@@ -156,6 +192,36 @@
 
   function getSelectedSlide() {
     return state.slides.find((slide) => slide.id === state.selectedSlideId) || state.slides[0];
+  }
+
+  function getDefaultCanvasData() {
+    return ns.utils.clone(
+      (ns.stateFactory && ns.stateFactory.createDefaultCanvasData)
+        ? ns.stateFactory.createDefaultCanvasData()
+        : { elements: [] }
+    );
+  }
+
+  function getSelectedCanvasData() {
+    return Object.assign(getDefaultCanvasData(), ns.utils.clone((getSelectedSlide() && getSelectedSlide().canvasData) || {}));
+  }
+
+  function getCanvasSelectedElement(elements) {
+    const items = Array.isArray(elements) ? elements : [];
+    return items.find((item) => item.id === selectedCanvasElementId) || null;
+  }
+
+  function syncSelectedCanvasElement() {
+    const selectedSlide = getSelectedSlide();
+    if (!selectedSlide || (selectedSlide.contentType || "bullets") !== "canvas") {
+      selectedCanvasElementId = null;
+      return;
+    }
+    const canvasData = getSelectedCanvasData();
+    const selectedElement = getCanvasSelectedElement(canvasData.elements);
+    if (selectedCanvasElementId && !selectedElement) {
+      selectedCanvasElementId = null;
+    }
   }
 
   function updatePptxExportButton(progress) {
@@ -206,7 +272,9 @@
   }
 
   function render() {
-    ns.ui.renderDashboard({ state, refs });
+    syncSelectedCanvasElement();
+    ns.ui.renderDashboard({ state, refs, selectedCanvasElementId });
+    updateCanvasTextToolbarState();
     ns.services.storage.saveState(STORAGE_KEY, state);
     if (pendingBulletFocus) {
       const input = refs.extraBulletsList.querySelector(`[data-extra-bullet-index="${pendingBulletFocus.index}"]`);
@@ -311,10 +379,13 @@
 
   function refreshStageOnly() {
     const selectedSlide = getSelectedSlide();
+    syncSelectedCanvasElement();
     refs.stage.innerHTML = ns.ui.createSlideMarkup(selectedSlide, state.settings, {
       compact: false,
       mediaItems: state.mediaLibrary,
       mediaUrls: ns.services.media.getUrlMap(),
+      canvasInteractive: (selectedSlide.contentType || "bullets") === "canvas",
+      selectedCanvasElementId: selectedCanvasElementId || "",
     });
     syncLiveEditorMeta();
     ns.services.storage.saveState(STORAGE_KEY, state);
@@ -742,6 +813,717 @@
     updateSelectedVisualData({ secondaryMediaId: mediaId });
   }
 
+  function clampCanvasMetric(value, fallback, min, max) {
+    const parsed = Number(value);
+    const safeValue = Number.isFinite(parsed) ? parsed : fallback;
+    const lowerBound = Number.isFinite(min) ? min : 0;
+    const upperBound = Number.isFinite(max) ? max : 100;
+    const clamped = Math.max(lowerBound, Math.min(upperBound, safeValue));
+    return Math.round(clamped * 10) / 10;
+  }
+
+  function normalizeCanvasColor(value, fallback) {
+    return /^#[0-9a-fA-F]{6}$/.test(value || "") ? value.toLowerCase() : (fallback || "#1d1917");
+  }
+
+  function normalizeCanvasRotation(value, fallback) {
+    const parsed = Number(value);
+    const safeValue = Number.isFinite(parsed) ? parsed : (Number.isFinite(Number(fallback)) ? Number(fallback) : 0);
+    return Math.round(Math.max(-360, Math.min(360, safeValue)));
+  }
+
+  function normalizeCanvasArrowLength(value, fallback) {
+    const parsed = Number(value);
+    const safeValue = Number.isFinite(parsed) ? parsed : (Number.isFinite(Number(fallback)) ? Number(fallback) : 100);
+    return Math.round(Math.max(40, Math.min(800, safeValue)));
+  }
+
+  function normalizeCanvasElement(element, index) {
+    const input = element && typeof element === "object" ? element : {};
+    const type = input.type === "image" || input.type === "arrow" ? input.type : "text";
+    const normalized = {
+      id: typeof input.id === "string" && input.id ? input.id : ns.utils.createId("canvas"),
+      type,
+      x: clampCanvasMetric(input.x, 10 + ((index % 3) * 8), 0, 92),
+      y: clampCanvasMetric(input.y, 12 + ((index % 4) * 6), 0, 92),
+      w: clampCanvasMetric(input.w, type === "arrow" ? 18 : type === "image" ? 28 : 34, 6, 100),
+      h: clampCanvasMetric(input.h, type === "arrow" ? 10 : type === "image" ? 30 : 18, 6, 100),
+    };
+
+    normalized.w = Math.min(normalized.w, Math.max(6, 100 - normalized.x));
+    normalized.h = Math.min(normalized.h, Math.max(6, 100 - normalized.y));
+
+    if (type === "image") {
+      normalized.mediaId = ns.utils.clampText(input.mediaId, 80);
+      return normalized;
+    }
+
+    if (type === "arrow") {
+      normalized.direction = input.direction === "up" || input.direction === "down" || input.direction === "left" ? input.direction : "right";
+      normalized.color = normalizeCanvasColor(input.color, "#0a66ff");
+      normalized.rotation = normalizeCanvasRotation(input.rotation, 0);
+      normalized.arrowLength = normalizeCanvasArrowLength(input.arrowLength, 100);
+      return normalized;
+    }
+
+    const fallbackText = ns.utils.plainTextToRichHtml("Zone de texte", 600);
+    normalized.text = typeof input.text === "string" ? ns.utils.sanitizeRichText(input.text, 600) : fallbackText;
+    normalized.fontSize = clampCanvasMetric(input.fontSize, 28, 16, 72);
+    normalized.color = normalizeCanvasColor(input.color, "#1d1917");
+    normalized.showFrame = input.showFrame !== false;
+    normalized.bold = Boolean(input.bold);
+    normalized.italic = Boolean(input.italic);
+    normalized.underline = Boolean(input.underline);
+    return normalized;
+  }
+
+  function normalizeCanvasElements(elements) {
+    return Array.isArray(elements) ? elements.slice(0, 24).map(normalizeCanvasElement).filter(Boolean) : [];
+  }
+
+  function updateSelectedCanvasData(patch, rerender = true) {
+    const current = getSelectedCanvasData();
+    updateSelectedSlide({
+      canvasData: Object.assign({}, current, patch),
+    }, rerender);
+  }
+
+  function updateCanvasElements(transform, rerender = true) {
+    const current = getSelectedCanvasData();
+    const nextElements = normalizeCanvasElements(typeof transform === "function" ? transform(current.elements.slice()) : current.elements);
+    updateSelectedCanvasData({ elements: nextElements }, rerender);
+  }
+
+  function createCanvasElement(type, patch) {
+    const base = {
+      text: {
+        id: ns.utils.createId("canvas"),
+        type: "text",
+        x: 8,
+        y: 18,
+        w: 36,
+        h: 18,
+        text: ns.utils.plainTextToRichHtml("Nouvelle zone de texte", 600),
+        fontSize: 28,
+        color: "#1d1917",
+        showFrame: true,
+        bold: false,
+        italic: false,
+        underline: false,
+      },
+      image: {
+        id: ns.utils.createId("canvas"),
+        type: "image",
+        x: 54,
+        y: 20,
+        w: 24,
+        h: 30,
+        mediaId: "",
+      },
+      arrow: {
+        id: ns.utils.createId("canvas"),
+        type: "arrow",
+        x: 42,
+        y: 38,
+        w: 18,
+        h: 10,
+        direction: "right",
+        color: "#0a66ff",
+        rotation: 0,
+        arrowLength: 100,
+      },
+    };
+
+    return normalizeCanvasElement(Object.assign({}, base[type] || base.text, patch), 0);
+  }
+
+  function addCanvasElement(type, patch) {
+    const nextElement = createCanvasElement(type, patch);
+    selectedCanvasElementId = nextElement.id;
+    updateCanvasElements((elements) => elements.concat(nextElement));
+  }
+
+  function updateCanvasElementById(elementId, patch, rerender = true) {
+    if (!elementId) {
+      return;
+    }
+    updateCanvasElements((elements) => elements.map((element) => {
+      if (element.id !== elementId) {
+        return element;
+      }
+      return Object.assign({}, element, patch);
+    }), rerender);
+  }
+
+  function removeCanvasElementById(elementId) {
+    if (!elementId) {
+      return;
+    }
+    updateCanvasElements((elements) => elements.filter((element) => element.id !== elementId));
+    if (selectedCanvasElementId === elementId) {
+      selectedCanvasElementId = null;
+    }
+  }
+
+  function removeSelectedCanvasElement() {
+    removeCanvasElementById(selectedCanvasElementId);
+  }
+
+  function addCanvasMediaElement(mediaId) {
+    if (!mediaId) {
+      return;
+    }
+    const selectedElement = getCanvasSelectedElement(getSelectedCanvasData().elements);
+    if (selectedElement && selectedElement.type === "image") {
+      updateCanvasElementById(selectedElement.id, { mediaId });
+      return;
+    }
+    addCanvasElement("image", { mediaId });
+  }
+
+  function updateSelectedCanvasElement(patch, rerender = true) {
+    if (!selectedCanvasElementId) {
+      return;
+    }
+    updateCanvasElementById(selectedCanvasElementId, patch, rerender);
+  }
+
+  function saveCanvasTextEditorSelection() {
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) {
+      return;
+    }
+    const range = selection.getRangeAt(0);
+    if (!refs.canvasTextContent.contains(range.commonAncestorContainer)) {
+      return;
+    }
+    const startRange = document.createRange();
+    startRange.selectNodeContents(refs.canvasTextContent);
+    startRange.setEnd(range.startContainer, range.startOffset);
+    const endRange = document.createRange();
+    endRange.selectNodeContents(refs.canvasTextContent);
+    endRange.setEnd(range.endContainer, range.endOffset);
+    canvasTextEditorRange = {
+      start: startRange.toString().length,
+      end: endRange.toString().length,
+    };
+  }
+
+  function clearCanvasTextSelectionBookmark() {
+    if (!canvasTextSelectionBookmark) {
+      return;
+    }
+    ["startId", "endId"].forEach((key) => {
+      const markerId = canvasTextSelectionBookmark[key];
+      if (!markerId) {
+        return;
+      }
+      const marker = refs.canvasTextContent.querySelector(`[data-canvas-selection-marker-id="${markerId}"]`);
+      if (marker && marker.parentNode) {
+        marker.parentNode.removeChild(marker);
+      }
+    });
+    canvasTextSelectionBookmark = null;
+  }
+
+  function createCanvasTextSelectionBookmark() {
+    clearCanvasTextSelectionBookmark();
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0 || selection.isCollapsed) {
+      return false;
+    }
+    const range = selection.getRangeAt(0);
+    if (!refs.canvasTextContent.contains(range.commonAncestorContainer)) {
+      return false;
+    }
+
+    const startId = ns.utils.createId("canvas-sel-start");
+    const endId = ns.utils.createId("canvas-sel-end");
+    const startMarker = document.createElement("span");
+    const endMarker = document.createElement("span");
+    startMarker.setAttribute("data-canvas-selection-marker-id", startId);
+    endMarker.setAttribute("data-canvas-selection-marker-id", endId);
+    startMarker.setAttribute("aria-hidden", "true");
+    endMarker.setAttribute("aria-hidden", "true");
+    startMarker.style.display = "inline-block";
+    endMarker.style.display = "inline-block";
+    startMarker.style.width = "0";
+    endMarker.style.width = "0";
+    startMarker.style.overflow = "hidden";
+    endMarker.style.overflow = "hidden";
+    startMarker.style.lineHeight = "0";
+    endMarker.style.lineHeight = "0";
+
+    const endRange = range.cloneRange();
+    endRange.collapse(false);
+    endRange.insertNode(endMarker);
+
+    const startRange = range.cloneRange();
+    startRange.collapse(true);
+    startRange.insertNode(startMarker);
+
+    canvasTextSelectionBookmark = { startId, endId };
+    return true;
+  }
+
+  function restoreCanvasTextSelectionBookmark() {
+    if (!canvasTextSelectionBookmark) {
+      return null;
+    }
+
+    const startMarker = refs.canvasTextContent.querySelector(
+      `[data-canvas-selection-marker-id="${canvasTextSelectionBookmark.startId}"]`
+    );
+    const endMarker = refs.canvasTextContent.querySelector(
+      `[data-canvas-selection-marker-id="${canvasTextSelectionBookmark.endId}"]`
+    );
+    if (!startMarker || !endMarker) {
+      clearCanvasTextSelectionBookmark();
+      return null;
+    }
+
+    const range = document.createRange();
+    range.setStartAfter(startMarker);
+    range.setEndBefore(endMarker);
+    startMarker.remove();
+    endMarker.remove();
+    canvasTextSelectionBookmark = null;
+
+    const selection = window.getSelection();
+    if (!selection) {
+      return null;
+    }
+    selection.removeAllRanges();
+    selection.addRange(range);
+    return { selection, range };
+  }
+
+  function restoreCanvasTextEditorSelection() {
+    const selection = window.getSelection();
+    const saved = canvasTextEditorRange;
+    if (!selection || !saved) {
+      return false;
+    }
+    const textWalker = document.createTreeWalker(refs.canvasTextContent, NodeFilter.SHOW_TEXT);
+    let currentNode = textWalker.nextNode();
+    let charIndex = 0;
+    let startNode = null;
+    let endNode = null;
+    let startOffset = 0;
+    let endOffset = 0;
+
+    while (currentNode) {
+      const nextCharIndex = charIndex + currentNode.textContent.length;
+      if (!startNode && saved.start <= nextCharIndex) {
+        startNode = currentNode;
+        startOffset = Math.max(0, saved.start - charIndex);
+      }
+      if (!endNode && saved.end <= nextCharIndex) {
+        endNode = currentNode;
+        endOffset = Math.max(0, saved.end - charIndex);
+        break;
+      }
+      charIndex = nextCharIndex;
+      currentNode = textWalker.nextNode();
+    }
+
+    if (!startNode || !endNode) {
+      return false;
+    }
+
+    const range = document.createRange();
+    range.setStart(startNode, Math.min(startOffset, startNode.textContent.length));
+    range.setEnd(endNode, Math.min(endOffset, endNode.textContent.length));
+    selection.removeAllRanges();
+    selection.addRange(range);
+    return true;
+  }
+
+  function markCanvasTextEditorToolbarInteraction() {
+    suppressCanvasTextEditorBlur = true;
+    window.setTimeout(() => {
+      suppressCanvasTextEditorBlur = false;
+    }, 0);
+  }
+
+  function getCanvasTextEditorFormatAncestorForNode(node, tagName) {
+    let current = node && node.nodeType === Node.ELEMENT_NODE ? node : node.parentNode;
+    while (current && current !== refs.canvasTextContent) {
+      if (current.nodeType === Node.ELEMENT_NODE && current.tagName.toLowerCase() === tagName) {
+        return current;
+      }
+      current = current.parentNode;
+    }
+    return null;
+  }
+
+  function findCanvasTextEditorFormatAncestor(range, tagName) {
+    if (!range) {
+      return null;
+    }
+
+    const commonAncestor = getCanvasTextEditorFormatAncestorForNode(range.commonAncestorContainer, tagName);
+    if (commonAncestor) {
+      return commonAncestor;
+    }
+
+    const startAncestor = getCanvasTextEditorFormatAncestorForNode(range.startContainer, tagName);
+    const endAncestor = getCanvasTextEditorFormatAncestorForNode(range.endContainer, tagName);
+    if (startAncestor && endAncestor && startAncestor === endAncestor) {
+      return startAncestor;
+    }
+
+    return null;
+  }
+
+  function unwrapCanvasTextEditorFormat(element) {
+    if (!element || !element.parentNode) {
+      return;
+    }
+
+    const parent = element.parentNode;
+    while (element.firstChild) {
+      parent.insertBefore(element.firstChild, element);
+    }
+    parent.removeChild(element);
+  }
+
+  function updateCanvasTextToolbarState() {
+    let activeBold = false;
+    let activeItalic = false;
+    let activeUnderline = false;
+    const selectedElement = getCanvasSelectedElement(getSelectedCanvasData().elements);
+    const activeColor = selectedElement && selectedElement.type === "text"
+      ? normalizeCanvasColor(selectedElement.color, "#1d1917")
+      : "#1d1917";
+
+    const selection = window.getSelection();
+    if (document.activeElement === refs.canvasTextContent && selection && selection.rangeCount > 0) {
+      const range = selection.getRangeAt(0);
+      if (refs.canvasTextContent.contains(range.commonAncestorContainer)) {
+        activeBold = Boolean(findCanvasTextEditorFormatAncestor(range, "strong"));
+        activeItalic = Boolean(findCanvasTextEditorFormatAncestor(range, "em"));
+        activeUnderline = Boolean(findCanvasTextEditorFormatAncestor(range, "u"));
+      }
+    }
+
+    refs.canvasTextBold.classList.toggle("is-active", activeBold);
+    refs.canvasTextBold.setAttribute("aria-pressed", activeBold ? "true" : "false");
+    refs.canvasTextItalic.classList.toggle("is-active", activeItalic);
+    refs.canvasTextItalic.setAttribute("aria-pressed", activeItalic ? "true" : "false");
+    refs.canvasTextUnderline.classList.toggle("is-active", activeUnderline);
+    refs.canvasTextUnderline.setAttribute("aria-pressed", activeUnderline ? "true" : "false");
+    document.querySelectorAll("[data-canvas-text-color-value]").forEach((button) => {
+      button.classList.toggle(
+        "is-active",
+        normalizeCanvasColor(button.getAttribute("data-canvas-text-color-value"), "#1d1917") === activeColor
+      );
+    });
+  }
+
+  function normalizeCanvasTextEditorMarkup(assignToEditor) {
+    const selectedElement = getCanvasSelectedElement(getSelectedCanvasData().elements);
+    if (!selectedElement || selectedElement.type !== "text") {
+      return;
+    }
+    const sanitized = ns.utils.sanitizeRichText(refs.canvasTextContent.innerHTML, 600);
+    if (assignToEditor) {
+      refs.canvasTextContent.innerHTML = sanitized;
+    }
+    updateSelectedCanvasElement({
+      text: sanitized,
+    }, false);
+    updateCanvasTextToolbarState();
+  }
+
+  function applyCanvasTextEditorFontSize(size) {
+    const selectionData = getCanvasTextEditorSelection();
+    if (!selectionData || selectionData.selection.isCollapsed) {
+      return;
+    }
+
+    const selection = selectionData.selection;
+    const range = selectionData.range;
+    const normalizedSize = Math.round(clampCanvasMetric(size, 28, 16, 72));
+    const wrapper = document.createElement("span");
+    wrapper.setAttribute("style", `font-size:${normalizedSize}px;`);
+    try {
+      const content = range.extractContents();
+      wrapper.appendChild(content);
+      range.insertNode(wrapper);
+      range.selectNodeContents(wrapper);
+      selection.removeAllRanges();
+      selection.addRange(range);
+      refs.canvasTextSizeValue.textContent = `${normalizedSize} px`;
+      saveCanvasTextEditorSelection();
+      normalizeCanvasTextEditorMarkup(false);
+    } catch (error) {
+      return;
+    }
+  }
+
+  function getCanvasTextEditorSelection() {
+    const selectedElement = getCanvasSelectedElement(getSelectedCanvasData().elements);
+    if (!selectedElement || selectedElement.type !== "text") {
+      return null;
+    }
+
+    const selection = window.getSelection();
+    if (selection && selection.rangeCount > 0) {
+      const liveRange = selection.getRangeAt(0);
+      if (refs.canvasTextContent.contains(liveRange.commonAncestorContainer)) {
+        return { selection, range: liveRange };
+      }
+    }
+
+    const bookmarkedSelection = restoreCanvasTextSelectionBookmark();
+    if (bookmarkedSelection) {
+      return bookmarkedSelection;
+    }
+
+    if (document.activeElement !== refs.canvasTextContent) {
+      refs.canvasTextContent.focus({ preventScroll: true });
+    }
+
+    if (!restoreCanvasTextEditorSelection()) {
+      return null;
+    }
+
+    const restoredSelection = window.getSelection();
+    if (!restoredSelection || restoredSelection.rangeCount === 0) {
+      return null;
+    }
+
+    const range = restoredSelection.getRangeAt(0);
+    if (!refs.canvasTextContent.contains(range.commonAncestorContainer)) {
+      return null;
+    }
+
+    return { selection: restoredSelection, range };
+  }
+
+  function applyCanvasTextEditorTextColor(color) {
+    const normalizedColor = normalizeCanvasColor(color, "#1d1917");
+    const selectionData = getCanvasTextEditorSelection();
+    if (!selectionData) {
+      return;
+    }
+
+    const selection = selectionData.selection;
+    const range = selectionData.range;
+    if (selection.isCollapsed) {
+      return;
+    }
+
+    try {
+      document.execCommand("styleWithCSS", false, true);
+      document.execCommand("foreColor", false, normalizedColor);
+      saveCanvasTextEditorSelection();
+      normalizeCanvasTextEditorMarkup(false);
+    } catch (error) {
+      return;
+    }
+  }
+
+  function applyCanvasTextEditorInlineTag(tagName) {
+    const selectionData = getCanvasTextEditorSelection();
+    if (!selectionData || selectionData.selection.isCollapsed) {
+      return;
+    }
+
+    const command = tagName === "strong" ? "bold" : tagName === "em" ? "italic" : tagName === "u" ? "underline" : "";
+    if (!command) {
+      return;
+    }
+
+    try {
+      document.execCommand(command, false);
+      saveCanvasTextEditorSelection();
+      normalizeCanvasTextEditorMarkup(false);
+    } catch (error) {
+      return;
+    }
+  }
+
+  function insertCanvasTextEditorLineBreak() {
+    if (!restoreCanvasTextEditorSelection()) {
+      refs.canvasTextContent.focus();
+      return;
+    }
+
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) {
+      return;
+    }
+
+    const range = selection.getRangeAt(0);
+    if (!refs.canvasTextContent.contains(range.commonAncestorContainer)) {
+      return;
+    }
+
+    const br = document.createElement("br");
+    const spacer = document.createTextNode("");
+    range.deleteContents();
+    range.insertNode(br);
+    range.setStartAfter(br);
+    range.insertNode(spacer);
+    range.setStartAfter(spacer);
+    range.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(range);
+    saveCanvasTextEditorSelection();
+    normalizeCanvasTextEditorMarkup(false);
+  }
+
+  function updateStageCanvasSelection(elementId) {
+    selectedCanvasElementId = elementId || null;
+    canvasTextEditorRange = null;
+    clearCanvasTextSelectionBookmark();
+    refs.stage.querySelectorAll("[data-canvas-element-id]").forEach((node) => {
+      node.classList.toggle("is-selected", node.getAttribute("data-canvas-element-id") === selectedCanvasElementId);
+    });
+    updateCanvasTextToolbarState();
+  }
+
+  function getCanvasSurfaceRect() {
+    const surface = refs.stage.querySelector("[data-canvas-surface]");
+    if (!surface) {
+      return null;
+    }
+    return {
+      surface,
+      rect: surface.getBoundingClientRect(),
+    };
+  }
+
+  function beginCanvasInteraction(event, elementId, mode) {
+    if (event.button !== 0) {
+      return;
+    }
+    const slide = getSelectedSlide();
+    if (!slide || (slide.contentType || "bullets") !== "canvas") {
+      return;
+    }
+    const canvasData = getSelectedCanvasData();
+    const element = canvasData.elements.find((item) => item.id === elementId);
+    const surfaceData = getCanvasSurfaceRect();
+    const elementNode = refs.stage.querySelector(`[data-canvas-element-id="${elementId}"]`);
+    if (!element || !surfaceData || !elementNode) {
+      return;
+    }
+
+    event.preventDefault();
+    updateStageCanvasSelection(elementId);
+    const elementRect = elementNode.getBoundingClientRect();
+    const elementCenterX = elementRect.left + (elementRect.width / 2);
+    const elementCenterY = elementRect.top + (elementRect.height / 2);
+    const arrowContent = elementNode.querySelector(".canvas-element-arrow-content");
+    activeCanvasInteraction = {
+      pointerId: event.pointerId,
+      mode,
+      elementId,
+      startClientX: event.clientX,
+      startClientY: event.clientY,
+      startRect: {
+        x: Number(element.x) || 0,
+        y: Number(element.y) || 0,
+        w: Number(element.w) || 10,
+        h: Number(element.h) || 10,
+      },
+      startRotation: normalizeCanvasRotation(element.rotation, 0),
+      baseRotation: arrowContent ? Number(arrowContent.getAttribute("data-canvas-base-rotation")) || 0 : 0,
+      centerX: elementCenterX,
+      centerY: elementCenterY,
+      startPointerAngle: Math.atan2(event.clientY - elementCenterY, event.clientX - elementCenterX),
+      surfaceRect: surfaceData.rect,
+      moved: false,
+      livePatch: null,
+    };
+    if (typeof surfaceData.surface.setPointerCapture === "function") {
+      try {
+        surfaceData.surface.setPointerCapture(event.pointerId);
+      } catch (error) {
+        activeCanvasInteraction = null;
+      }
+    }
+  }
+
+  function updateCanvasInteractionPreview() {
+    if (!activeCanvasInteraction || !activeCanvasInteraction.livePatch) {
+      return;
+    }
+    const node = refs.stage.querySelector(`[data-canvas-element-id="${activeCanvasInteraction.elementId}"]`);
+    if (!node) {
+      return;
+    }
+    const patch = activeCanvasInteraction.livePatch;
+    if (patch.x !== undefined) {
+      node.style.left = `${patch.x}%`;
+    }
+    if (patch.y !== undefined) {
+      node.style.top = `${patch.y}%`;
+    }
+    if (patch.w !== undefined) {
+      node.style.width = `${patch.w}%`;
+    }
+    if (patch.h !== undefined) {
+      node.style.height = `${patch.h}%`;
+    }
+    if (patch.rotation !== undefined) {
+      const arrowContent = node.querySelector(".canvas-element-arrow-content");
+      if (arrowContent) {
+        const baseRotation = Number(arrowContent.getAttribute("data-canvas-base-rotation")) || 0;
+        arrowContent.style.transform = `rotate(${baseRotation + patch.rotation}deg)`;
+      }
+    }
+  }
+
+  function handleCanvasPointerMove(event) {
+    if (!activeCanvasInteraction || event.pointerId !== activeCanvasInteraction.pointerId) {
+      return;
+    }
+    const interaction = activeCanvasInteraction;
+    const dxPercent = ((event.clientX - interaction.startClientX) / Math.max(1, interaction.surfaceRect.width)) * 100;
+    const dyPercent = ((event.clientY - interaction.startClientY) / Math.max(1, interaction.surfaceRect.height)) * 100;
+    let patch;
+
+    if (interaction.mode === "resize") {
+      patch = {
+        w: clampCanvasMetric(interaction.startRect.w + dxPercent, interaction.startRect.w, 6, 100 - interaction.startRect.x),
+        h: clampCanvasMetric(interaction.startRect.h + dyPercent, interaction.startRect.h, 6, 100 - interaction.startRect.y),
+      };
+    } else if (interaction.mode === "rotate") {
+      const currentAngle = Math.atan2(event.clientY - interaction.centerY, event.clientX - interaction.centerX);
+      const deltaDegrees = (currentAngle - interaction.startPointerAngle) * (180 / Math.PI);
+      patch = {
+        rotation: normalizeCanvasRotation(interaction.startRotation + deltaDegrees, interaction.startRotation),
+      };
+    } else {
+      patch = {
+        x: clampCanvasMetric(interaction.startRect.x + dxPercent, interaction.startRect.x, 0, 100 - interaction.startRect.w),
+        y: clampCanvasMetric(interaction.startRect.y + dyPercent, interaction.startRect.y, 0, 100 - interaction.startRect.h),
+      };
+    }
+
+    interaction.livePatch = patch;
+    interaction.moved = true;
+    updateCanvasInteractionPreview();
+  }
+
+  function endCanvasInteraction(event) {
+    if (!activeCanvasInteraction || (event && event.pointerId !== activeCanvasInteraction.pointerId)) {
+      return;
+    }
+    const interaction = activeCanvasInteraction;
+    activeCanvasInteraction = null;
+    if (interaction.moved && interaction.livePatch) {
+      suppressCanvasClickUntil = Date.now() + 120;
+      updateCanvasElementById(interaction.elementId, interaction.livePatch);
+      return;
+    }
+    render();
+  }
+
   function normalizeTable(tableInput, minRows, minCols) {
     const rowTarget = Math.max(2, Math.min(8, minRows || (Array.isArray(tableInput) ? tableInput.length : 2)));
     const colTarget = Math.max(2, Math.min(6, minCols || getTableColumnCount(tableInput) || 2));
@@ -988,10 +1770,13 @@
 
   function updateFreeBodyPreview() {
     const selectedSlide = getSelectedSlide();
+    syncSelectedCanvasElement();
     refs.stage.innerHTML = ns.ui.createSlideMarkup(selectedSlide, state.settings, {
       compact: false,
       mediaItems: state.mediaLibrary,
       mediaUrls: ns.services.media.getUrlMap(),
+      canvasInteractive: (selectedSlide.contentType || "bullets") === "canvas",
+      selectedCanvasElementId: selectedCanvasElementId || "",
     });
     refs.freeBodyMeta.textContent = `${ns.utils.richTextLength(selectedSlide.freeBody || "")}/1600 caractères`;
   }
@@ -1523,7 +2308,15 @@
   refs.slideTitle.addEventListener("input", (event) => updateSelectedSlide({ title: ns.utils.clampText(event.target.value, 72) }, false));
   refs.slideSubtitle.addEventListener("input", (event) => updateSelectedSlide({ subtitle: ns.utils.clampText(event.target.value, 170) }, false));
   refs.slideContentType.addEventListener("change", (event) => updateSelectedSlide({
-    contentType: event.target.value === "table" ? "table" : event.target.value === "free" ? "free" : event.target.value === "visual" ? "visual" : "bullets",
+    contentType: event.target.value === "table"
+      ? "table"
+      : event.target.value === "free"
+        ? "free"
+        : event.target.value === "visual"
+          ? "visual"
+          : event.target.value === "canvas"
+            ? "canvas"
+            : "bullets",
   }));
   refs.slidePaletteOverride.addEventListener("change", (event) => updateSelectedSlide({
     paletteOverride: event.target.value,
@@ -1607,6 +2400,173 @@
     addSelectedFreeLink(refs.freeLinkLabel.value, refs.freeLinkUrl.value);
     refs.freeLinkLabel.value = "";
     refs.freeLinkUrl.value = "";
+  });
+  refs.canvasAddText.addEventListener("click", () => addCanvasElement("text"));
+  refs.canvasAddArrow.addEventListener("click", () => addCanvasElement("arrow"));
+  refs.canvasDeleteElement.addEventListener("click", removeSelectedCanvasElement);
+  refs.canvasElementX.addEventListener("input", (event) => updateSelectedCanvasElement({
+    x: clampCanvasMetric(event.target.value, 0, 0, 94),
+  }, false));
+  refs.canvasElementY.addEventListener("input", (event) => updateSelectedCanvasElement({
+    y: clampCanvasMetric(event.target.value, 0, 0, 94),
+  }, false));
+  refs.canvasElementW.addEventListener("input", (event) => {
+    const selectedElement = getCanvasSelectedElement(getSelectedCanvasData().elements);
+    const maxWidth = selectedElement ? (100 - (Number(selectedElement.x) || 0)) : 100;
+    updateSelectedCanvasElement({
+      w: clampCanvasMetric(event.target.value, selectedElement ? selectedElement.w : 24, 6, maxWidth),
+    }, false);
+  });
+  refs.canvasElementH.addEventListener("input", (event) => {
+    const selectedElement = getCanvasSelectedElement(getSelectedCanvasData().elements);
+    const maxHeight = selectedElement ? (100 - (Number(selectedElement.y) || 0)) : 100;
+    updateSelectedCanvasElement({
+      h: clampCanvasMetric(event.target.value, selectedElement ? selectedElement.h : 18, 6, maxHeight),
+    }, false);
+  });
+  refs.canvasTextContent.addEventListener("input", () => {
+    saveCanvasTextEditorSelection();
+    if (ns.utils.richTextLength(refs.canvasTextContent.innerHTML) > 600) {
+      normalizeCanvasTextEditorMarkup(true);
+      return;
+    }
+    normalizeCanvasTextEditorMarkup(false);
+  });
+  refs.canvasTextContent.addEventListener("mousedown", () => {
+    canvasTextEditorRange = null;
+  });
+  refs.canvasTextContent.addEventListener("keyup", () => {
+    saveCanvasTextEditorSelection();
+    updateCanvasTextToolbarState();
+  });
+  refs.canvasTextContent.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      insertCanvasTextEditorLineBreak();
+    }
+  });
+  refs.canvasTextContent.addEventListener("mouseup", () => {
+    saveCanvasTextEditorSelection();
+    updateCanvasTextToolbarState();
+  });
+  refs.canvasTextContent.addEventListener("click", () => {
+    setTimeout(() => {
+      saveCanvasTextEditorSelection();
+      updateCanvasTextToolbarState();
+    }, 0);
+  });
+  refs.canvasTextContent.addEventListener("blur", () => {
+    if (suppressCanvasTextEditorBlur) {
+      return;
+    }
+    normalizeCanvasTextEditorMarkup(true);
+  });
+  refs.canvasTextContent.addEventListener("paste", (event) => {
+    event.preventDefault();
+    const pastedText = event.clipboardData ? event.clipboardData.getData("text/plain") : "";
+    if (!pastedText) {
+      return;
+    }
+    restoreCanvasTextEditorSelection();
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) {
+      return;
+    }
+    const range = selection.getRangeAt(0);
+    if (!refs.canvasTextContent.contains(range.commonAncestorContainer)) {
+      return;
+    }
+    range.deleteContents();
+    const textNode = document.createTextNode(pastedText);
+    range.insertNode(textNode);
+    range.setStartAfter(textNode);
+    range.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(range);
+    saveCanvasTextEditorSelection();
+    normalizeCanvasTextEditorMarkup(true);
+  });
+  refs.canvasTextBold.addEventListener("mousedown", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    markCanvasTextEditorToolbarInteraction();
+    saveCanvasTextEditorSelection();
+    applyCanvasTextEditorInlineTag("strong");
+  });
+  refs.canvasTextBold.addEventListener("click", (event) => {
+    event.preventDefault();
+  });
+  refs.canvasTextItalic.addEventListener("mousedown", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    markCanvasTextEditorToolbarInteraction();
+    saveCanvasTextEditorSelection();
+    applyCanvasTextEditorInlineTag("em");
+  });
+  refs.canvasTextItalic.addEventListener("click", (event) => {
+    event.preventDefault();
+  });
+  refs.canvasTextUnderline.addEventListener("mousedown", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    markCanvasTextEditorToolbarInteraction();
+    saveCanvasTextEditorSelection();
+    applyCanvasTextEditorInlineTag("u");
+  });
+  refs.canvasTextUnderline.addEventListener("click", (event) => {
+    event.preventDefault();
+  });
+  refs.canvasTextSize.addEventListener("input", (event) => {
+    const nextValue = String(Math.round(clampCanvasMetric(event.target.value, 28, 16, 72)));
+    refs.canvasTextSizeValue.textContent = `${nextValue} px`;
+    applyCanvasTextEditorFontSize(nextValue);
+  });
+  refs.canvasTextSize.addEventListener("mousedown", () => {
+    markCanvasTextEditorToolbarInteraction();
+    saveCanvasTextEditorSelection();
+    createCanvasTextSelectionBookmark();
+  });
+  refs.canvasTextFrame.addEventListener("change", (event) => updateSelectedCanvasElement({
+    showFrame: Boolean(event.target.checked),
+  }, false));
+  if (refs.canvasTextColorPalette) {
+    refs.canvasTextColorPalette.addEventListener("mousedown", (event) => {
+      const swatch = event.target.closest("[data-canvas-text-color-value]");
+      if (!swatch) {
+        return;
+      }
+      event.preventDefault();
+      event.stopPropagation();
+      markCanvasTextEditorToolbarInteraction();
+      saveCanvasTextEditorSelection();
+      createCanvasTextSelectionBookmark();
+      applyCanvasTextEditorTextColor(swatch.getAttribute("data-canvas-text-color-value"));
+    });
+    refs.canvasTextColorPalette.addEventListener("click", (event) => {
+      if (event.target.closest("[data-canvas-text-color-value]")) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+    });
+  }
+  refs.canvasImageMedia.addEventListener("change", (event) => updateSelectedCanvasElement({
+    mediaId: event.target.value,
+  }));
+  refs.canvasArrowDirection.addEventListener("change", (event) => updateSelectedCanvasElement({
+    direction: event.target.value === "up" || event.target.value === "down" || event.target.value === "left" ? event.target.value : "right",
+  }));
+  refs.canvasArrowColor.addEventListener("input", (event) => updateSelectedCanvasElement({
+    color: normalizeCanvasColor(event.target.value, "#0a66ff"),
+  }, false));
+  refs.canvasArrowRotation.addEventListener("input", (event) => updateSelectedCanvasElement({
+    rotation: normalizeCanvasRotation(event.target.value, 0),
+  }, false));
+  refs.canvasArrowLength.addEventListener("input", (event) => {
+    const nextValue = String(normalizeCanvasArrowLength(event.target.value, 100));
+    refs.canvasArrowLengthValue.textContent = `${nextValue} %`;
+    updateSelectedCanvasElement({
+      arrowLength: Number(nextValue),
+    }, false);
   });
   refs.freeLinksList.addEventListener("input", (event) => {
     const labelInput = event.target.closest("[data-free-link-label]");
@@ -1945,6 +2905,10 @@
     if (document.activeElement === refs.slideFreeBody) {
       saveFreeEditorSelection();
     }
+    if (document.activeElement === refs.canvasTextContent) {
+      saveCanvasTextEditorSelection();
+      updateCanvasTextToolbarState();
+    }
   });
 
   document.addEventListener("click", (event) => {
@@ -1959,6 +2923,8 @@
     const removeFreeLinkTrigger = event.target.closest("[data-remove-free-link]");
     const removeTableFillTrigger = event.target.closest("[data-remove-table-fill]");
     const toggleFreeMediaTrigger = event.target.closest("[data-toggle-free-media]");
+    const addCanvasMediaTrigger = event.target.closest("[data-add-canvas-media]");
+    const selectCanvasElementTrigger = event.target.closest("[data-select-canvas-element]");
     const addSlideTrigger = event.target.closest("[data-add-slide-bloom]");
     const bloomTrigger = event.target.closest("[data-set-bloom]");
 
@@ -1966,8 +2932,19 @@
       closeAddSlideMenu();
     }
 
+    if (selectCanvasElementTrigger) {
+      selectedCanvasElementId = selectCanvasElementTrigger.getAttribute("data-select-canvas-element");
+      render();
+      return;
+    }
+
     if (addSlideTrigger) {
       createBlankSlide(addSlideTrigger.getAttribute("data-add-slide-bloom"));
+      return;
+    }
+
+    if (addCanvasMediaTrigger) {
+      addCanvasMediaElement(addCanvasMediaTrigger.getAttribute("data-add-canvas-media"));
       return;
     }
 
@@ -1999,6 +2976,18 @@
           mediaId: slide.mediaId === mediaId ? "" : slide.mediaId,
           secondaryMediaId: slide.secondaryMediaId === mediaId ? "" : slide.secondaryMediaId,
           visualData: nextVisualData,
+          canvasData: slide.canvasData
+            ? Object.assign({}, slide.canvasData, {
+                elements: (Array.isArray(slide.canvasData.elements) ? slide.canvasData.elements : []).map((element) => {
+                  if (element.type !== "image") {
+                    return element;
+                  }
+                  return Object.assign({}, element, {
+                    mediaId: element.mediaId === mediaId ? "" : element.mediaId,
+                  });
+                }),
+              })
+            : slide.canvasData,
         });
       });
       ns.services.media.deleteMedia(mediaId).then(() => render());
@@ -2324,7 +3313,43 @@
     draggedVisualChartIndex = null;
   });
 
+  refs.stage.addEventListener("pointerdown", (event) => {
+    const selectedSlide = getSelectedSlide();
+    if (!selectedSlide || (selectedSlide.contentType || "bullets") !== "canvas") {
+      return;
+    }
+    const rotateHandle = event.target.closest("[data-canvas-rotate-handle]");
+    const resizeHandle = event.target.closest("[data-canvas-resize-handle]");
+    const canvasElement = event.target.closest("[data-canvas-element-id]");
+    if (!canvasElement) {
+      return;
+    }
+    beginCanvasInteraction(
+      event,
+      canvasElement.getAttribute("data-canvas-element-id"),
+      rotateHandle ? "rotate" : resizeHandle ? "resize" : "drag"
+    );
+  });
+
   refs.stage.addEventListener("click", (event) => {
+    const selectedSlide = getSelectedSlide();
+    if ((selectedSlide.contentType || "bullets") === "canvas") {
+      if (Date.now() < suppressCanvasClickUntil) {
+        return;
+      }
+      const canvasElement = event.target.closest("[data-canvas-element-id]");
+      const canvasSurface = event.target.closest("[data-canvas-surface]");
+      if (canvasElement) {
+        selectedCanvasElementId = canvasElement.getAttribute("data-canvas-element-id");
+        render();
+        return;
+      }
+      if (canvasSurface) {
+        selectedCanvasElementId = null;
+        render();
+        return;
+      }
+    }
     const tableCard = event.target.closest(".slide-table[data-table-lightbox='true']");
     if (tableCard) {
       openTableLightbox(tableCard);
@@ -2336,6 +3361,10 @@
     }
     openChartLightbox(chartCard);
   });
+
+  document.addEventListener("pointermove", handleCanvasPointerMove);
+  document.addEventListener("pointerup", endCanvasInteraction);
+  document.addEventListener("pointercancel", endCanvasInteraction);
 
   refs.chartLightbox.addEventListener("click", (event) => {
     if (
@@ -2380,6 +3409,17 @@
         return;
       }
       selectSlide(nextSlide.id, { focusPreviewPanel: true });
+      return;
+    }
+
+    if (
+      ((event.key === "Delete") || (event.key === "Backspace")) &&
+      (getSelectedSlide().contentType || "bullets") === "canvas" &&
+      selectedCanvasElementId &&
+      !/^(input|textarea|select)$/i.test((event.target && event.target.tagName) || "")
+    ) {
+      event.preventDefault();
+      removeSelectedCanvasElement();
       return;
     }
 

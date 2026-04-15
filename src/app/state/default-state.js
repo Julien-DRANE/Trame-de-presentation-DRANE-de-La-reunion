@@ -37,6 +37,12 @@
     };
   }
 
+  function createDefaultCanvasData() {
+    return {
+      elements: [],
+    };
+  }
+
   function createSlideFromBloom(level, index) {
     return {
       id: `slide-${index + 1}`,
@@ -59,6 +65,7 @@
       freeLinks: [],
       freeMediaIds: [],
       visualData: createDefaultVisualData(),
+      canvasData: createDefaultCanvasData(),
       subBullets: {},
       mediaId: "",
       secondaryMediaId: "",
@@ -103,6 +110,7 @@
       freeLinks: [],
       freeMediaIds: [],
       visualData: createDefaultVisualData(),
+      canvasData: createDefaultCanvasData(),
       subBullets: {},
       mediaId: "",
       secondaryMediaId: "",
@@ -143,5 +151,6 @@
   ns.stateFactory.createBloomDeckSlides = createBloomDeckSlides;
   ns.stateFactory.createBlankSlide = createBlankSlide;
   ns.stateFactory.createDefaultVisualData = createDefaultVisualData;
+  ns.stateFactory.createDefaultCanvasData = createDefaultCanvasData;
   ns.stateFactory.createDefaultState = createDefaultState;
 })();

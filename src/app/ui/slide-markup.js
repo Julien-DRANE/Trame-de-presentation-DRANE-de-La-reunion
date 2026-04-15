@@ -181,12 +181,23 @@
       id: mediaItem.id,
       kind: mediaItem.kind,
       name: mediaItem.name,
+      mimeType: mediaItem.mimeType,
       src: mediaUrls[mediaId],
       embedUrl: mediaItem.embedUrl,
       externalUrl: mediaItem.externalUrl,
       provider: mediaItem.provider,
       pdfLinkHref: opts.mediaLinks ? opts.mediaLinks[mediaId] : "",
     };
+  }
+
+  function isTransparentPngMedia(media) {
+    if (!media || media.kind !== "image") {
+      return false;
+    }
+    const mimeType = String(media.mimeType || "").toLowerCase();
+    const source = String(media.src || "").toLowerCase();
+    const name = String(media.name || "").toLowerCase();
+    return mimeType === "image/png" || source.startsWith("data:image/png") || /\.png($|\?|\#)/i.test(source) || /\.png$/i.test(name);
   }
 
   function createResolvedMediaMarkup(media, options) {
@@ -581,11 +592,12 @@
     };
   }
 
-  function createVisualArrowMarkup(direction, color) {
+  function createVisualArrowMarkup(direction, color, options) {
+    const opts = options || {};
     const arrowDirection = direction === "up" || direction === "down" || direction === "left" ? direction : "right";
     const rotation = arrowDirection === "down" ? "90" : arrowDirection === "left" ? "180" : arrowDirection === "up" ? "-90" : "0";
     return `
-      <svg class="slide-visual-arrow-svg" viewBox="0 0 200 56" aria-hidden="true">
+      <svg class="slide-visual-arrow-svg" viewBox="0 0 200 56" aria-hidden="true"${opts.stretch ? ' preserveAspectRatio="none"' : ""}>
         <g transform="rotate(${rotation} 100 28)">
           <path
             d="M16 24h124l-20-18 8-6 40 28-40 28-8-6 20-18H16z"
@@ -711,6 +723,142 @@
     `;
   }
 
+  function clampCanvasMetric(value, fallback, min, max) {
+    const parsed = Number(value);
+    const safeValue = Number.isFinite(parsed) ? parsed : fallback;
+    const lowerBound = Number.isFinite(min) ? min : 0;
+    const upperBound = Number.isFinite(max) ? max : 100;
+    const clamped = Math.max(lowerBound, Math.min(upperBound, safeValue));
+    return Math.round(clamped * 10) / 10;
+  }
+
+  function normalizeCanvasRotation(value, fallback) {
+    const parsed = Number(value);
+    const safeValue = Number.isFinite(parsed) ? parsed : (Number.isFinite(Number(fallback)) ? Number(fallback) : 0);
+    return Math.round(Math.max(-360, Math.min(360, safeValue)));
+  }
+
+  function normalizeCanvasArrowLength(value, fallback) {
+    const parsed = Number(value);
+    const safeValue = Number.isFinite(parsed) ? parsed : (Number.isFinite(Number(fallback)) ? Number(fallback) : 100);
+    return Math.round(Math.max(40, Math.min(800, safeValue)));
+  }
+
+  function normalizeCanvasElement(element, index) {
+    const input = element && typeof element === "object" ? element : {};
+    const type = input.type === "image" || input.type === "arrow" ? input.type : "text";
+    const normalized = {
+      id: typeof input.id === "string" && input.id ? input.id : ns.utils.createId("canvas"),
+      type,
+      x: clampCanvasMetric(input.x, 10 + ((index % 3) * 8), 0, 92),
+      y: clampCanvasMetric(input.y, 12 + ((index % 4) * 6), 0, 92),
+      w: clampCanvasMetric(input.w, type === "arrow" ? 18 : type === "image" ? 28 : 34, 6, 100),
+      h: clampCanvasMetric(input.h, type === "arrow" ? 10 : type === "image" ? 30 : 18, 6, 100),
+    };
+
+    normalized.w = Math.min(normalized.w, Math.max(6, 100 - normalized.x));
+    normalized.h = Math.min(normalized.h, Math.max(6, 100 - normalized.y));
+
+    if (type === "image") {
+      normalized.mediaId = typeof input.mediaId === "string" ? input.mediaId : "";
+      return normalized;
+    }
+
+    if (type === "arrow") {
+      normalized.direction = input.direction === "up" || input.direction === "down" || input.direction === "left" ? input.direction : "right";
+      normalized.color = /^#[0-9a-fA-F]{6}$/.test(input.color || "") ? input.color : "#0a66ff";
+      normalized.rotation = normalizeCanvasRotation(input.rotation, 0);
+      normalized.arrowLength = normalizeCanvasArrowLength(input.arrowLength, 100);
+      return normalized;
+    }
+
+    const fallbackText = ns.utils.plainTextToRichHtml("Zone de texte", 600);
+    normalized.text = typeof input.text === "string" ? ns.utils.sanitizeRichText(input.text, 600) : fallbackText;
+    normalized.fontSize = clampCanvasMetric(input.fontSize, 28, 16, 72);
+    normalized.color = /^#[0-9a-fA-F]{6}$/.test(input.color || "") ? input.color : "#1d1917";
+    normalized.showFrame = input.showFrame !== false;
+    normalized.bold = Boolean(input.bold);
+    normalized.italic = Boolean(input.italic);
+    normalized.underline = Boolean(input.underline);
+    return normalized;
+  }
+
+  function getCanvasData(slide) {
+    const raw = slide && slide.canvasData && typeof slide.canvasData === "object" ? slide.canvasData : {};
+    return {
+      elements: Array.isArray(raw.elements) ? raw.elements.slice(0, 24).map(normalizeCanvasElement).filter(Boolean) : [],
+    };
+  }
+
+  function createCanvasTextMarkup(value) {
+    return ns.utils.sanitizeRichText(value, 600);
+  }
+
+  function createCanvasElementMarkup(element, options) {
+    const opts = options || {};
+    const interactive = Boolean(opts.canvasInteractive);
+    const selected = interactive && opts.selectedCanvasElementId === element.id;
+    const selectionClass = selected ? " is-selected" : "";
+    const interactiveClass = interactive ? " is-interactive" : "";
+    const baseAttrs = `
+      class="canvas-element canvas-element-${ns.utils.escapeHtml(element.type)}${selectionClass}${interactiveClass}"
+      data-canvas-element-id="${ns.utils.escapeHtml(element.id)}"
+      data-canvas-element-type="${ns.utils.escapeHtml(element.type)}"
+      style="left:${element.x}%; top:${element.y}%; width:${element.w}%; height:${element.h}%;"
+    `;
+
+    if (element.type === "image") {
+      const media = getResolvedMediaById(element.mediaId, opts);
+      const transparentPngClass = isTransparentPngMedia(media) ? " is-transparent-png" : "";
+      const mediaMarkup = media
+        ? createResolvedMediaMarkup(media, opts)
+        : `<div class="canvas-element-placeholder">Choisissez une image</div>`;
+      return `
+        <div ${baseAttrs}>
+          <div class="canvas-element-content canvas-element-media-content${transparentPngClass}">${mediaMarkup}</div>
+          ${interactive ? '<button class="canvas-resize-handle" type="button" data-canvas-resize-handle="true" aria-label="Redimensionner l’élément"></button>' : ""}
+        </div>
+      `;
+    }
+
+    if (element.type === "arrow") {
+      const baseRotation = element.direction === "down" ? 90 : element.direction === "left" ? 180 : element.direction === "up" ? -90 : 0;
+      const totalRotation = baseRotation + normalizeCanvasRotation(element.rotation, 0);
+      return `
+        <div ${baseAttrs}>
+          <div class="canvas-element-content canvas-element-arrow-content" data-canvas-base-rotation="${baseRotation}" style="width:${Math.max(40, Number(element.arrowLength) || 100)}%; transform:rotate(${totalRotation}deg); --canvas-arrow-color:${ns.utils.escapeHtml(element.color || "#0a66ff")};">
+            <span class="canvas-arrow-shaft" aria-hidden="true"></span>
+            <span class="canvas-arrow-head" aria-hidden="true"></span>
+          </div>
+          ${interactive ? '<button class="canvas-rotate-handle" type="button" data-canvas-rotate-handle="true" aria-label="Faire tourner la flèche"></button>' : ""}
+          ${interactive ? '<button class="canvas-resize-handle" type="button" data-canvas-resize-handle="true" aria-label="Redimensionner l’élément"></button>' : ""}
+        </div>
+      `;
+    }
+
+    return `
+      <div ${baseAttrs}>
+        <div class="canvas-element-content canvas-element-text-content${element.showFrame === false ? " is-frameless" : ""}" style="font-size:${element.fontSize}px; color:${ns.utils.escapeHtml(element.color)};">
+          ${createCanvasTextMarkup(element.text)}
+        </div>
+        ${interactive ? '<button class="canvas-resize-handle" type="button" data-canvas-resize-handle="true" aria-label="Redimensionner l’élément"></button>' : ""}
+      </div>
+    `;
+  }
+
+  function createCanvasMarkup(slide, options) {
+    const canvasData = getCanvasData(slide);
+    const elementsMarkup = canvasData.elements
+      .map((element) => createCanvasElementMarkup(element, options))
+      .join("");
+
+    return `
+      <div class="slide-canvas-surface" data-canvas-surface="true">
+        ${elementsMarkup || '<div class="slide-canvas-empty">Ajoutez un texte, une flèche, ou cliquez une image dans la médiathèque.</div>'}
+      </div>
+    `;
+  }
+
   function createSlideMarkup(slide, settings, options) {
     const opts = options || {};
     const utils = ns.utils;
@@ -720,6 +868,7 @@
     const isTableMode = slide.contentType === "table";
     const isFreeMode = slide.contentType === "free";
     const isVisualMode = slide.contentType === "visual";
+    const isCanvasMode = slide.contentType === "canvas";
     const allBullets = buildBulletItems(slide);
     const bulletColumns = splitBulletsForLayout(allBullets);
     const mainBullets = bulletColumns.mainBullets;
@@ -727,7 +876,7 @@
     const mainBulletsWeight = Number(bulletColumns.mainWeight) || 0;
     const extraBulletsWeight = Number(bulletColumns.extraWeight) || 0;
     const bulletsNumbered = Boolean(slide.bulletsNumbered);
-    const bulletsProgressive = Boolean(slide.bulletsProgressive) && !opts.compact && !isFreeMode && !isTableMode && !isVisualMode;
+    const bulletsProgressive = Boolean(slide.bulletsProgressive) && !opts.compact && !isFreeMode && !isTableMode && !isVisualMode && !isCanvasMode;
     const tableProgressive = Boolean(slide.tableProgressive) && !opts.compact && isTableMode;
     const tableProgressiveOrder = slide.tableProgressiveOrder === "column" ? "column" : "row";
     const visualData = slide.visualData || {};
@@ -784,6 +933,8 @@
 
     if (isFreeMode) {
       contentMarkup = createFreeMarkup(slide, opts);
+    } else if (isCanvasMode) {
+      contentMarkup = createCanvasMarkup(slide, opts);
     } else if (isVisualMode) {
       contentMarkup = createVisualMarkup(slide, opts);
     } else if (isTableMode) {
@@ -807,12 +958,13 @@
     const themeName = resolveThemeName(slide, settings);
     const paletteStyle = createSlidePaletteStyle(slide, settings);
     const visualModeClass = isVisualMode ? " is-visual-slide" : "";
+    const canvasModeClass = isCanvasMode ? " is-canvas-slide" : "";
     const tableModeClass = isTableMode && !slideMediaItems.length ? " is-table-slide" : "";
     const visualHeaderClass = isVisualMode && (slide.title || slide.subtitle) ? " is-visual-has-header" : "";
     const stackedMediaLayoutClass = slideMediaItems.length > 1 ? " has-media-stack-layout" : "";
 
     return `
-      <article class="deck-slide theme-${utils.escapeHtml(themeName)}${compactClass}${visualModeClass}${tableModeClass}${visualHeaderClass}" data-progressive-content="${bulletsProgressive || tableProgressive || visualProgressive ? "true" : "false"}" style="${utils.escapeHtml(paletteStyle)}">
+      <article class="deck-slide theme-${utils.escapeHtml(themeName)}${compactClass}${visualModeClass}${canvasModeClass}${tableModeClass}${visualHeaderClass}" data-progressive-content="${bulletsProgressive || tableProgressive || visualProgressive ? "true" : "false"}" style="${utils.escapeHtml(paletteStyle)}">
         <div class="slide-wave" aria-hidden="true"></div>
         <img class="slide-logo slide-logo-region" src="${utils.escapeHtml(logoSources.region)}" alt="Logo region academique" />
         <img class="slide-logo slide-logo-drane" src="${utils.escapeHtml(logoSources.drane)}" alt="Logo Drane" />
@@ -822,7 +974,7 @@
               <span class="slide-number-badge">${utils.escapeHtml(slide.number || "")}</span>
             </div>
           </div>
-          <div class="${isVisualMode ? "slide-body slide-body-no-media slide-body-visual" : slideMedia && (!extraBullets.length || isTableMode || canKeepMediaWithExtendedBullets) && !isFreeMode ? `slide-body${stackedMediaLayoutClass}` : "slide-body slide-body-no-media"}">
+          <div class="${isCanvasMode ? "slide-body slide-body-no-media slide-body-canvas" : isVisualMode ? "slide-body slide-body-no-media slide-body-visual" : slideMedia && (!extraBullets.length || isTableMode || canKeepMediaWithExtendedBullets) && !isFreeMode ? `slide-body${stackedMediaLayoutClass}` : "slide-body slide-body-no-media"}">
             <div class="slide-main">
               ${headline}
               ${subtitle}
@@ -848,6 +1000,10 @@
       (slide.evidence || "").length +
       (slide.bullets || []).join("").length +
       Object.values(slide.subBullets || {}).flat().join("").length +
+      (((slide.canvasData || {}).elements) || [])
+        .filter((item) => item && item.type === "text")
+        .map((item) => item.text || "")
+        .join("").length +
       (((slide.visualData || {}).body) || "").length +
       (((slide.visualData || {}).callout) || "").length;
     const bulletCount = (slide.bullets || []).filter((item) => item && item.trim()).length;

@@ -13,6 +13,8 @@
     const principles = ns.data.cognitivePrinciples || [];
     const density = ns.ui.computeDensity(selectedSlide);
     const visualData = selectedSlide.visualData || {};
+    const canvasData = getCanvasData(selectedSlide);
+    const selectedCanvasElement = getSelectedCanvasElement(canvasData, payload.selectedCanvasElementId);
 
     refs.deckTitle.value = state.settings.title;
     refs.deckSubtitle.value = state.settings.subtitle;
@@ -130,20 +132,83 @@
     refs.visualChartBars.innerHTML = renderVisualChartEditor(visualData);
     refs.visualChartAddColumn.disabled = (visualData.chartBarCount || 3) >= 6;
     refs.visualChartRemoveColumn.disabled = (visualData.chartBarCount || 3) <= 1;
+    refs.canvasElementsList.innerHTML = renderCanvasElementsList(canvasData, selectedCanvasElement && selectedCanvasElement.id);
+    refs.canvasImageMedia.innerHTML = renderVisualMediaOptions(state.mediaLibrary, "Choisir une image");
+    refs.canvasElementFields.hidden = !selectedCanvasElement;
+    refs.canvasEmptySelection.hidden = Boolean(selectedCanvasElement);
+    if (selectedCanvasElement) {
+      refs.canvasElementX.value = formatCanvasMetric(selectedCanvasElement.x);
+      refs.canvasElementY.value = formatCanvasMetric(selectedCanvasElement.y);
+      refs.canvasElementW.value = formatCanvasMetric(selectedCanvasElement.w);
+      refs.canvasElementH.value = formatCanvasMetric(selectedCanvasElement.h);
+      refs.canvasTextContentWrap.hidden = selectedCanvasElement.type !== "text";
+      refs.canvasTextToolbar.hidden = selectedCanvasElement.type !== "text";
+      refs.canvasTextStyleGrid.hidden = selectedCanvasElement.type !== "text";
+      refs.canvasImageMediaWrap.hidden = selectedCanvasElement.type !== "image";
+      refs.canvasArrowControls.hidden = selectedCanvasElement.type !== "arrow";
+      if (selectedCanvasElement.type === "text") {
+        const sanitizedCanvasText = ns.utils.sanitizeRichText(selectedCanvasElement.text || "", 600);
+        if (document.activeElement !== refs.canvasTextContent || refs.canvasTextContent.innerHTML !== sanitizedCanvasText) {
+          refs.canvasTextContent.innerHTML = sanitizedCanvasText;
+        }
+      } else if (refs.canvasTextContent.innerHTML) {
+        refs.canvasTextContent.innerHTML = "";
+      }
+      refs.canvasTextSize.value = selectedCanvasElement.type === "text" ? String(Math.round(Number(selectedCanvasElement.fontSize) || 28)) : "28";
+      refs.canvasTextSizeValue.textContent = `${refs.canvasTextSize.value} px`;
+      refs.canvasTextFrame.checked = selectedCanvasElement.type === "text" ? selectedCanvasElement.showFrame !== false : true;
+      refs.canvasTextBold.classList.remove("is-active");
+      refs.canvasTextBold.setAttribute("aria-pressed", "false");
+      refs.canvasTextItalic.classList.remove("is-active");
+      refs.canvasTextItalic.setAttribute("aria-pressed", "false");
+      refs.canvasTextUnderline.classList.remove("is-active");
+      refs.canvasTextUnderline.setAttribute("aria-pressed", "false");
+      refs.canvasImageMedia.value = selectedCanvasElement.type === "image" ? (selectedCanvasElement.mediaId || "") : "";
+      refs.canvasArrowDirection.value = selectedCanvasElement.type === "arrow" ? (selectedCanvasElement.direction || "right") : "right";
+      refs.canvasArrowColor.value = selectedCanvasElement.type === "arrow" ? (selectedCanvasElement.color || "#0a66ff") : "#0a66ff";
+      refs.canvasArrowRotation.value = selectedCanvasElement.type === "arrow" ? String(Math.round(Number(selectedCanvasElement.rotation) || 0)) : "0";
+      refs.canvasArrowLength.value = selectedCanvasElement.type === "arrow" ? String(Math.round(Number(selectedCanvasElement.arrowLength) || 100)) : "100";
+      refs.canvasArrowLengthValue.textContent = `${refs.canvasArrowLength.value} %`;
+    } else {
+      refs.canvasTextContentWrap.hidden = true;
+      refs.canvasTextToolbar.hidden = true;
+      refs.canvasTextStyleGrid.hidden = true;
+      refs.canvasImageMediaWrap.hidden = true;
+      refs.canvasArrowControls.hidden = true;
+      refs.canvasTextContent.innerHTML = "";
+      refs.canvasTextSize.value = "28";
+      refs.canvasTextSizeValue.textContent = "28 px";
+      refs.canvasTextFrame.checked = true;
+      refs.canvasTextBold.classList.remove("is-active");
+      refs.canvasTextBold.setAttribute("aria-pressed", "false");
+      refs.canvasTextItalic.classList.remove("is-active");
+      refs.canvasTextItalic.setAttribute("aria-pressed", "false");
+      refs.canvasTextUnderline.classList.remove("is-active");
+      refs.canvasTextUnderline.setAttribute("aria-pressed", "false");
+      refs.canvasImageMedia.value = "";
+      refs.canvasArrowDirection.value = "right";
+      refs.canvasArrowColor.value = "#0a66ff";
+      refs.canvasArrowRotation.value = "0";
+      refs.canvasArrowLength.value = "100";
+      refs.canvasArrowLengthValue.textContent = "100 %";
+    }
     refs.slideNote.value = selectedSlide.note;
     const isTableMode = (selectedSlide.contentType || "bullets") === "table";
     const isFreeMode = (selectedSlide.contentType || "bullets") === "free";
     const isVisualMode = (selectedSlide.contentType || "bullets") === "visual";
-    refs.slideBulletsEditor.hidden = isTableMode || isFreeMode || isVisualMode;
+    const isCanvasMode = (selectedSlide.contentType || "bullets") === "canvas";
+    refs.slideBulletsEditor.hidden = isTableMode || isFreeMode || isVisualMode || isCanvasMode;
     refs.slideTableEditor.hidden = !isTableMode;
     refs.slideFreeEditor.hidden = !isFreeMode;
     refs.slideVisualEditor.hidden = !isVisualMode;
+    refs.slideCanvasEditor.hidden = !isCanvasMode;
     refs.slideNoteEditor.hidden = false;
-    refs.slideBulletsEditor.classList.toggle("is-collapsed", isTableMode || isFreeMode || isVisualMode);
+    refs.slideBulletsEditor.classList.toggle("is-collapsed", isTableMode || isFreeMode || isVisualMode || isCanvasMode);
     refs.slideTableEditor.classList.toggle("is-collapsed", !isTableMode);
     refs.slideFreeEditor.classList.toggle("is-collapsed", !isFreeMode);
     refs.slideVisualEditor.classList.toggle("is-collapsed", !isVisualMode);
-    refs.clearSlideMedia.hidden = isFreeMode || isVisualMode;
+    refs.slideCanvasEditor.classList.toggle("is-collapsed", !isCanvasMode);
+    refs.clearSlideMedia.hidden = isFreeMode || isVisualMode || isCanvasMode;
     refs.slideMediaPanelBody.hidden = Boolean(state.uiMediaPanelCollapsed);
     refs.toggleMediaPanel.textContent = state.uiMediaPanelCollapsed ? "Déplier" : "Replier";
     refs.toggleMediaPanel.setAttribute("aria-expanded", state.uiMediaPanelCollapsed ? "false" : "true");
@@ -166,11 +231,15 @@
       ? "Mode visuel : images, texte, flèche et mini graphe dans une composition éditoriale."
       : isFreeMode
       ? "Mode libre : texte long, liens et plusieurs médias pour les annexes."
+      : isCanvasMode
+      ? "Mode canvas : place librement textes, images et flèches directement sur la slide."
       : "Modèle : un niveau Bloom, une idée forte, trois points maximum.";
     refs.slideMediaSelection.textContent = isVisualMode
       ? getVisualMediaSelectionText(selectedSlide, state.mediaLibrary)
       : isFreeMode
       ? `${(selectedSlide.freeMediaIds || []).length} média(x) dans l'annexe libre.`
+      : isCanvasMode
+      ? getCanvasMediaSelectionText(canvasData, state.mediaLibrary)
       : (selectedSlide.mediaId || selectedSlide.secondaryMediaId)
         ? getMediaSelectionText(selectedSlide, state.mediaLibrary)
         : "Aucun média affecté à cette slide.";
@@ -181,6 +250,8 @@
       compact: false,
       mediaItems: state.mediaLibrary,
       mediaUrls: ns.services.media.getUrlMap(),
+      canvasInteractive: isCanvasMode,
+      selectedCanvasElementId: selectedCanvasElement ? selectedCanvasElement.id : "",
     });
     refs.presentationProgress.innerHTML = renderPresentationProgress(state, selectedSlide.id);
     refs.pedagogyBrief.innerHTML = renderPedagogyBrief(selectedSlide, principles);
@@ -352,6 +423,73 @@
     return `${selectedNames.length} média(x) dans la composition visuelle : ${selectedNames.join(" / ")}`;
   }
 
+  function getCanvasData(slide) {
+    const raw = slide && slide.canvasData && typeof slide.canvasData === "object" ? slide.canvasData : {};
+    return {
+      elements: Array.isArray(raw.elements) ? raw.elements : [],
+    };
+  }
+
+  function getSelectedCanvasElement(canvasData, selectedId) {
+    const elements = canvasData && Array.isArray(canvasData.elements) ? canvasData.elements : [];
+    return elements.find((item) => item.id === selectedId) || null;
+  }
+
+  function getCanvasMediaSelectionText(canvasData, mediaItems) {
+    const mediaIds = Array.from(new Set(
+      ((canvasData && canvasData.elements) || [])
+        .filter((item) => item && item.type === "image" && item.mediaId)
+        .map((item) => item.mediaId)
+    ));
+    const names = mediaIds
+      .map((mediaId) => (mediaItems || []).find((item) => item.id === mediaId))
+      .filter(Boolean)
+      .map((item) => item.name);
+
+    if (!names.length) {
+      return "Aucune image posée sur le canvas. Cliquez un média pour l'ajouter, ou pour remplacer l'image sélectionnée.";
+    }
+
+    return `${names.length} média(x) sur le canvas : ${names.join(" / ")}`;
+  }
+
+  function getCanvasElementLabel(element) {
+    if (!element) {
+      return "Élément";
+    }
+    if (element.type === "image") {
+      return "Image";
+    }
+    if (element.type === "arrow") {
+      return "Flèche";
+    }
+    return "Texte";
+  }
+
+  function formatCanvasMetric(value) {
+    const numeric = Number(value);
+    return Number.isFinite(numeric) ? numeric.toFixed(1).replace(/\.0$/, "") : "0";
+  }
+
+  function renderCanvasElementsList(canvasData, activeId) {
+    const elements = canvasData && Array.isArray(canvasData.elements) ? canvasData.elements : [];
+    if (!elements.length) {
+      return '<p class="extra-bullets-empty">Aucun élément sur le canvas.</p>';
+    }
+
+    return elements
+      .map((element, index) => {
+        const activeClass = element.id === activeId ? " is-active" : "";
+        return `
+          <button class="canvas-element-chip${activeClass}" type="button" data-select-canvas-element="${ns.utils.escapeHtml(element.id)}">
+            <span class="canvas-element-chip-index">${index + 1}</span>
+            <span class="canvas-element-chip-label">${ns.utils.escapeHtml(getCanvasElementLabel(element))}</span>
+          </button>
+        `;
+      })
+      .join("");
+  }
+
   function renderVisualMediaOptions(mediaItems, placeholder) {
     return [
       `<option value="">${ns.utils.escapeHtml(placeholder)}</option>`,
@@ -393,9 +531,13 @@
     const mediaUrls = ns.services.media.getUrlMap();
     const isFreeMode = (selectedSlide.contentType || "bullets") === "free";
     const isVisualMode = (selectedSlide.contentType || "bullets") === "visual";
+    const isCanvasMode = (selectedSlide.contentType || "bullets") === "canvas";
     const freeMediaIds = Array.isArray(selectedSlide.freeMediaIds) ? selectedSlide.freeMediaIds : [];
     const visualMediaIds = selectedSlide.visualData
       ? [selectedSlide.visualData.primaryMediaId, selectedSlide.visualData.secondaryMediaId].filter(Boolean)
+      : [];
+    const canvasMediaIds = selectedSlide.canvasData && Array.isArray(selectedSlide.canvasData.elements)
+      ? selectedSlide.canvasData.elements.filter((item) => item.type === "image" && item.mediaId).map((item) => item.mediaId)
       : [];
 
     return mediaItems
@@ -403,6 +545,8 @@
         const bulletMediaIds = [selectedSlide.mediaId, selectedSlide.secondaryMediaId].filter(Boolean);
         const activeClass = isVisualMode
           ? (visualMediaIds.includes(item.id) ? " is-active" : "")
+          : isCanvasMode
+            ? (canvasMediaIds.includes(item.id) ? " is-active" : "")
           : isFreeMode
             ? (freeMediaIds.includes(item.id) ? " is-active" : "")
             : (bulletMediaIds.includes(item.id) ? " is-active" : "");
@@ -410,7 +554,11 @@
           ? `<video class="media-thumb-preview" src="${ns.utils.escapeHtml(mediaUrls[item.id] || "")}" muted preload="metadata"></video>`
           : `<img class="media-thumb-preview" src="${ns.utils.escapeHtml(mediaUrls[item.id] || "")}" alt="${ns.utils.escapeHtml(item.name)}" />`;
         const typeLabel = item.kind === "embed" ? "Embed YouTube" : item.kind === "video" ? "Vidéo" : "Image";
-        const actionAttr = isFreeMode ? `data-toggle-free-media="${ns.utils.escapeHtml(item.id)}"` : `data-assign-media="${ns.utils.escapeHtml(item.id)}"`;
+        const actionAttr = isCanvasMode
+          ? `data-add-canvas-media="${ns.utils.escapeHtml(item.id)}"`
+          : isFreeMode
+            ? `data-toggle-free-media="${ns.utils.escapeHtml(item.id)}"`
+            : `data-assign-media="${ns.utils.escapeHtml(item.id)}"`;
 
         return `
           <article class="media-card${activeClass}">

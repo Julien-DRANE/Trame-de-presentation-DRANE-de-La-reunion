@@ -252,6 +252,7 @@
                     <option value="table">Tableau</option>
                     <option value="free">Libre</option>
                     <option value="visual">Visuel</option>
+                    <option value="canvas">Canvas libre</option>
                   </select>
                 </label>
                 <label>
@@ -389,6 +390,107 @@
                   </div>
                   <div id="free-links-list" class="free-links-list"></div>
                 </div>
+              </div>
+
+              <div id="slide-canvas-editor" class="slide-content-mode" hidden>
+                <div class="canvas-editor-toolbar">
+                  <button id="canvas-add-text" class="button button-ghost" type="button">Ajouter un texte</button>
+                  <button id="canvas-add-arrow" class="button button-ghost" type="button">Ajouter une flèche</button>
+                </div>
+                <p class="canvas-editor-hint">Clique une image dans la médiathèque pour l'ajouter sur la slide, puis déplace-la directement dans l'aperçu.</p>
+                <div id="canvas-elements-list" class="canvas-elements-list"></div>
+                <div id="canvas-element-fields" class="canvas-editor-selection" hidden>
+                  <div class="canvas-editor-grid">
+                    <label>
+                      X
+                      <input id="canvas-element-x" type="number" min="0" max="100" step="0.5" />
+                    </label>
+                    <label>
+                      Y
+                      <input id="canvas-element-y" type="number" min="0" max="100" step="0.5" />
+                    </label>
+                    <label>
+                      Largeur
+                      <input id="canvas-element-w" type="number" min="6" max="100" step="0.5" />
+                    </label>
+                    <label>
+                      Hauteur
+                      <input id="canvas-element-h" type="number" min="6" max="100" step="0.5" />
+                    </label>
+                  </div>
+
+                  <div id="canvas-text-content-wrap" class="free-editor-field canvas-text-field">
+                    <span class="free-editor-label">Texte</span>
+                    <div class="free-editor-shell">
+                      <div id="canvas-text-toolbar" class="free-editor-toolbar canvas-text-toolbar">
+                        <button id="canvas-text-bold" class="button button-ghost canvas-text-action" type="button" aria-pressed="false" aria-label="Mettre le texte en gras"><strong>G</strong></button>
+                        <button id="canvas-text-italic" class="button button-ghost canvas-text-action" type="button" aria-pressed="false" aria-label="Mettre le texte en italique"><em>I</em></button>
+                        <button id="canvas-text-underline" class="button button-ghost canvas-text-action" type="button" aria-pressed="false" aria-label="Souligner le texte"><u>S</u></button>
+                        <div id="canvas-text-color-palette" class="canvas-text-color-palette" aria-label="Couleur du texte sélectionné">
+                          <span class="canvas-text-color-label">Couleur</span>
+                          <button class="canvas-text-color-swatch is-active" type="button" data-canvas-text-color-value="#1d1917" aria-label="Noir doux" title="Noir doux" style="--swatch-color:#1d1917;"></button>
+                          <button class="canvas-text-color-swatch" type="button" data-canvas-text-color-value="#0a66ff" aria-label="Bleu vif" title="Bleu vif" style="--swatch-color:#0a66ff;"></button>
+                          <button class="canvas-text-color-swatch" type="button" data-canvas-text-color-value="#0c6291" aria-label="Bleu profond" title="Bleu profond" style="--swatch-color:#0c6291;"></button>
+                          <button class="canvas-text-color-swatch" type="button" data-canvas-text-color-value="#b42318" aria-label="Rouge" title="Rouge" style="--swatch-color:#b42318;"></button>
+                          <button class="canvas-text-color-swatch" type="button" data-canvas-text-color-value="#027a48" aria-label="Vert" title="Vert" style="--swatch-color:#027a48;"></button>
+                          <button class="canvas-text-color-swatch" type="button" data-canvas-text-color-value="#b54708" aria-label="Orange" title="Orange" style="--swatch-color:#b54708;"></button>
+                          <button class="canvas-text-color-swatch" type="button" data-canvas-text-color-value="#7a5af8" aria-label="Violet" title="Violet" style="--swatch-color:#7a5af8;"></button>
+                          <button class="canvas-text-color-swatch" type="button" data-canvas-text-color-value="#998da0" aria-label="Taupe" title="Taupe" style="--swatch-color:#998da0;"></button>
+                        </div>
+                      </div>
+                      <div id="canvas-text-content" class="free-editor canvas-text-editor" contenteditable="true"></div>
+                    </div>
+                  </div>
+
+                  <div id="canvas-text-style-grid" class="canvas-editor-grid canvas-editor-grid-tight">
+                    <label>
+                      Taille du texte
+                      <div class="range-field">
+                        <input id="canvas-text-size" type="range" min="16" max="72" step="1" value="28" />
+                        <span id="canvas-text-size-value" class="range-field-value">28 px</span>
+                      </div>
+                    </label>
+                    <label class="checkbox-field">
+                      <input id="canvas-text-frame" type="checkbox" checked />
+                      <span>Afficher le cartouche blanc</span>
+                    </label>
+                  </div>
+
+                  <label id="canvas-image-media-wrap">
+                    Image
+                    <select id="canvas-image-media"></select>
+                  </label>
+
+                  <div id="canvas-arrow-controls" class="canvas-editor-grid canvas-editor-grid-tight">
+                    <label>
+                      Direction
+                      <select id="canvas-arrow-direction">
+                        <option value="right">Vers la droite</option>
+                        <option value="left">Vers la gauche</option>
+                        <option value="up">Vers le haut</option>
+                        <option value="down">Vers le bas</option>
+                      </select>
+                    </label>
+                    <label>
+                      Couleur
+                      <input id="canvas-arrow-color" type="color" value="#0a66ff" />
+                    </label>
+                    <label>
+                      Rotation
+                      <input id="canvas-arrow-rotation" type="number" min="-360" max="360" step="1" value="0" />
+                    </label>
+                    <label>
+                      Longueur
+                      <div class="range-field">
+                        <input id="canvas-arrow-length" type="range" min="40" max="800" step="1" value="100" />
+                        <span id="canvas-arrow-length-value" class="range-field-value">100 %</span>
+                      </div>
+                    </label>
+                  </div>
+
+                  <button id="canvas-delete-element" class="button button-soft" type="button">Supprimer l'élément sélectionné</button>
+                </div>
+                <p id="canvas-empty-selection" class="extra-bullets-empty">Sélectionne un élément sur la slide pour régler sa position, sa taille ou son contenu.</p>
               </div>
 
               <div id="slide-visual-editor" class="slide-content-mode" hidden>

@@ -1245,6 +1245,8 @@
           ? "Construction du tableau éditable"
           : slide.contentType === "free"
             ? "Construction de la slide libre hybride"
+            : slide.contentType === "canvas"
+              ? "Rendu du canvas libre en image"
           : slide.contentType === "bullets" || !slide.contentType
             ? "Construction de la slide éditable"
             : "Rendu de la slide en image",

@@ -13,6 +13,27 @@
     return /^#[0-9a-fA-F]{6}$/.test(value || "") ? value.toLowerCase() : (fallback || "#60b2e5");
   }
 
+  function clampCanvasMetric(value, fallback, min, max) {
+    const parsed = Number(value);
+    const safeValue = Number.isFinite(parsed) ? parsed : fallback;
+    const lowerBound = Number.isFinite(min) ? min : 0;
+    const upperBound = Number.isFinite(max) ? max : 100;
+    const clamped = Math.max(lowerBound, Math.min(upperBound, safeValue));
+    return Math.round(clamped * 10) / 10;
+  }
+
+  function normalizeCanvasRotation(value, fallback) {
+    const parsed = Number(value);
+    const safeValue = Number.isFinite(parsed) ? parsed : (Number.isFinite(Number(fallback)) ? Number(fallback) : 0);
+    return Math.round(Math.max(-360, Math.min(360, safeValue)));
+  }
+
+  function normalizeCanvasArrowLength(value, fallback) {
+    const parsed = Number(value);
+    const safeValue = Number.isFinite(parsed) ? parsed : (Number.isFinite(Number(fallback)) ? Number(fallback) : 100);
+    return Math.round(Math.max(40, Math.min(800, safeValue)));
+  }
+
   function safeRead(key) {
     try {
       return localStorage.getItem(key);
@@ -88,6 +109,7 @@
     const freeLinks = sanitizeFreeLinks(slide.freeLinks);
     const freeMediaIds = sanitizeFreeMediaIds(slide.freeMediaIds);
     const visualData = sanitizeVisualData(slide.visualData);
+    const canvasData = sanitizeCanvasData(slide.canvasData);
     const subBullets = sanitizeSubBullets(slide.subBullets);
 
     const principleIds = utils.uniqueStrings(slide.principleIds || []).filter((id) => allowedPrincipleIds.includes(id));
@@ -96,7 +118,15 @@
       id: typeof slide.id === "string" && slide.id ? slide.id : utils.createId("slide"),
       label: utils.clampText(slide.label, 24) || `Slide ${index + 1}`,
       number: utils.clampText(slide.number, 8) || String(index + 1).padStart(2, "0"),
-      contentType: slide.contentType === "table" ? "table" : slide.contentType === "free" ? "free" : slide.contentType === "visual" ? "visual" : "bullets",
+      contentType: slide.contentType === "table"
+        ? "table"
+        : slide.contentType === "free"
+          ? "free"
+          : slide.contentType === "visual"
+            ? "visual"
+            : slide.contentType === "canvas"
+              ? "canvas"
+              : "bullets",
       bulletsNumbered: Boolean(slide.bulletsNumbered),
       bulletsProgressive: Boolean(slide.bulletsProgressive),
       tableProgressive: Boolean(slide.tableProgressive),
@@ -110,6 +140,7 @@
       freeLinks,
       freeMediaIds,
       visualData,
+      canvasData,
       subBullets,
       mediaId: utils.clampText(slide.mediaId, 80),
       secondaryMediaId: utils.clampText(slide.secondaryMediaId, 80),
@@ -179,6 +210,65 @@
       chartTitle: typeof raw.chartTitle === "string" ? utils.clampText(raw.chartTitle, 48) : fallback.chartTitle,
       chartBars,
     };
+  }
+
+  function sanitizeCanvasData(input) {
+    const fallback = ns.stateFactory.createDefaultCanvasData
+      ? ns.stateFactory.createDefaultCanvasData()
+      : { elements: [] };
+    const raw = input && typeof input === "object" ? input : {};
+    const elements = Array.isArray(raw.elements)
+      ? raw.elements.slice(0, 24).map((item, index) => sanitizeCanvasElement(item, index)).filter(Boolean)
+      : [];
+
+    return {
+      elements: elements.length ? elements : fallback.elements.slice(),
+    };
+  }
+
+  function sanitizeCanvasElement(input, index) {
+    if (!input || typeof input !== "object") {
+      return null;
+    }
+
+    const utils = ns.utils;
+    const type = input.type === "image" || input.type === "arrow" ? input.type : "text";
+    const base = {
+      id: typeof input.id === "string" && input.id ? input.id : utils.createId("canvas"),
+      type,
+      x: clampCanvasMetric(input.x, 10 + ((index % 3) * 8), 0, 92),
+      y: clampCanvasMetric(input.y, 10 + ((index % 4) * 6), 0, 92),
+      w: clampCanvasMetric(input.w, type === "arrow" ? 18 : type === "image" ? 26 : 32, 6, 100),
+      h: clampCanvasMetric(input.h, type === "arrow" ? 10 : type === "image" ? 28 : 18, 6, 100),
+    };
+
+    base.w = Math.min(base.w, Math.max(6, 100 - base.x));
+    base.h = Math.min(base.h, Math.max(6, 100 - base.y));
+
+    if (type === "image") {
+      return Object.assign(base, {
+        mediaId: utils.clampText(input.mediaId, 80),
+      });
+    }
+
+    if (type === "arrow") {
+      return Object.assign(base, {
+        direction: input.direction === "up" || input.direction === "down" || input.direction === "left" ? input.direction : "right",
+        color: normalizeHexColor(input.color, "#0a66ff"),
+        rotation: normalizeCanvasRotation(input.rotation, 0),
+        arrowLength: normalizeCanvasArrowLength(input.arrowLength, 100),
+      });
+    }
+
+    return Object.assign(base, {
+      text: typeof input.text === "string" ? utils.sanitizeRichText(input.text, 600) : utils.plainTextToRichHtml("Zone de texte", 600),
+      fontSize: clampCanvasMetric(input.fontSize, 28, 16, 72),
+      color: normalizeHexColor(input.color, "#1d1917"),
+      showFrame: input.showFrame !== false,
+      bold: Boolean(input.bold),
+      italic: Boolean(input.italic),
+      underline: Boolean(input.underline),
+    });
   }
 
   function sanitizeTableHighlights(input, table) {
