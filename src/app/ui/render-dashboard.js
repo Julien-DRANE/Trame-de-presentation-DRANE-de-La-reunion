@@ -133,6 +133,7 @@
     refs.visualChartAddColumn.disabled = (visualData.chartBarCount || 3) >= 6;
     refs.visualChartRemoveColumn.disabled = (visualData.chartBarCount || 3) <= 1;
     refs.canvasElementsList.innerHTML = renderCanvasElementsList(canvasData, selectedCanvasElement && selectedCanvasElement.id);
+    refs.canvasProgressive.checked = Boolean(canvasData.progressive);
     refs.canvasImageMedia.innerHTML = renderVisualMediaOptions(state.mediaLibrary, "Choisir une image");
     refs.canvasElementFields.hidden = !selectedCanvasElement;
     refs.canvasEmptySelection.hidden = Boolean(selectedCanvasElement);
@@ -148,11 +149,20 @@
       refs.canvasArrowControls.hidden = selectedCanvasElement.type !== "arrow";
       if (selectedCanvasElement.type === "text") {
         const sanitizedCanvasText = ns.utils.sanitizeRichText(selectedCanvasElement.text || "", 600);
+        refs.canvasTextFont.innerHTML = [
+          '<option value="">Typographie du document</option>',
+          ...fontOptions.map((font) => `<option value="${ns.utils.escapeHtml(font.id)}">${ns.utils.escapeHtml(font.label)}</option>`),
+        ].join("");
+        refs.canvasTextFont.value = selectedCanvasElement.fontOptionId || "";
+        refs.canvasTextContent.style.fontFamily = getCanvasFontOption(selectedCanvasElement.fontOptionId || (state.settings.font || "studio")).body;
         if (document.activeElement !== refs.canvasTextContent || refs.canvasTextContent.innerHTML !== sanitizedCanvasText) {
           refs.canvasTextContent.innerHTML = sanitizedCanvasText;
         }
       } else if (refs.canvasTextContent.innerHTML) {
         refs.canvasTextContent.innerHTML = "";
+      }
+      if (selectedCanvasElement.type !== "text") {
+        refs.canvasTextContent.style.fontFamily = "";
       }
       refs.canvasTextSize.value = selectedCanvasElement.type === "text" ? String(Math.round(Number(selectedCanvasElement.fontSize) || 28)) : "28";
       refs.canvasTextSizeValue.textContent = `${refs.canvasTextSize.value} px`;
@@ -176,6 +186,12 @@
       refs.canvasImageMediaWrap.hidden = true;
       refs.canvasArrowControls.hidden = true;
       refs.canvasTextContent.innerHTML = "";
+      refs.canvasTextContent.style.fontFamily = "";
+      refs.canvasTextFont.innerHTML = [
+        '<option value="">Typographie du document</option>',
+        ...fontOptions.map((font) => `<option value="${ns.utils.escapeHtml(font.id)}">${ns.utils.escapeHtml(font.label)}</option>`),
+      ].join("");
+      refs.canvasTextFont.value = "";
       refs.canvasTextSize.value = "28";
       refs.canvasTextSizeValue.textContent = "28 px";
       refs.canvasTextFrame.checked = true;
@@ -426,6 +442,7 @@
   function getCanvasData(slide) {
     const raw = slide && slide.canvasData && typeof slide.canvasData === "object" ? slide.canvasData : {};
     return {
+      progressive: Boolean(raw.progressive),
       elements: Array.isArray(raw.elements) ? raw.elements : [],
     };
   }
@@ -433,6 +450,15 @@
   function getSelectedCanvasElement(canvasData, selectedId) {
     const elements = canvasData && Array.isArray(canvasData.elements) ? canvasData.elements : [];
     return elements.find((item) => item.id === selectedId) || null;
+  }
+
+  function getCanvasFontOption(fontOptionId) {
+    const fontOptions = ns.data.fontOptions || [];
+    return fontOptions.find((item) => item.id === fontOptionId) || fontOptions[0] || {
+      id: "studio",
+      label: "Studio",
+      body: '"Aptos", "Segoe UI", "Trebuchet MS", sans-serif',
+    };
   }
 
   function getCanvasMediaSelectionText(canvasData, mediaItems) {
@@ -477,14 +503,25 @@
       return '<p class="extra-bullets-empty">Aucun élément sur le canvas.</p>';
     }
 
-    return elements
+    const ordered = elements
+      .slice()
+      .sort((a, b) => (Number(a.revealOrder) || 0) - (Number(b.revealOrder) || 0));
+
+    return ordered
       .map((element, index) => {
         const activeClass = element.id === activeId ? " is-active" : "";
         return `
-          <button class="canvas-element-chip${activeClass}" type="button" data-select-canvas-element="${ns.utils.escapeHtml(element.id)}">
-            <span class="canvas-element-chip-index">${index + 1}</span>
-            <span class="canvas-element-chip-label">${ns.utils.escapeHtml(getCanvasElementLabel(element))}</span>
-          </button>
+          <div class="canvas-element-row${activeClass}">
+            <button class="canvas-element-chip${activeClass}" type="button" data-select-canvas-element="${ns.utils.escapeHtml(element.id)}">
+              <span class="canvas-element-chip-index">${index + 1}</span>
+              <span class="canvas-element-chip-label">${ns.utils.escapeHtml(getCanvasElementLabel(element))}</span>
+              <span class="canvas-element-chip-meta">Ordre ${index + 1}</span>
+            </button>
+            <div class="canvas-element-chip-actions">
+              <button class="button button-ghost canvas-order-button" type="button" data-move-canvas-reveal="up" data-canvas-element-id="${ns.utils.escapeHtml(element.id)}" ${index === 0 ? "disabled" : ""} aria-label="Monter l'ordre de révélation">↑</button>
+              <button class="button button-ghost canvas-order-button" type="button" data-move-canvas-reveal="down" data-canvas-element-id="${ns.utils.escapeHtml(element.id)}" ${index === ordered.length - 1 ? "disabled" : ""} aria-label="Descendre l'ordre de révélation">↓</button>
+            </div>
+          </div>
         `;
       })
       .join("");

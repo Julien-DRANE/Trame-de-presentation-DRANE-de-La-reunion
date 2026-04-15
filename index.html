@@ -397,6 +397,10 @@
                   <button id="canvas-add-text" class="button button-ghost" type="button">Ajouter un texte</button>
                   <button id="canvas-add-arrow" class="button button-ghost" type="button">Ajouter une flèche</button>
                 </div>
+                <label class="checkbox-field">
+                  <input id="canvas-progressive" type="checkbox" />
+                  <span>Révéler les éléments un par un</span>
+                </label>
                 <p class="canvas-editor-hint">Clique une image dans la médiathèque pour l'ajouter sur la slide, puis déplace-la directement dans l'aperçu.</p>
                 <div id="canvas-elements-list" class="canvas-elements-list"></div>
                 <div id="canvas-element-fields" class="canvas-editor-selection" hidden>
@@ -443,6 +447,10 @@
                   </div>
 
                   <div id="canvas-text-style-grid" class="canvas-editor-grid canvas-editor-grid-tight">
+                    <label>
+                      Typographie
+                      <select id="canvas-text-font"></select>
+                    </label>
                     <label>
                       Taille du texte
                       <div class="range-field">

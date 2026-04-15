@@ -107,6 +107,7 @@
     freeLinksList: document.querySelector("#free-links-list"),
     canvasAddText: document.querySelector("#canvas-add-text"),
     canvasAddArrow: document.querySelector("#canvas-add-arrow"),
+    canvasProgressive: document.querySelector("#canvas-progressive"),
     canvasElementsList: document.querySelector("#canvas-elements-list"),
     canvasElementFields: document.querySelector("#canvas-element-fields"),
     canvasEmptySelection: document.querySelector("#canvas-empty-selection"),
@@ -122,6 +123,7 @@
     canvasTextUnderline: document.querySelector("#canvas-text-underline"),
     canvasTextColorPalette: document.querySelector("#canvas-text-color-palette"),
     canvasTextStyleGrid: document.querySelector("#canvas-text-style-grid"),
+    canvasTextFont: document.querySelector("#canvas-text-font"),
     canvasTextSize: document.querySelector("#canvas-text-size"),
     canvasTextSizeValue: document.querySelector("#canvas-text-size-value"),
     canvasTextFrame: document.querySelector("#canvas-text-frame"),
@@ -826,6 +828,28 @@
     return /^#[0-9a-fA-F]{6}$/.test(value || "") ? value.toLowerCase() : (fallback || "#1d1917");
   }
 
+  function getCanvasFontOptionIds() {
+    return ((ns.data && ns.data.fontOptions) || []).map((item) => item.id);
+  }
+
+  function getCanvasFontOption(fontOptionId) {
+    const fontOptions = (ns.data && ns.data.fontOptions) || [];
+    return fontOptions.find((item) => item.id === fontOptionId) || fontOptions[0] || {
+      id: "studio",
+      label: "Studio",
+      body: '"Aptos", "Segoe UI", "Trebuchet MS", sans-serif',
+      heading: '"Iowan Old Style", "Georgia", serif',
+    };
+  }
+
+  function normalizeCanvasFontOptionId(value) {
+    const fontId = typeof value === "string" ? value.trim() : "";
+    if (!fontId) {
+      return "";
+    }
+    return getCanvasFontOptionIds().includes(fontId) ? fontId : "";
+  }
+
   function normalizeCanvasRotation(value, fallback) {
     const parsed = Number(value);
     const safeValue = Number.isFinite(parsed) ? parsed : (Number.isFinite(Number(fallback)) ? Number(fallback) : 0);
@@ -848,6 +872,7 @@
       y: clampCanvasMetric(input.y, 12 + ((index % 4) * 6), 0, 92),
       w: clampCanvasMetric(input.w, type === "arrow" ? 18 : type === "image" ? 28 : 34, 6, 100),
       h: clampCanvasMetric(input.h, type === "arrow" ? 10 : type === "image" ? 30 : 18, 6, 100),
+      revealOrder: Math.max(1, Math.min(24, Math.round(Number(input.revealOrder) || (index + 1)))),
     };
 
     normalized.w = Math.min(normalized.w, Math.max(6, 100 - normalized.x));
@@ -869,6 +894,7 @@
     const fallbackText = ns.utils.plainTextToRichHtml("Zone de texte", 600);
     normalized.text = typeof input.text === "string" ? ns.utils.sanitizeRichText(input.text, 600) : fallbackText;
     normalized.fontSize = clampCanvasMetric(input.fontSize, 28, 16, 72);
+    normalized.fontOptionId = normalizeCanvasFontOptionId(input.fontOptionId);
     normalized.color = normalizeCanvasColor(input.color, "#1d1917");
     normalized.showFrame = input.showFrame !== false;
     normalized.bold = Boolean(input.bold);
@@ -903,8 +929,10 @@
         y: 18,
         w: 36,
         h: 18,
+        revealOrder: 1,
         text: ns.utils.plainTextToRichHtml("Nouvelle zone de texte", 600),
         fontSize: 28,
+        fontOptionId: "",
         color: "#1d1917",
         showFrame: true,
         bold: false,
@@ -918,6 +946,7 @@
         y: 20,
         w: 24,
         h: 30,
+        revealOrder: 1,
         mediaId: "",
       },
       arrow: {
@@ -927,6 +956,7 @@
         y: 38,
         w: 18,
         h: 10,
+        revealOrder: 1,
         direction: "right",
         color: "#0a66ff",
         rotation: 0,
@@ -938,7 +968,12 @@
   }
 
   function addCanvasElement(type, patch) {
-    const nextElement = createCanvasElement(type, patch);
+    const current = getSelectedCanvasData();
+    const nextRevealOrder = (Array.isArray(current.elements) ? current.elements : [])
+      .reduce((max, element) => Math.max(max, Math.round(Number(element.revealOrder) || 0)), 0) + 1;
+    const nextElement = createCanvasElement(type, Object.assign({
+      revealOrder: nextRevealOrder,
+    }, patch));
     selectedCanvasElementId = nextElement.id;
     updateCanvasElements((elements) => elements.concat(nextElement));
   }
@@ -986,6 +1021,44 @@
       return;
     }
     updateCanvasElementById(selectedCanvasElementId, patch, rerender);
+  }
+
+  function getCanvasRevealOrderItems(elements) {
+    return (Array.isArray(elements) ? elements : [])
+      .slice()
+      .sort((a, b) => {
+        const orderDelta = (Number(a.revealOrder) || 0) - (Number(b.revealOrder) || 0);
+        if (orderDelta !== 0) {
+          return orderDelta;
+        }
+        return String(a.id || "").localeCompare(String(b.id || ""));
+      });
+  }
+
+  function moveCanvasRevealOrder(elementId, direction) {
+    if (!elementId || (direction !== "up" && direction !== "down")) {
+      return;
+    }
+    const ordered = getCanvasRevealOrderItems(getSelectedCanvasData().elements);
+    const currentIndex = ordered.findIndex((item) => item.id === elementId);
+    if (currentIndex < 0) {
+      return;
+    }
+    const targetIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1;
+    if (targetIndex < 0 || targetIndex >= ordered.length) {
+      return;
+    }
+    const currentOrder = ordered[currentIndex].revealOrder;
+    const targetOrder = ordered[targetIndex].revealOrder;
+    updateCanvasElements((elements) => elements.map((element) => {
+      if (element.id === elementId) {
+        return Object.assign({}, element, { revealOrder: targetOrder });
+      }
+      if (element.id === ordered[targetIndex].id) {
+        return Object.assign({}, element, { revealOrder: currentOrder });
+      }
+      return element;
+    }));
   }
 
   function saveCanvasTextEditorSelection() {
@@ -1234,6 +1307,12 @@
       text: sanitized,
     }, false);
     updateCanvasTextToolbarState();
+  }
+
+  function applyCanvasTextEditorFontFamily(fontOptionId) {
+    const normalizedFontOptionId = normalizeCanvasFontOptionId(fontOptionId);
+    const font = getCanvasFontOption(normalizedFontOptionId || state.settings.font || "studio");
+    refs.canvasTextContent.style.fontFamily = font.body || "";
   }
 
   function applyCanvasTextEditorFontSize(size) {
@@ -2403,6 +2482,9 @@
   });
   refs.canvasAddText.addEventListener("click", () => addCanvasElement("text"));
   refs.canvasAddArrow.addEventListener("click", () => addCanvasElement("arrow"));
+  refs.canvasProgressive.addEventListener("change", (event) => updateSelectedCanvasData({
+    progressive: Boolean(event.target.checked),
+  }));
   refs.canvasDeleteElement.addEventListener("click", removeSelectedCanvasElement);
   refs.canvasElementX.addEventListener("input", (event) => updateSelectedCanvasElement({
     x: clampCanvasMetric(event.target.value, 0, 0, 94),
@@ -2520,6 +2602,13 @@
     const nextValue = String(Math.round(clampCanvasMetric(event.target.value, 28, 16, 72)));
     refs.canvasTextSizeValue.textContent = `${nextValue} px`;
     applyCanvasTextEditorFontSize(nextValue);
+  });
+  refs.canvasTextFont.addEventListener("change", (event) => {
+    const nextFontOptionId = normalizeCanvasFontOptionId(event.target.value);
+    applyCanvasTextEditorFontFamily(nextFontOptionId);
+    updateSelectedCanvasElement({
+      fontOptionId: nextFontOptionId,
+    }, false);
   });
   refs.canvasTextSize.addEventListener("mousedown", () => {
     markCanvasTextEditorToolbarInteraction();
@@ -2925,6 +3014,7 @@
     const toggleFreeMediaTrigger = event.target.closest("[data-toggle-free-media]");
     const addCanvasMediaTrigger = event.target.closest("[data-add-canvas-media]");
     const selectCanvasElementTrigger = event.target.closest("[data-select-canvas-element]");
+    const moveCanvasRevealTrigger = event.target.closest("[data-move-canvas-reveal]");
     const addSlideTrigger = event.target.closest("[data-add-slide-bloom]");
     const bloomTrigger = event.target.closest("[data-set-bloom]");
 
@@ -2935,6 +3025,14 @@
     if (selectCanvasElementTrigger) {
       selectedCanvasElementId = selectCanvasElementTrigger.getAttribute("data-select-canvas-element");
       render();
+      return;
+    }
+
+    if (moveCanvasRevealTrigger) {
+      moveCanvasRevealOrder(
+        moveCanvasRevealTrigger.getAttribute("data-canvas-element-id"),
+        moveCanvasRevealTrigger.getAttribute("data-move-canvas-reveal")
+      );
       return;
     }
 

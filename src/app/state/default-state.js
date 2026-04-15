@@ -39,6 +39,7 @@
 
   function createDefaultCanvasData() {
     return {
+      progressive: false,
       elements: [],
     };
   }

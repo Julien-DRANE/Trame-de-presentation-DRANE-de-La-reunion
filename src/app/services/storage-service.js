@@ -222,6 +222,7 @@
       : [];
 
     return {
+      progressive: Boolean(raw.progressive),
       elements: elements.length ? elements : fallback.elements.slice(),
     };
   }
@@ -240,6 +241,7 @@
       y: clampCanvasMetric(input.y, 10 + ((index % 4) * 6), 0, 92),
       w: clampCanvasMetric(input.w, type === "arrow" ? 18 : type === "image" ? 26 : 32, 6, 100),
       h: clampCanvasMetric(input.h, type === "arrow" ? 10 : type === "image" ? 28 : 18, 6, 100),
+      revealOrder: Math.max(1, Math.min(24, Math.round(Number(input.revealOrder) || (index + 1)))),
     };
 
     base.w = Math.min(base.w, Math.max(6, 100 - base.x));
@@ -263,6 +265,7 @@
     return Object.assign(base, {
       text: typeof input.text === "string" ? utils.sanitizeRichText(input.text, 600) : utils.plainTextToRichHtml("Zone de texte", 600),
       fontSize: clampCanvasMetric(input.fontSize, 28, 16, 72),
+      fontOptionId: fontOptions.includes(input.fontOptionId) ? input.fontOptionId : "",
       color: normalizeHexColor(input.color, "#1d1917"),
       showFrame: input.showFrame !== false,
       bold: Boolean(input.bold),

@@ -1528,9 +1528,15 @@ select {
 }
 
 .canvas-elements-list {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
   gap: 0.55rem;
+}
+
+.canvas-element-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.45rem;
+  align-items: center;
 }
 
 .canvas-element-chip {
@@ -1544,12 +1550,25 @@ select {
   background: rgba(255, 255, 255, 0.9);
   color: var(--ink);
   font-weight: 700;
+  justify-content: flex-start;
+  width: 100%;
 }
 
 .canvas-element-chip.is-active {
   border-color: rgba(44, 115, 218, 0.3);
   background: rgba(44, 115, 218, 0.12);
   color: var(--blue-deep);
+}
+
+.canvas-element-chip-label {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.canvas-element-chip-meta {
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: var(--muted);
 }
 
 .canvas-element-chip-index {
@@ -1561,6 +1580,16 @@ select {
   background: rgba(44, 115, 218, 0.12);
   font-size: 0.76rem;
   font-weight: 800;
+}
+
+.canvas-element-chip-actions {
+  display: inline-flex;
+  gap: 0.35rem;
+}
+
+.canvas-order-button {
+  min-width: 2.35rem;
+  padding-inline: 0.55rem;
 }
 
 .canvas-editor-selection {

@@ -78,6 +78,14 @@
     return getFontOption((settings && settings.font) || "studio");
   }
 
+  function normalizeCanvasFontOptionId(fontId) {
+    if (!fontId) {
+      return "";
+    }
+    const fonts = (ns.data && ns.data.fontOptions) || [];
+    return fonts.some((item) => item.id === fontId) ? fontId : "";
+  }
+
   function intensifyAccentColor(value) {
     const match = String(value || "").match(/^rgba?\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})(?:\s*,\s*([0-9.]+))?\s*\)$/i);
     if (!match) {
@@ -754,6 +762,7 @@
       y: clampCanvasMetric(input.y, 12 + ((index % 4) * 6), 0, 92),
       w: clampCanvasMetric(input.w, type === "arrow" ? 18 : type === "image" ? 28 : 34, 6, 100),
       h: clampCanvasMetric(input.h, type === "arrow" ? 10 : type === "image" ? 30 : 18, 6, 100),
+      revealOrder: Math.max(1, Math.min(24, Math.round(Number(input.revealOrder) || (index + 1)))),
     };
 
     normalized.w = Math.min(normalized.w, Math.max(6, 100 - normalized.x));
@@ -775,6 +784,7 @@
     const fallbackText = ns.utils.plainTextToRichHtml("Zone de texte", 600);
     normalized.text = typeof input.text === "string" ? ns.utils.sanitizeRichText(input.text, 600) : fallbackText;
     normalized.fontSize = clampCanvasMetric(input.fontSize, 28, 16, 72);
+    normalized.fontOptionId = normalizeCanvasFontOptionId(input.fontOptionId);
     normalized.color = /^#[0-9a-fA-F]{6}$/.test(input.color || "") ? input.color : "#1d1917";
     normalized.showFrame = input.showFrame !== false;
     normalized.bold = Boolean(input.bold);
@@ -786,6 +796,7 @@
   function getCanvasData(slide) {
     const raw = slide && slide.canvasData && typeof slide.canvasData === "object" ? slide.canvasData : {};
     return {
+      progressive: Boolean(raw.progressive),
       elements: Array.isArray(raw.elements) ? raw.elements.slice(0, 24).map(normalizeCanvasElement).filter(Boolean) : [],
     };
   }
@@ -800,8 +811,12 @@
     const selected = interactive && opts.selectedCanvasElementId === element.id;
     const selectionClass = selected ? " is-selected" : "";
     const interactiveClass = interactive ? " is-interactive" : "";
+    const revealClass = opts.canvasProgressive && Number(element.revealOrder) > 0 ? " slide-reveal-item" : "";
+    const revealAttrs = opts.canvasProgressive && Number(element.revealOrder) > 0
+      ? ` data-reveal-step="${Math.max(1, Math.round(Number(element.revealOrder) || 1))}"`
+      : "";
     const baseAttrs = `
-      class="canvas-element canvas-element-${ns.utils.escapeHtml(element.type)}${selectionClass}${interactiveClass}"
+      class="canvas-element canvas-element-${ns.utils.escapeHtml(element.type)}${selectionClass}${interactiveClass}${revealClass}"
       data-canvas-element-id="${ns.utils.escapeHtml(element.id)}"
       data-canvas-element-type="${ns.utils.escapeHtml(element.type)}"
       style="left:${element.x}%; top:${element.y}%; width:${element.w}%; height:${element.h}%;"
@@ -814,7 +829,7 @@
         ? createResolvedMediaMarkup(media, opts)
         : `<div class="canvas-element-placeholder">Choisissez une image</div>`;
       return `
-        <div ${baseAttrs}>
+        <div ${baseAttrs}${revealAttrs}>
           <div class="canvas-element-content canvas-element-media-content${transparentPngClass}">${mediaMarkup}</div>
           ${interactive ? '<button class="canvas-resize-handle" type="button" data-canvas-resize-handle="true" aria-label="Redimensionner l’élément"></button>' : ""}
         </div>
@@ -825,7 +840,7 @@
       const baseRotation = element.direction === "down" ? 90 : element.direction === "left" ? 180 : element.direction === "up" ? -90 : 0;
       const totalRotation = baseRotation + normalizeCanvasRotation(element.rotation, 0);
       return `
-        <div ${baseAttrs}>
+        <div ${baseAttrs}${revealAttrs}>
           <div class="canvas-element-content canvas-element-arrow-content" data-canvas-base-rotation="${baseRotation}" style="width:${Math.max(40, Number(element.arrowLength) || 100)}%; transform:rotate(${totalRotation}deg); --canvas-arrow-color:${ns.utils.escapeHtml(element.color || "#0a66ff")};">
             <span class="canvas-arrow-shaft" aria-hidden="true"></span>
             <span class="canvas-arrow-head" aria-hidden="true"></span>
@@ -836,9 +851,10 @@
       `;
     }
 
+    const textFont = getFontOption(element.fontOptionId || opts.deckFontId || "studio");
     return `
-      <div ${baseAttrs}>
-        <div class="canvas-element-content canvas-element-text-content${element.showFrame === false ? " is-frameless" : ""}" style="font-size:${element.fontSize}px; color:${ns.utils.escapeHtml(element.color)};">
+      <div ${baseAttrs}${revealAttrs}>
+        <div class="canvas-element-content canvas-element-text-content${element.showFrame === false ? " is-frameless" : ""}" style="font-family:${ns.utils.escapeHtml(textFont.body)}; font-size:${element.fontSize}px; color:${ns.utils.escapeHtml(element.color)};">
           ${createCanvasTextMarkup(element.text)}
         </div>
         ${interactive ? '<button class="canvas-resize-handle" type="button" data-canvas-resize-handle="true" aria-label="Redimensionner l’élément"></button>' : ""}
@@ -846,10 +862,13 @@
     `;
   }
 
-  function createCanvasMarkup(slide, options) {
+  function createCanvasMarkup(slide, settings, options) {
     const canvasData = getCanvasData(slide);
     const elementsMarkup = canvasData.elements
-      .map((element) => createCanvasElementMarkup(element, options))
+      .map((element) => createCanvasElementMarkup(element, Object.assign({}, options, {
+        canvasProgressive: Boolean(canvasData.progressive) && !options.canvasInteractive,
+        deckFontId: (settings && settings.font) || "studio",
+      })))
       .join("");
 
     return `
@@ -880,6 +899,7 @@
     const tableProgressive = Boolean(slide.tableProgressive) && !opts.compact && isTableMode;
     const tableProgressiveOrder = slide.tableProgressiveOrder === "column" ? "column" : "row";
     const visualData = slide.visualData || {};
+    const canvasData = isCanvasMode ? getCanvasData(slide) : { progressive: false, elements: [] };
     const visualShowsImages = visualData.showImages !== false;
     const visualProgressive = !opts.compact && isVisualMode && Boolean(
       (visualShowsImages && visualData.primaryMediaReveal && visualData.primaryMediaId) ||
@@ -934,7 +954,7 @@
     if (isFreeMode) {
       contentMarkup = createFreeMarkup(slide, opts);
     } else if (isCanvasMode) {
-      contentMarkup = createCanvasMarkup(slide, opts);
+      contentMarkup = createCanvasMarkup(slide, settings, opts);
     } else if (isVisualMode) {
       contentMarkup = createVisualMarkup(slide, opts);
     } else if (isTableMode) {
@@ -964,7 +984,7 @@
     const stackedMediaLayoutClass = slideMediaItems.length > 1 ? " has-media-stack-layout" : "";
 
     return `
-      <article class="deck-slide theme-${utils.escapeHtml(themeName)}${compactClass}${visualModeClass}${canvasModeClass}${tableModeClass}${visualHeaderClass}" data-progressive-content="${bulletsProgressive || tableProgressive || visualProgressive ? "true" : "false"}" style="${utils.escapeHtml(paletteStyle)}">
+      <article class="deck-slide theme-${utils.escapeHtml(themeName)}${compactClass}${visualModeClass}${canvasModeClass}${tableModeClass}${visualHeaderClass}" data-progressive-content="${bulletsProgressive || tableProgressive || visualProgressive || Boolean(canvasData.progressive) ? "true" : "false"}" style="${utils.escapeHtml(paletteStyle)}">
         <div class="slide-wave" aria-hidden="true"></div>
         <img class="slide-logo slide-logo-region" src="${utils.escapeHtml(logoSources.region)}" alt="Logo region academique" />
         <img class="slide-logo slide-logo-drane" src="${utils.escapeHtml(logoSources.drane)}" alt="Logo Drane" />
