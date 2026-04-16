@@ -560,7 +560,9 @@
         background: transparent;
         border-radius: 0;
         box-shadow: none;
-        filter: drop-shadow(0 10px 18px rgba(18, 32, 51, 0.18));
+        filter:
+          drop-shadow(0 6px 10px rgba(18, 32, 51, 0.16))
+          drop-shadow(0 16px 28px rgba(18, 32, 51, 0.24));
       }
       .canvas-element-arrow-content {
         display: flex;
@@ -571,7 +573,9 @@
         max-width: none;
         gap: 0;
         min-width: 2.75rem;
-        filter: drop-shadow(0 8px 18px rgba(18, 32, 51, 0.12));
+        filter:
+          drop-shadow(0 5px 10px rgba(18, 32, 51, 0.14))
+          drop-shadow(0 14px 24px rgba(18, 32, 51, 0.2));
       }
       .canvas-arrow-shaft {
         flex: 1 1 auto;
