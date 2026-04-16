@@ -55,8 +55,8 @@
       tableProgressive: false,
       tableProgressiveOrder: "row",
       paletteOverride: "",
-      decorativeAccentOverride: "",
-      decorativeAccentSolid: false,
+      decorativeAccentOverride: "clay",
+      decorativeAccentSolid: true,
       tableHighlights: { rows: {}, columns: {} },
       table: [
         ["", ""],
@@ -100,8 +100,8 @@
       tableProgressive: false,
       tableProgressiveOrder: "row",
       paletteOverride: "",
-      decorativeAccentOverride: "",
-      decorativeAccentSolid: false,
+      decorativeAccentOverride: "clay",
+      decorativeAccentSolid: true,
       tableHighlights: { rows: {}, columns: {} },
       table: [
         ["", ""],

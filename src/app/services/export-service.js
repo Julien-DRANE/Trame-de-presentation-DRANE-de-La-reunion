@@ -560,6 +560,7 @@
         background: transparent;
         border-radius: 0;
         box-shadow: none;
+        filter: drop-shadow(0 10px 18px rgba(18, 32, 51, 0.18));
       }
       .canvas-element-arrow-content {
         display: flex;
