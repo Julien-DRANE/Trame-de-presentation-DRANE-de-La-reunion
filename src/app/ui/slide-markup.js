@@ -213,6 +213,10 @@
   function createResolvedMediaMarkup(media, options) {
     const utils = ns.utils;
     const isCompact = Boolean(options && options.compact);
+    const mediaInstanceKey = options && options.mediaInstanceKey ? String(options.mediaInstanceKey) : "";
+    const preserveMediaAttrs = !isCompact && mediaInstanceKey
+      ? ` data-preserve-media-instance="${utils.escapeHtml(mediaInstanceKey)}" data-media-id="${utils.escapeHtml(media.id || "")}" data-media-kind="${utils.escapeHtml(media.kind || "")}"`
+      : "";
     if (!media) {
       return "";
     }
@@ -231,6 +235,16 @@
         <div class="slide-media-print-card">
           <img class="slide-media-image" src="${utils.escapeHtml(media.src)}" alt="${utils.escapeHtml(media.name)}" />
           ${media.pdfLinkHref ? `<a class="slide-media-link" href="${utils.escapeHtml(media.pdfLinkHref)}" target="_blank" rel="noopener noreferrer">Ouvrir la vidÃ©o</a>` : ""}
+        </div>
+      `;
+    }
+
+    if (isCompact && media.kind === "embed") {
+      const badgeLabel = media.embedLayout === "audio" ? "Audio" : "Embed";
+      return `
+        <div class="slide-media-print-card slide-media-static-card">
+          <img class="slide-media-image" src="${utils.escapeHtml(media.src)}" alt="${utils.escapeHtml(media.name)}" />
+          <span class="slide-media-static-badge">${utils.escapeHtml(badgeLabel)}</span>
         </div>
       `;
     }
@@ -255,7 +269,7 @@
         ? ` style="--slide-embed-height:${Math.max(96, Math.round(Number(media.embedHeight) || 144))}px;"`
         : "";
       return `
-        <div class="slide-media-embed-wrap" data-embed-layout="${utils.escapeHtml(embedLayout)}"${embedStyle}>
+        <div class="slide-media-embed-wrap" data-embed-layout="${utils.escapeHtml(embedLayout)}"${preserveMediaAttrs}${embedStyle}>
           <iframe
             class="slide-media-embed"
             src="${utils.escapeHtml(media.embedUrl || media.src)}"
@@ -271,7 +285,7 @@
 
     if (media.kind === "video") {
       return `
-        <video class="slide-media-video" src="${utils.escapeHtml(media.src)}" ${isCompact ? 'muted playsinline preload="metadata"' : 'controls preload="metadata"'}>
+        <video class="slide-media-video" src="${utils.escapeHtml(media.src)}"${preserveMediaAttrs} ${isCompact ? 'muted playsinline preload="metadata"' : 'controls preload="metadata"'}>
           Votre navigateur ne peut pas lire cette vidÃ©o.
         </video>
       `;
@@ -285,15 +299,20 @@
     if (mediaItems.length > 1) {
       return `
         <div class="slide-media-stack">
-          ${mediaItems.map((media) => `
+          ${mediaItems.map((media, index) => `
             <div class="slide-media-stack-card">
-              ${createResolvedMediaMarkup(media, options)}
+              ${createResolvedMediaMarkup(media, Object.assign({}, options, {
+                mediaInstanceKey: `slide-media-${index}-${media.id || "media"}`
+              }))}
             </div>
           `).join("")}
         </div>
       `;
     }
-    return createResolvedMediaMarkup(mediaItems[0] || getSlideMedia(slide, options), options);
+    const resolvedMedia = mediaItems[0] || getSlideMedia(slide, options);
+    return createResolvedMediaMarkup(resolvedMedia, Object.assign({}, options, {
+      mediaInstanceKey: resolvedMedia ? `slide-media-0-${resolvedMedia.id || "media"}` : ""
+    }));
   }
 
   function createLinkBubbleListMarkup(urls, className, tagName) {
@@ -509,9 +528,11 @@
       ? `
         <div class="slide-free-gallery">
           ${galleryIds
-            .map((mediaId) => {
+            .map((mediaId, index) => {
               const media = getResolvedMediaById(mediaId, options);
-              const mediaMarkup = createResolvedMediaMarkup(media, options);
+              const mediaMarkup = createResolvedMediaMarkup(media, Object.assign({}, options, {
+                mediaInstanceKey: media ? `free-media-${index}-${media.id || mediaId}` : ""
+              }));
               return mediaMarkup ? `<div class="slide-free-gallery-item">${mediaMarkup}</div>` : "";
             })
             .join("")}
@@ -622,8 +643,10 @@
     `;
   }
 
-  function createVisualMediaCardMarkup(media, options, className, placeholder, revealStep) {
-    const mediaMarkup = media ? createResolvedMediaMarkup(media, options) : `<div class="slide-visual-media-placeholder">${ns.utils.escapeHtml(placeholder)}</div>`;
+  function createVisualMediaCardMarkup(media, options, className, placeholder, revealStep, mediaInstanceKey) {
+    const mediaMarkup = media
+      ? createResolvedMediaMarkup(media, Object.assign({}, options, { mediaInstanceKey }))
+      : `<div class="slide-visual-media-placeholder">${ns.utils.escapeHtml(placeholder)}</div>`;
     const revealAttrs = Number.isInteger(revealStep) && revealStep > 0 ? ` data-reveal-step="${revealStep}" class="${className} slide-reveal-item"` : ` class="${className}"`;
     return `<div${revealAttrs}><div class="slide-visual-media-frame">${mediaMarkup}</div></div>`;
   }
@@ -702,7 +725,14 @@
         ${hasAnyMedia ? `
           <div class="slide-visual-flow slide-visual-flow-${isHorizontal ? "horizontal" : "vertical"} slide-visual-flow-count-${visibleMediaCards.length}">
             ${visibleMediaCards
-              .map((item) => createVisualMediaCardMarkup(item.media, options, "slide-visual-media-card", item.placeholder, item.revealStep))
+              .map((item, index) => createVisualMediaCardMarkup(
+                item.media,
+                options,
+                "slide-visual-media-card",
+                item.placeholder,
+                item.revealStep,
+                item.media ? `visual-media-${index}-${item.media.id || "media"}` : ""
+              ))
               .join("")}
             ${hasTwoMedia ? `
               <div class="slide-visual-relation-card${arrowRevealStep ? " slide-reveal-item" : ""}" aria-hidden="true"${arrowRevealStep ? ` data-reveal-step="${arrowRevealStep}"` : ""}>
@@ -832,7 +862,9 @@
       const media = getResolvedMediaById(element.mediaId, opts);
       const transparentPngClass = isTransparentPngMedia(media) ? " is-transparent-png" : "";
       const mediaMarkup = media
-        ? createResolvedMediaMarkup(media, opts)
+        ? createResolvedMediaMarkup(media, Object.assign({}, opts, {
+          mediaInstanceKey: `canvas-media-${element.id}`
+        }))
         : `<div class="canvas-element-placeholder">Choisissez un media</div>`;
       return `
         <div ${baseAttrs}${revealAttrs}>

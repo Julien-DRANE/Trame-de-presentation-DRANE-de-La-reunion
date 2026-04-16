@@ -164,6 +164,7 @@
   };
 
   let state = ns.services.storage.loadState(STORAGE_KEY);
+  let scheduledSaveTimer = 0;
   let draggedSlideId = null;
   let draggedListSlideId = null;
   let draggedBulletIndex = null;
@@ -192,6 +193,89 @@
   if (isPresentationMode) {
     ns.services.exporter.renderPresentationDocument(state);
     return;
+  }
+
+  function persistStateNow() {
+    if (scheduledSaveTimer) {
+      window.clearTimeout(scheduledSaveTimer);
+      scheduledSaveTimer = 0;
+    }
+    ns.services.storage.saveState(STORAGE_KEY, state);
+  }
+
+  function scheduleStateSave() {
+    if (scheduledSaveTimer) {
+      window.clearTimeout(scheduledSaveTimer);
+    }
+    scheduledSaveTimer = window.setTimeout(() => {
+      scheduledSaveTimer = 0;
+      ns.services.storage.saveState(STORAGE_KEY, state);
+    }, 180);
+  }
+
+  function getStageRenderOptions(selectedSlide) {
+    const slide = selectedSlide || getSelectedSlide();
+    return {
+      compact: false,
+      mediaItems: state.mediaLibrary,
+      mediaUrls: ns.services.media.getUrlMap(),
+      canvasInteractive: (slide.contentType || "bullets") === "canvas",
+      selectedCanvasElementId: selectedCanvasElementId || "",
+    };
+  }
+
+  function collectPreservedStageMediaNodes() {
+    if (!refs.stage) {
+      return new Map();
+    }
+
+    return Array.from(refs.stage.querySelectorAll("[data-preserve-media-instance]"))
+      .reduce((result, node) => {
+        const key = node.getAttribute("data-preserve-media-instance");
+        if (key) {
+          result.set(key, node);
+        }
+        return result;
+      }, new Map());
+  }
+
+  function restorePreservedStageMediaNodes(previousNodes) {
+    if (!previousNodes || previousNodes.size === 0 || !refs.stage) {
+      return;
+    }
+
+    refs.stage.querySelectorAll("[data-preserve-media-instance]").forEach((nextNode) => {
+      const key = nextNode.getAttribute("data-preserve-media-instance");
+      const previousNode = key ? previousNodes.get(key) : null;
+      if (!previousNode || previousNode.nodeName !== nextNode.nodeName) {
+        return;
+      }
+
+      if (previousNode.getAttribute("data-media-id") !== nextNode.getAttribute("data-media-id")) {
+        return;
+      }
+
+      if (previousNode.getAttribute("data-media-kind") !== nextNode.getAttribute("data-media-kind")) {
+        return;
+      }
+
+      const parent = nextNode.parentNode;
+      if (!parent) {
+        return;
+      }
+
+      parent.replaceChild(previousNode, nextNode);
+    });
+  }
+
+  function renderStage(selectedSlide, options) {
+    const slide = selectedSlide || getSelectedSlide();
+    const opts = options || {};
+    const previousMediaNodes = opts.preserveInteractiveMedia ? collectPreservedStageMediaNodes() : null;
+    refs.stage.innerHTML = ns.ui.createSlideMarkup(slide, state.settings, getStageRenderOptions(slide));
+    if (previousMediaNodes) {
+      restorePreservedStageMediaNodes(previousMediaNodes);
+    }
   }
 
   function getSelectedSlide() {
@@ -279,7 +363,7 @@
     syncSelectedCanvasElement();
     ns.ui.renderDashboard({ state, refs, selectedCanvasElementId });
     updateCanvasTextToolbarState();
-    ns.services.storage.saveState(STORAGE_KEY, state);
+    scheduleStateSave();
     if (pendingBulletFocus) {
       const input = refs.extraBulletsList.querySelector(`[data-extra-bullet-index="${pendingBulletFocus.index}"]`);
       if (input) {
@@ -384,15 +468,9 @@
   function refreshStageOnly() {
     const selectedSlide = getSelectedSlide();
     syncSelectedCanvasElement();
-    refs.stage.innerHTML = ns.ui.createSlideMarkup(selectedSlide, state.settings, {
-      compact: false,
-      mediaItems: state.mediaLibrary,
-      mediaUrls: ns.services.media.getUrlMap(),
-      canvasInteractive: (selectedSlide.contentType || "bullets") === "canvas",
-      selectedCanvasElementId: selectedCanvasElementId || "",
-    });
+    renderStage(selectedSlide, { preserveInteractiveMedia: true });
     syncLiveEditorMeta();
-    ns.services.storage.saveState(STORAGE_KEY, state);
+    scheduleStateSave();
   }
 
   function getChartLightboxBars(chartCard) {
@@ -1885,19 +1963,13 @@
       }
       return Object.assign({}, slide, { freeBody: ns.utils.sanitizeRichText(value, 1600) });
     });
-    ns.services.storage.saveState(STORAGE_KEY, state);
+    scheduleStateSave();
   }
 
   function updateFreeBodyPreview() {
     const selectedSlide = getSelectedSlide();
     syncSelectedCanvasElement();
-    refs.stage.innerHTML = ns.ui.createSlideMarkup(selectedSlide, state.settings, {
-      compact: false,
-      mediaItems: state.mediaLibrary,
-      mediaUrls: ns.services.media.getUrlMap(),
-      canvasInteractive: (selectedSlide.contentType || "bullets") === "canvas",
-      selectedCanvasElementId: selectedCanvasElementId || "",
-    });
+    renderStage(selectedSlide, { preserveInteractiveMedia: true });
     refs.freeBodyMeta.textContent = `${ns.utils.richTextLength(selectedSlide.freeBody || "")}/1600 caractères`;
   }
 
@@ -2980,18 +3052,20 @@
   });
   refs.exportHtml.addEventListener("click", () => ns.services.exporter.exportHtml(state, false));
   refs.openPresentation.addEventListener("click", () => {
-    ns.services.storage.saveState(STORAGE_KEY, state);
+    persistStateNow();
     const presentationUrl = new URL(window.location.href);
     presentationUrl.searchParams.set("present", "1");
     window.open(presentationUrl.toString(), "_blank", "noopener");
   });
   refs.openPresentationActive.addEventListener("click", () => {
-    ns.services.storage.saveState(STORAGE_KEY, state);
+    persistStateNow();
     const presentationUrl = new URL(window.location.href);
     presentationUrl.searchParams.set("present", "1");
     presentationUrl.searchParams.set("start", state.selectedSlideId || "");
     window.open(presentationUrl.toString(), "_blank", "noopener");
   });
+
+  window.addEventListener("beforeunload", persistStateNow);
   refs.tabs.forEach((tab) => {
     tab.addEventListener("click", () => setView(tab.getAttribute("data-switch-view")));
   });

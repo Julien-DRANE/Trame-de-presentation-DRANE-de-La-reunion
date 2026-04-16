@@ -1387,6 +1387,24 @@
   cursor: default;
 }
 
+.slide-media-static-card {
+  position: relative;
+}
+
+.slide-media-static-badge {
+  position: absolute;
+  right: 0.7rem;
+  bottom: 0.7rem;
+  padding: 0.22rem 0.52rem;
+  border-radius: 999px;
+  background: rgba(18, 32, 51, 0.72);
+  color: #ffffff;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
 .slide-media-external-link {
   display: block;
   width: 100%;
