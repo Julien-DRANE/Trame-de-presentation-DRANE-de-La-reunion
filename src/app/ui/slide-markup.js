@@ -194,6 +194,8 @@
       embedUrl: mediaItem.embedUrl,
       externalUrl: mediaItem.externalUrl,
       provider: mediaItem.provider,
+      embedLayout: mediaItem.embedLayout || "video",
+      embedHeight: Number(mediaItem.embedHeight) || 0,
       pdfLinkHref: opts.mediaLinks ? opts.mediaLinks[mediaId] : "",
     };
   }
@@ -248,8 +250,12 @@
     }
 
     if (media.kind === "embed") {
+      const embedLayout = media.embedLayout === "audio" ? "audio" : "video";
+      const embedStyle = embedLayout === "audio" && media.embedHeight
+        ? ` style="--slide-embed-height:${Math.max(96, Math.round(Number(media.embedHeight) || 144))}px;"`
+        : "";
       return `
-        <div class="slide-media-embed-wrap">
+        <div class="slide-media-embed-wrap" data-embed-layout="${utils.escapeHtml(embedLayout)}"${embedStyle}>
           <iframe
             class="slide-media-embed"
             src="${utils.escapeHtml(media.embedUrl || media.src)}"
@@ -632,12 +638,12 @@
     const mediaCards = [
       {
         media: primaryMedia,
-        placeholder: "Ajoutez une image principale",
+        placeholder: "Ajoutez un media principal",
         revealStep: primaryMedia && visualData.primaryMediaReveal ? 1 : null,
       },
       {
         media: secondaryMedia,
-        placeholder: "Ajoutez une image secondaire",
+        placeholder: "Ajoutez un media secondaire",
         revealStep: secondaryMedia && visualData.secondaryMediaReveal ? (primaryMedia && visualData.primaryMediaReveal ? 2 : 1) : null,
       },
     ];
@@ -827,7 +833,7 @@
       const transparentPngClass = isTransparentPngMedia(media) ? " is-transparent-png" : "";
       const mediaMarkup = media
         ? createResolvedMediaMarkup(media, opts)
-        : `<div class="canvas-element-placeholder">Choisissez une image</div>`;
+        : `<div class="canvas-element-placeholder">Choisissez un media</div>`;
       return `
         <div ${baseAttrs}${revealAttrs}>
           <div class="canvas-element-content canvas-element-media-content${transparentPngClass}">${mediaMarkup}</div>

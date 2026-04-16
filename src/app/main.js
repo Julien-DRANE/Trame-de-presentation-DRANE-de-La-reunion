@@ -2933,7 +2933,7 @@
         : null;
 
     if (!mediaItem) {
-      refs.mediaLinkFeedback.textContent = "Utilise un lien http/https, un code iframe, un data URL image/vidéo, ou un lien vidéo reconnu.";
+      refs.mediaLinkFeedback.textContent = "Utilise un lien http/https, un code iframe, un data URL image/video, ou un lien d'embed reconnu.";
       return;
     }
 
@@ -2941,7 +2941,7 @@
     state.mediaLibrary = state.mediaLibrary.concat(mediaItem);
     refs.mediaLinkInput.value = "";
     refs.mediaLinkFeedback.textContent = mediaItem.kind === "embed"
-      ? "Embed YouTube ajouté."
+      ? "Embed ajoute."
       : "Média ajouté depuis le lien.";
     render();
     assignMediaToSelectedSlide(mediaItem.id);

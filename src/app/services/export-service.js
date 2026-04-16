@@ -1392,10 +1392,19 @@
         overflow: hidden;
         background: var(--slide-line);
       }
+      .slide-media-embed-wrap[data-embed-layout="audio"] {
+        aspect-ratio: auto;
+        height: var(--slide-embed-height, 144px);
+        min-height: var(--slide-embed-height, 144px);
+        max-height: 100%;
+      }
       .slide-media-embed {
         width: 100%;
         height: 100%;
         border: 0;
+      }
+      .slide-media-slot .slide-media-embed-wrap {
+        cursor: default;
       }
       .slide-media-print-card {
         display: grid;

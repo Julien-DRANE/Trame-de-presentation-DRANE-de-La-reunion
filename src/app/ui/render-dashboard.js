@@ -114,8 +114,8 @@
       refs.slideFreeBody.innerHTML = sanitizedFreeBody;
     }
     refs.freeLinksList.innerHTML = renderFreeLinks(selectedSlide);
-    refs.visualPrimaryMedia.innerHTML = renderVisualMediaOptions(state.mediaLibrary, "Image principale");
-    refs.visualSecondaryMedia.innerHTML = renderVisualMediaOptions(state.mediaLibrary, "Image secondaire");
+    refs.visualPrimaryMedia.innerHTML = renderVisualMediaOptions(state.mediaLibrary, "Media principal");
+    refs.visualSecondaryMedia.innerHTML = renderVisualMediaOptions(state.mediaLibrary, "Media secondaire");
     refs.visualPrimaryMedia.value = visualData.primaryMediaId || "";
     refs.visualSecondaryMedia.value = visualData.secondaryMediaId || "";
     refs.visualShowImages.checked = visualData.showImages !== false;
@@ -134,7 +134,7 @@
     refs.visualChartRemoveColumn.disabled = (visualData.chartBarCount || 3) <= 1;
     refs.canvasElementsList.innerHTML = renderCanvasElementsList(canvasData, selectedCanvasElement && selectedCanvasElement.id, state.mediaLibrary);
     refs.canvasProgressive.checked = Boolean(canvasData.progressive);
-    refs.canvasImageMedia.innerHTML = renderVisualMediaOptions(state.mediaLibrary, "Choisir une image");
+    refs.canvasImageMedia.innerHTML = renderVisualMediaOptions(state.mediaLibrary, "Choisir un media");
     refs.canvasElementFields.hidden = !selectedCanvasElement;
     refs.canvasEmptySelection.hidden = Boolean(selectedCanvasElement);
     if (selectedCanvasElement) {
@@ -250,12 +250,12 @@
     refs.densityBadge.className = density.className;
     refs.densityBadge.textContent = density.label;
     refs.slideHint.textContent = isVisualMode
-      ? "Mode visuel : images, texte, flèche et mini graphe dans une composition éditoriale."
+      ? "Mode visuel : medias, texte, fleche et mini graphe dans une composition editoriale."
       : isFreeMode
-      ? "Mode libre : texte long, liens et plusieurs médias pour les annexes."
+      ? "Mode libre : texte long, liens et plusieurs medias pour les annexes."
       : isCanvasMode
-      ? "Mode canvas : place librement textes, images et flèches directement sur la slide."
-      : "Modèle : un niveau Bloom, une idée forte, trois points maximum.";
+      ? "Mode canvas : place librement textes, medias et fleches directement sur la slide."
+      : "Modele : un niveau Bloom, une idee forte, trois points maximum.";
     refs.slideMediaSelection.textContent = isVisualMode
       ? getVisualMediaSelectionText(selectedSlide, state.mediaLibrary)
       : isFreeMode
@@ -291,10 +291,29 @@
     }
     if (selectedMedia.length === 1) {
       const mediaItem = selectedMedia[0];
-      const kindLabel = mediaItem.kind === "embed" ? "Embed" : mediaItem.kind === "video" ? "Vidéo" : "Image";
+      const kindLabel = getMediaKindLabel(mediaItem);
       return `${kindLabel} sélectionnée : ${mediaItem.name}`;
     }
     return `${selectedMedia.length} médias sélectionnés : ${selectedMedia.map((item) => item.name).join(" / ")}`;
+  }
+
+  function getMediaKindLabel(item) {
+    if (!item) {
+      return "Media";
+    }
+    if (item.kind === "video") {
+      return "Video";
+    }
+    if (item.kind === "embed") {
+      const providerLabels = {
+        youtube: "YouTube",
+        "apps-education": "Apps Education",
+        radiofrance: "Radio France",
+      };
+      const providerLabel = providerLabels[item.provider] || "";
+      return providerLabel ? `Embed ${providerLabel}` : "Embed";
+    }
+    return "Image";
   }
   function renderSlideList(state, activeId) {
     return state.slides
@@ -439,7 +458,7 @@
       .map((item) => item.name);
 
     if (!selectedNames.length) {
-      return "Aucun média visuel sélectionné. Importez puis assignez une image principale et secondaire.";
+      return "Aucun media visuel selectionne. Importez puis assignez un media principal et secondaire.";
     }
 
     return `${selectedNames.length} média(x) dans la composition visuelle : ${selectedNames.join(" / ")}`;
@@ -479,7 +498,7 @@
       .map((item) => item.name);
 
     if (!names.length) {
-      return "Aucune image posée sur le canvas. Cliquez un média pour l'ajouter, ou pour remplacer l'image sélectionnée.";
+      return "Aucun media pose sur le canvas. Cliquez un media pour l'ajouter, ou pour remplacer le media selectionne.";
     }
 
     return `${names.length} média(x) sur le canvas : ${names.join(" / ")}`;
@@ -490,7 +509,7 @@
       return "Élément";
     }
     if (element.type === "image") {
-      return "Image";
+      return "Media";
     }
     if (element.type === "arrow") {
       return "Flèche";
@@ -575,7 +594,7 @@
     return [
       `<option value="">${ns.utils.escapeHtml(placeholder)}</option>`,
       ...(mediaItems || []).map((item) => {
-        const kindLabel = item.kind === "embed" ? "Embed" : item.kind === "video" ? "Vidéo" : "Image";
+        const kindLabel = getMediaKindLabel(item);
         return `<option value="${ns.utils.escapeHtml(item.id)}">${ns.utils.escapeHtml(kindLabel)} - ${ns.utils.escapeHtml(item.name)}</option>`;
       }),
     ].join("");
@@ -606,7 +625,7 @@
 
   function renderMediaLibrary(mediaItems, selectedSlide) {
     if (!mediaItems || mediaItems.length === 0) {
-      return '<p class="media-empty">Importez une image ou une vidéo pour commencer.</p>';
+      return '<p class="media-empty">Importez une image, une video ou un embed pour commencer.</p>';
     }
 
     const mediaUrls = ns.services.media.getUrlMap();
@@ -634,7 +653,7 @@
         const preview = item.kind === "video"
           ? `<video class="media-thumb-preview" src="${ns.utils.escapeHtml(mediaUrls[item.id] || "")}" muted preload="metadata"></video>`
           : `<img class="media-thumb-preview" src="${ns.utils.escapeHtml(mediaUrls[item.id] || "")}" alt="${ns.utils.escapeHtml(item.name)}" />`;
-        const typeLabel = item.kind === "embed" ? "Embed YouTube" : item.kind === "video" ? "Vidéo" : "Image";
+        const typeLabel = getMediaKindLabel(item);
         const actionAttr = isCanvasMode
           ? `data-add-canvas-media="${ns.utils.escapeHtml(item.id)}"`
           : isFreeMode
