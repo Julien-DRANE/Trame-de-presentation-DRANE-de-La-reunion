@@ -470,6 +470,75 @@
     return color ? `background:${ns.utils.escapeHtml(color)};` : "";
   }
 
+  function getTableCellTextLength(value) {
+    return String(value || "")
+      .replace(/<[^>]*>/g, " ")
+      .replace(/\s+/g, " ")
+      .trim()
+      .length;
+  }
+
+  function computeTableDensityLevel(table, options) {
+    const rows = Array.isArray(table) ? table : [];
+    const rowCount = rows.length;
+    const columnCount = rows[0] ? rows[0].length : 0;
+    const cellLengths = rows.flat().map(getTableCellTextLength);
+    const totalChars = cellLengths.reduce((sum, value) => sum + value, 0);
+    const maxCellChars = cellLengths.reduce((max, value) => Math.max(max, value), 0);
+    const averageCellChars = cellLengths.length ? totalChars / cellLengths.length : 0;
+    const longestRowChars = rows.reduce((max, row) => {
+      const rowChars = (Array.isArray(row) ? row : []).reduce((sum, cell) => sum + getTableCellTextLength(cell), 0);
+      return Math.max(max, rowChars);
+    }, 0);
+    const chromeChars = Math.max(0, Number(options && options.titleLength) || 0) + Math.max(0, Number(options && options.subtitleLength) || 0);
+
+    let score = 0;
+
+    if (rowCount >= 5) score += 1;
+    if (rowCount >= 6) score += 1;
+    if (rowCount >= 7) score += 1;
+    if (rowCount >= 8) score += 1;
+
+    if (columnCount >= 4) score += 1;
+    if (columnCount >= 5) score += 1;
+    if (columnCount >= 6) score += 2;
+
+    if (totalChars > 180) score += 1;
+    if (totalChars > 260) score += 1;
+    if (totalChars > 360) score += 1;
+    if (totalChars > 500) score += 1;
+
+    if (maxCellChars > 36) score += 1;
+    if (maxCellChars > 56) score += 1;
+    if (maxCellChars > 80) score += 1;
+
+    if (averageCellChars > 22) score += 1;
+    if (averageCellChars > 34) score += 1;
+
+    if (longestRowChars > Math.max(90, columnCount * 28)) score += 1;
+    if (longestRowChars > Math.max(130, columnCount * 40)) score += 1;
+
+    if (chromeChars > 120) score += 1;
+    if (chromeChars > 190) score += 1;
+
+    if (score >= 11) {
+      return 5;
+    }
+    if (score >= 9) {
+      return 4;
+    }
+    if (score >= 6) {
+      return 3;
+    }
+    if (score >= 4) {
+      return 2;
+    }
+    if (score >= 2) {
+      return 1;
+    }
+    return 0;
+  }
+
   function createTableMarkup(tableInput, tableHighlights, options) {
     const table = normalizeTable(tableInput);
     const rowCount = table.length;
@@ -478,13 +547,8 @@
     const progressive = Boolean(opts.progressive);
     const progressiveOrder = opts.progressiveOrder === "column" ? "column" : "row";
     const bodyRowCount = Math.max(0, table.length - 1);
-    const densityClass = table.length >= 7
-      ? " slide-table-dense-3"
-      : table.length >= 6
-        ? " slide-table-dense-2"
-        : table.length >= 5
-          ? " slide-table-dense-1"
-          : "";
+    const densityLevel = computeTableDensityLevel(table, opts);
+    const densityClass = densityLevel > 0 ? ` slide-table-dense-${densityLevel}` : "";
     return `
       <div class="slide-table${densityClass}" data-table-lightbox="true" data-row-count="${rowCount}" data-column-count="${columnCount}">
         ${table.map((row, rowIndex) => `
@@ -999,6 +1063,8 @@
       contentMarkup = createTableMarkup(slide.table, slide.tableHighlights, {
         progressive: tableProgressive,
         progressiveOrder: tableProgressiveOrder,
+        titleLength: (slide.title || "").length,
+        subtitleLength: (slide.subtitle || "").length,
       });
     } else if (canKeepMediaWithExtendedBullets) {
       contentMarkup = extendedBulletMarkup;
@@ -1017,7 +1083,7 @@
     const paletteStyle = createSlidePaletteStyle(slide, settings);
     const visualModeClass = isVisualMode ? " is-visual-slide" : "";
     const canvasModeClass = isCanvasMode ? " is-canvas-slide" : "";
-    const tableModeClass = isTableMode && !slideMediaItems.length ? " is-table-slide" : "";
+    const tableModeClass = isTableMode ? " is-table-slide" : "";
     const visualHeaderClass = isVisualMode && (slide.title || slide.subtitle) ? " is-visual-has-header" : "";
     const stackedMediaLayoutClass = slideMediaItems.length > 1 ? " has-media-stack-layout" : "";
 
@@ -1038,7 +1104,7 @@
               ${subtitle}
               ${contentMarkup}
             </div>
-            ${slideMediaItems.length && (!extraBullets.length || isTableMode || canKeepMediaWithExtendedBullets) && !isFreeMode && !isVisualMode ? `<aside class="slide-media-slot is-media-bare${slideMediaItems.length > 1 ? " has-media-stack" : ""}">${mediaMarkup}</aside>` : ""}
+            ${slideMediaItems.length && (!extraBullets.length || canKeepMediaWithExtendedBullets) && !isFreeMode && !isVisualMode && !isTableMode ? `<aside class="slide-media-slot is-media-bare${slideMediaItems.length > 1 ? " has-media-stack" : ""}">${mediaMarkup}</aside>` : ""}
           </div>
           <div class="slide-footer">
             ${footerNoteMarkup}
@@ -1050,6 +1116,12 @@
   }
 
   function computeDensity(slide) {
+    const tableChars = Array.isArray(slide.table)
+      ? slide.table
+        .flat()
+        .map(getTableCellTextLength)
+        .reduce((sum, value) => sum + value, 0)
+      : 0;
     const totalChars =
       (slide.title || "").length +
       (slide.subtitle || "").length +
@@ -1062,6 +1134,7 @@
         .filter((item) => item && item.type === "text")
         .map((item) => item.text || "")
         .join("").length +
+      tableChars +
       (((slide.visualData || {}).body) || "").length +
       (((slide.visualData || {}).callout) || "").length;
     const bulletCount = (slide.bullets || []).filter((item) => item && item.trim()).length;

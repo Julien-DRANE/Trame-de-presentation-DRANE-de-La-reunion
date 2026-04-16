@@ -717,10 +717,34 @@
   line-height: 1.18;
 }
 
+.deck-slide.is-table-slide .slide-table.slide-table-dense-4 .slide-table-cell {
+  padding: 0.46rem 0.6rem;
+  font-size: clamp(0.74rem, 1.02vw, 0.9rem);
+  line-height: 1.12;
+}
+
+.deck-slide.is-table-slide .slide-table.slide-table-dense-5 .slide-table-cell {
+  padding: 0.34rem 0.48rem;
+  font-size: clamp(0.66rem, 0.9vw, 0.8rem);
+  line-height: 1.04;
+}
+
 .deck-slide.is-table-slide .slide-table[data-row-count="8"] .slide-table-cell {
   padding: 0.42rem 0.56rem;
   font-size: clamp(0.72rem, 1.04vw, 0.9rem);
   line-height: 1.1;
+}
+
+.deck-slide.is-table-slide .slide-table.slide-table-dense-4[data-row-count="8"] .slide-table-cell {
+  padding: 0.32rem 0.44rem;
+  font-size: clamp(0.64rem, 0.88vw, 0.78rem);
+  line-height: 1.02;
+}
+
+.deck-slide.is-table-slide .slide-table.slide-table-dense-5[data-row-count="8"] .slide-table-cell {
+  padding: 0.24rem 0.34rem;
+  font-size: clamp(0.58rem, 0.78vw, 0.7rem);
+  line-height: 0.98;
 }
 
 .deck-slide.is-table-slide .slide-footer {
@@ -730,10 +754,12 @@
 .slide-table-row {
   display: grid;
   gap: 0;
+  min-width: 0;
 }
 
 .slide-table-cell {
   min-height: 3rem;
+  min-width: 0;
   padding: 0.68rem 0.8rem;
   border-right: 1px solid var(--slide-line);
   border-bottom: 1px solid var(--slide-line);
@@ -773,6 +799,20 @@
   padding: 0.42rem 0.58rem;
   font-size: 0.82rem;
   line-height: 1.22;
+}
+
+.slide-table.slide-table-dense-4 .slide-table-cell {
+  min-height: 1.95rem;
+  padding: 0.34rem 0.5rem;
+  font-size: 0.74rem;
+  line-height: 1.14;
+}
+
+.slide-table.slide-table-dense-5 .slide-table-cell {
+  min-height: 1.72rem;
+  padding: 0.26rem 0.4rem;
+  font-size: 0.66rem;
+  line-height: 1.06;
 }
 
 .slide-free-body {
@@ -1801,10 +1841,29 @@
   line-height: 1.02;
 }
 
+.deck-slide-compact.is-table-slide .slide-table.slide-table-dense-4 .slide-table-cell {
+  padding: 0.14rem 0.2rem;
+  font-size: 0.42rem;
+  line-height: 0.98;
+}
+
+.deck-slide-compact.is-table-slide .slide-table.slide-table-dense-5 .slide-table-cell {
+  padding: 0.1rem 0.16rem;
+  font-size: 0.38rem;
+  line-height: 0.94;
+}
+
 .deck-slide-compact.is-table-slide .slide-table[data-row-count="8"] .slide-table-cell {
   padding: 0.14rem 0.2rem;
   font-size: 0.42rem;
   line-height: 1;
+}
+
+.deck-slide-compact.is-table-slide .slide-table.slide-table-dense-4[data-row-count="8"] .slide-table-cell,
+.deck-slide-compact.is-table-slide .slide-table.slide-table-dense-5[data-row-count="8"] .slide-table-cell {
+  padding: 0.08rem 0.14rem;
+  font-size: 0.34rem;
+  line-height: 0.9;
 }
 
 .deck-slide-compact .slide-free-body {

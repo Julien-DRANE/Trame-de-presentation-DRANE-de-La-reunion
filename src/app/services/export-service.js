@@ -832,10 +832,30 @@
         font-size: clamp(0.82rem, 1.18vw, 0.98rem);
         line-height: 1.18;
       }
+      .deck-slide.is-table-slide .slide-table.slide-table-dense-4 .slide-table-cell {
+        padding: 0.46rem 0.6rem;
+        font-size: clamp(0.74rem, 1.02vw, 0.9rem);
+        line-height: 1.12;
+      }
+      .deck-slide.is-table-slide .slide-table.slide-table-dense-5 .slide-table-cell {
+        padding: 0.34rem 0.48rem;
+        font-size: clamp(0.66rem, 0.9vw, 0.8rem);
+        line-height: 1.04;
+      }
       .deck-slide.is-table-slide .slide-table[data-row-count="8"] .slide-table-cell {
         padding: 0.42rem 0.56rem;
         font-size: clamp(0.72rem, 1.04vw, 0.9rem);
         line-height: 1.1;
+      }
+      .deck-slide.is-table-slide .slide-table.slide-table-dense-4[data-row-count="8"] .slide-table-cell {
+        padding: 0.32rem 0.44rem;
+        font-size: clamp(0.64rem, 0.88vw, 0.78rem);
+        line-height: 1.02;
+      }
+      .deck-slide.is-table-slide .slide-table.slide-table-dense-5[data-row-count="8"] .slide-table-cell {
+        padding: 0.24rem 0.34rem;
+        font-size: clamp(0.58rem, 0.78vw, 0.7rem);
+        line-height: 0.98;
       }
       .deck-slide.is-table-slide .slide-footer {
         padding-top: 0.5rem;
@@ -843,9 +863,11 @@
       .slide-table-row {
         display: grid;
         gap: 0;
+        min-width: 0;
       }
       .slide-table-cell {
         min-height: 3rem;
+        min-width: 0;
         padding: 0.68rem 0.8rem;
         border-right: 1px solid var(--slide-line);
         border-bottom: 1px solid var(--slide-line);
@@ -879,6 +901,18 @@
         padding: 0.42rem 0.58rem;
         font-size: 0.82rem;
         line-height: 1.22;
+      }
+      .slide-table.slide-table-dense-4 .slide-table-cell {
+        min-height: 1.95rem;
+        padding: 0.34rem 0.5rem;
+        font-size: 0.74rem;
+        line-height: 1.14;
+      }
+      .slide-table.slide-table-dense-5 .slide-table-cell {
+        min-height: 1.72rem;
+        padding: 0.26rem 0.4rem;
+        font-size: 0.66rem;
+        line-height: 1.06;
       }
       .slide-free-body {
         display: grid;
@@ -1921,10 +1955,30 @@
         font-size: clamp(1.12rem, 1.72vw, 1.46rem);
         line-height: 1.04;
       }
+      .table-lightbox-table.slide-table.slide-table-dense-4 .slide-table-cell {
+        padding: 0.72rem 0.8rem;
+        font-size: clamp(1rem, 1.54vw, 1.28rem);
+        line-height: 1.02;
+      }
+      .table-lightbox-table.slide-table.slide-table-dense-5 .slide-table-cell {
+        padding: 0.62rem 0.72rem;
+        font-size: clamp(0.92rem, 1.38vw, 1.14rem);
+        line-height: 1;
+      }
       .table-lightbox-table[data-row-count="8"] .slide-table-cell {
         padding: 0.78rem 0.88rem;
         font-size: clamp(1.14rem, 1.78vw, 1.5rem);
         line-height: 1.04;
+      }
+      .table-lightbox-table.slide-table.slide-table-dense-4[data-row-count="8"] .slide-table-cell {
+        padding: 0.62rem 0.72rem;
+        font-size: clamp(0.96rem, 1.42vw, 1.18rem);
+        line-height: 1;
+      }
+      .table-lightbox-table.slide-table.slide-table-dense-5[data-row-count="8"] .slide-table-cell {
+        padding: 0.54rem 0.64rem;
+        font-size: clamp(0.88rem, 1.28vw, 1.06rem);
+        line-height: 0.98;
       }
       .table-lightbox-close {
         position: absolute;
