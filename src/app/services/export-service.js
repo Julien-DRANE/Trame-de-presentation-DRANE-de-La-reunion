@@ -311,32 +311,23 @@
       }
       .slide-wave {
         position: absolute;
-        right: -10%;
-        bottom: -10%;
-        width: 50%;
-        height: 24%;
+        right: -31%;
+        bottom: -145%;
+        width: 95%;
+        aspect-ratio: 1;
         display: none;
-        border-top-left-radius: 100% 100%;
+        border-radius: 50%;
         background:
-          linear-gradient(180deg, var(--slide-decor-softer), var(--slide-decor-wave)),
-          linear-gradient(90deg, rgba(255,255,255,0.64), transparent);
+          radial-gradient(
+            circle closest-side at center,
+            transparent 0 92.8%,
+            color-mix(in srgb, var(--slide-decor-wave) 52%, transparent) 93.2% 99.4%,
+            transparent 100%
+          );
       }
       .slide-wave::before,
       .slide-wave::after {
-        content: "";
-        position: absolute;
-        inset: auto auto 20% -8%;
-        width: 92%;
-        height: 60%;
-        border-top-left-radius: 100% 100%;
-        border-top-right-radius: 18% 50%;
-        background: var(--slide-decor-wave-soft);
-      }
-      .slide-wave::after {
-        bottom: 42%;
-        left: 12%;
-        width: 72%;
-        background: var(--slide-decor-softer);
+        display: none;
       }
       .deck-slide.theme-waves .slide-wave,
       .deck-slide.theme-mix .slide-wave { display: block; }
@@ -653,7 +644,7 @@
         margin-top: 0.35rem;
         border-radius: 50%;
         background: linear-gradient(145deg, var(--slide-accent), var(--slide-accent-strong));
-        box-shadow: 0 0 0 6px var(--slide-accent-softer);
+        box-shadow: 0 0 0 6px color-mix(in srgb, var(--slide-accent-softer) 20%, transparent);
       }
       .slide-bullets.is-numbered li::before,
       .slide-side-bullets.is-numbered li::before {
@@ -1533,7 +1524,7 @@
         margin-top: 0.35rem;
         border-radius: 50%;
         background: linear-gradient(145deg, var(--slide-accent), var(--slide-accent-strong));
-        box-shadow: 0 0 0 5px var(--slide-accent-softer);
+        box-shadow: 0 0 0 5px color-mix(in srgb, var(--slide-accent-softer) 20%, transparent);
       }
       .slide-side-bullets .slide-sub-bullets li::before {
         width: 0.34rem;
@@ -1541,7 +1532,7 @@
         margin-top: 0;
         left: -0.8rem;
         top: 0.48rem;
-        box-shadow: 0 0 0 4px var(--slide-accent-softer);
+        box-shadow: 0 0 0 4px color-mix(in srgb, var(--slide-accent-softer) 20%, transparent);
         background: var(--slide-accent-strong);
       }
       .slide-media-link {
