@@ -1826,15 +1826,7 @@
       updateSelectedSlide({ mediaId: "", secondaryMediaId: "" });
       return;
     }
-    if (mediaId === selectedSlide.mediaId) {
-      updateSelectedSlide({
-        mediaId: selectedSlide.secondaryMediaId || "",
-        secondaryMediaId: "",
-      });
-      return;
-    }
-    if (mediaId === selectedSlide.secondaryMediaId) {
-      updateSelectedSlide({ secondaryMediaId: "" });
+    if (mediaId === selectedSlide.mediaId || mediaId === selectedSlide.secondaryMediaId) {
       return;
     }
     if (!selectedSlide.mediaId) {
@@ -2927,7 +2919,11 @@
     if (!input) {
       return;
     }
-    pendingSubBulletFocus = null;
+    pendingSubBulletFocus = {
+      parentIndex: Number(input.getAttribute("data-sub-bullet-parent")),
+      subIndex: Number(input.getAttribute("data-sub-bullet-index")),
+      caret: input.selectionStart || 0,
+    };
     updateSelectedSubBullet(
       Number(input.getAttribute("data-sub-bullet-parent")),
       Number(input.getAttribute("data-sub-bullet-index")),
