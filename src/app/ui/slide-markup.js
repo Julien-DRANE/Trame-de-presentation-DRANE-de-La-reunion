@@ -463,6 +463,33 @@
     };
   }
 
+  function getBulletLayoutWeight(item) {
+    const bulletItem = item && typeof item === "object" ? item : { text: String(item || ""), children: [] };
+    const mainTextLength = String(bulletItem.text || "").trim().length;
+    const mainWeight = 1 + Math.min(0.45, mainTextLength / 280);
+    const childrenWeight = (Array.isArray(bulletItem.children) ? bulletItem.children : []).reduce((sum, child) => {
+      const childLength = String(child || "").trim().length;
+      return sum + 0.78 + Math.min(0.3, childLength / 360);
+    }, 0);
+    return mainWeight + childrenWeight;
+  }
+
+  function shouldUseSecondBulletSideLayout(slide, bulletsInput, mediaCount) {
+    const bullets = Array.isArray(bulletsInput) ? bulletsInput : [];
+    if (mediaCount > 0 || bullets.length !== 2 || Boolean(slide && slide.bulletsNumbered)) {
+      return false;
+    }
+
+    const secondChildren = Array.isArray(bullets[1] && bullets[1].children) ? bullets[1].children : [];
+    if (secondChildren.length < 4) {
+      return false;
+    }
+
+    const firstWeight = getBulletLayoutWeight(bullets[0]);
+    const secondWeight = getBulletLayoutWeight(bullets[1]);
+    return secondWeight >= firstWeight + 1;
+  }
+
   function getTableCellFillStyle(tableHighlights, rowIndex, columnIndex) {
     const rowColor = tableHighlights && tableHighlights.rows ? tableHighlights.rows[String(rowIndex)] : "";
     const columnColor = tableHighlights && tableHighlights.columns ? tableHighlights.columns[String(columnIndex)] : "";
@@ -613,7 +640,8 @@
     `;
   }
 
-  function createBulletSideColumnMarkup(extraBullets, slide, options, numberingStart, progressive) {
+  function createBulletSideColumnMarkup(extraBullets, slide, options, numberingStart, progressive, layoutOptions) {
+    const layout = layoutOptions || {};
     const sideBulletsMarkup = Array.isArray(extraBullets) && extraBullets.length
       ? createBulletListMarkup(extraBullets, {
           className: "slide-side-bullets",
@@ -625,10 +653,10 @@
     const mediaMarkup = createSlideMediaMarkup(slide, options);
 
     if (sideBulletsMarkup && mediaMarkup) {
+      const sideColumnClass = `slide-side-column${layout.mediaFirst ? " is-media-first" : ""}${layout.compactMedia ? " has-compact-media" : ""}`;
       return `
-        <div class="slide-side-column">
-          <div class="slide-side-column-bullets">${sideBulletsMarkup}</div>
-          <div class="slide-side-column-media">${mediaMarkup}</div>
+        <div class="${sideColumnClass}">
+          ${layout.mediaFirst ? `<div class="slide-side-column-media">${mediaMarkup}</div><div class="slide-side-column-bullets">${sideBulletsMarkup}</div>` : `<div class="slide-side-column-bullets">${sideBulletsMarkup}</div><div class="slide-side-column-media">${mediaMarkup}</div>`}
         </div>
       `;
     }
@@ -1009,6 +1037,7 @@
       (visualData.chartReveal && visualData.showChart)
     );
     const canKeepMediaWithExtendedBullets = Boolean(slideMedia) && allBullets.length > 3 && allBullets.length <= 6;
+    const useSecondBulletSideLayout = shouldUseSecondBulletSideLayout(slide, allBullets, slideMediaItems.length);
     const bulletMarkup = mainBullets.length
       ? createBulletListMarkup(mainBullets, {
           className: "slide-bullets",
@@ -1032,16 +1061,27 @@
       }
     );
     const compactClass = opts.compact ? " deck-slide-compact" : "";
-    const moveMediaBelowPrimaryBullets = extraBullets.length > 0 && slideMediaItems.length > 0 && mainBulletsWeight <= extraBulletsWeight;
+    const useFloatingTopRightMedia = extraBullets.length > 0 && slideMediaItems.length === 1 && !canKeepMediaWithExtendedBullets && !useSecondBulletSideLayout;
+    const moveMediaBelowPrimaryBullets = !useFloatingTopRightMedia && extraBullets.length > 0 && slideMediaItems.length > 0 && mainBulletsWeight <= extraBulletsWeight;
     const sideMarkup = extraBullets.length
       ? createBulletSideColumnMarkup(
           extraBullets,
-          moveMediaBelowPrimaryBullets ? Object.assign({}, slide, { mediaId: "", secondaryMediaId: "" }) : slide,
+          moveMediaBelowPrimaryBullets || useFloatingTopRightMedia ? Object.assign({}, slide, { mediaId: "", secondaryMediaId: "" }) : slide,
           opts,
           mainBullets.length + 1,
-          bulletsProgressive
+          bulletsProgressive,
+          undefined
         )
       : createSlideMediaMarkup(slide, opts);
+    const secondBulletSideMarkup = useSecondBulletSideLayout
+      ? createBulletSideColumnMarkup(
+          [allBullets[1]],
+          Object.assign({}, slide, { mediaId: "", secondaryMediaId: "" }),
+          opts,
+          2,
+          bulletsProgressive
+        )
+      : "";
     const headline = slide.title ? `<h3 class="slide-headline">${utils.escapeHtml(slide.title)}</h3>` : "";
     const subtitle = slide.subtitle ? `<p class="slide-subtitle-text">${utils.escapeHtml(slide.subtitle)}</p>` : "";
     const signature = settings.footer ? `<span class="slide-signature">${utils.escapeHtml(settings.footer)}</span>` : "";
@@ -1052,6 +1092,9 @@
     let contentMarkup = "";
     let footerNoteMarkup = note;
     const mediaMarkup = createSlideMediaMarkup(slide, opts);
+    const floatingTopRightMediaMarkup = useFloatingTopRightMedia
+      ? `<aside class="slide-floating-top-right-media">${mediaMarkup}</aside>`
+      : "";
 
     if (isFreeMode) {
       contentMarkup = createFreeMarkup(slide, opts);
@@ -1066,13 +1109,26 @@
         titleLength: (slide.title || "").length,
         subtitleLength: (slide.subtitle || "").length,
       });
+    } else if (useSecondBulletSideLayout) {
+      contentMarkup = `
+        <div class="slide-bullets-row slide-bullets-row-extra slide-bullets-row-second-heavy">
+          ${createBulletListMarkup([allBullets[0]], {
+            className: "slide-bullets",
+            numbered: bulletsNumbered,
+            startAt: 1,
+            progressive: bulletsProgressive,
+          })}
+          <aside class="slide-media-slot slide-side-bullets-slot slide-side-bullets-slot-second-heavy">${secondBulletSideMarkup}</aside>
+        </div>
+      `;
     } else if (canKeepMediaWithExtendedBullets) {
       contentMarkup = extendedBulletMarkup;
     } else if (extraBullets.length) {
+      const sideSlotClass = `slide-media-slot slide-side-bullets-slot${bulletsNumbered ? " is-numbered-layout" : ""}`;
       contentMarkup = `
         <div class="slide-bullets-row slide-bullets-row-extra">
           ${moveMediaBelowPrimaryBullets ? createBulletPrimaryColumnMarkup(bulletMarkup, mediaMarkup, slideMediaItems.length) : bulletMarkup}
-          <aside class="slide-media-slot slide-side-bullets-slot">${sideMarkup}</aside>
+          <aside class="${sideSlotClass}">${sideMarkup}</aside>
         </div>
       `;
     } else {
@@ -1098,13 +1154,14 @@
               <span class="slide-number-badge">${utils.escapeHtml(slide.number || "")}</span>
             </div>
           </div>
+          ${floatingTopRightMediaMarkup}
           <div class="${isCanvasMode ? "slide-body slide-body-no-media slide-body-canvas" : isVisualMode ? "slide-body slide-body-no-media slide-body-visual" : slideMedia && (!extraBullets.length || isTableMode || canKeepMediaWithExtendedBullets) && !isFreeMode ? `slide-body${stackedMediaLayoutClass}` : "slide-body slide-body-no-media"}">
             <div class="slide-main">
               ${headline}
               ${subtitle}
               ${contentMarkup}
             </div>
-            ${slideMediaItems.length && (!extraBullets.length || canKeepMediaWithExtendedBullets) && !isFreeMode && !isVisualMode && !isTableMode ? `<aside class="slide-media-slot is-media-bare${slideMediaItems.length > 1 ? " has-media-stack" : ""}">${mediaMarkup}</aside>` : ""}
+            ${slideMediaItems.length && (!extraBullets.length || canKeepMediaWithExtendedBullets) && !isFreeMode && !isVisualMode && !isTableMode && !useFloatingTopRightMedia ? `<aside class="slide-media-slot is-media-bare${slideMediaItems.length > 1 ? " has-media-stack" : ""}">${mediaMarkup}</aside>` : ""}
           </div>
           <div class="slide-footer">
             ${footerNoteMarkup}

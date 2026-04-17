@@ -71,6 +71,8 @@
 }
 
 .editor-form {
+  position: relative;
+  z-index: 60;
   display: flex;
   flex-direction: column;
   gap: 0.95rem;
@@ -101,6 +103,10 @@
 
 .stage {
   min-height: 0;
+}
+
+.stage .slide-floating-top-right-media {
+  pointer-events: none;
 }
 
 .thumb-strip {
