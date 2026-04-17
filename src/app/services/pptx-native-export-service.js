@@ -361,6 +361,32 @@
     return [items.slice(0, pivot), items.slice(pivot)];
   }
 
+  function getBulletLayoutWeight(item) {
+    const bulletItem = item && typeof item === "object" ? item : { text: String(item || ""), children: [] };
+    const mainTextLength = String(bulletItem.text || "").trim().length;
+    const mainWeight = 1 + Math.min(0.45, mainTextLength / 280);
+    const childrenWeight = (Array.isArray(bulletItem.children) ? bulletItem.children : []).reduce((sum, child) => {
+      const childLength = String(child || "").trim().length;
+      return sum + 0.78 + Math.min(0.3, childLength / 360);
+    }, 0);
+    return mainWeight + childrenWeight;
+  }
+
+  function shouldUseSecondBulletSideLayout(slide, items, hasMedia) {
+    if (hasMedia || !Array.isArray(items) || items.length !== 2 || Boolean(slide && slide.bulletsNumbered)) {
+      return false;
+    }
+
+    const secondChildren = Array.isArray(items[1] && items[1].children) ? items[1].children : [];
+    if (secondChildren.length < 4) {
+      return false;
+    }
+
+    const firstWeight = getBulletLayoutWeight(items[0]);
+    const secondWeight = getBulletLayoutWeight(items[1]);
+    return secondWeight >= firstWeight + 1;
+  }
+
   function flattenLinkedText(value, options) {
     const opts = options || {};
     const linked = ns.utils.extractLinks(value || "");
@@ -680,7 +706,7 @@
         bold: true,
         color: palette.text,
       });
-      bodyTop += 0.66;
+      bodyTop += 0.58;
     }
 
     if (slide.subtitle) {
@@ -688,14 +714,14 @@
         x: 0.68,
         y: bodyTop,
         w: 9.7,
-        h: 0.48,
+        h: 0.44,
         margin: 0,
         fit: "shrink",
         fontFace: deckFont.pptBody || "Aptos",
         fontSize: 12,
         color: palette.textMuted,
       });
-      bodyTop += 0.5;
+      bodyTop += 0.44;
     }
 
     return {
@@ -852,6 +878,8 @@
     const bulletItems = buildBulletItems(slide);
     const contentHeight = chrome.bodyBottom - chrome.bodyTop;
     const hasMedia = mediaItems.length > 0;
+    const useSecondBulletSideLayout = shouldUseSecondBulletSideLayout(slide, bulletItems, hasMedia);
+    const useCompactTopRightMediaLayout = mediaItems.length === 1 && (bulletItems.length > 3 || useSecondBulletSideLayout);
 
     if (!bulletItems.length) {
       pptSlide.addText("Ajoutez un point cle pour structurer la slide.", {
@@ -864,7 +892,43 @@
         fontSize: 16,
         color: palette.textMuted,
       });
+    } else if (useSecondBulletSideLayout) {
+      addBulletColumn(pptSlide, [bulletItems[0]], {
+        x: 0.82,
+        y: chrome.bodyTop,
+        w: 4.75,
+        h: contentHeight,
+        startAt: 1,
+        hasMedia: false,
+      }, slide, deckFont, palette);
+      addBulletColumn(pptSlide, [bulletItems[1]], {
+        x: 5.92,
+        y: chrome.bodyTop - 0.02,
+        w: 5.55,
+        h: contentHeight + 0.02,
+        startAt: 2,
+        hasMedia: false,
+      }, slide, deckFont, palette);
     } else if (!hasMedia && bulletItems.length > 3) {
+      const columns = splitBulletItems(bulletItems);
+      const leftCount = columns[0].length;
+      addBulletColumn(pptSlide, columns[0], {
+        x: 0.82,
+        y: chrome.bodyTop,
+        w: 5.15,
+        h: contentHeight,
+        startAt: 1,
+        hasMedia: false,
+      }, slide, deckFont, palette);
+      addBulletColumn(pptSlide, columns[1], {
+        x: 6.25,
+        y: chrome.bodyTop,
+        w: 5.15,
+        h: contentHeight,
+        startAt: leftCount + 1,
+        hasMedia: false,
+      }, slide, deckFont, palette);
+    } else if (useCompactTopRightMediaLayout) {
       const columns = splitBulletItems(bulletItems);
       const leftCount = columns[0].length;
       addBulletColumn(pptSlide, columns[0], {
@@ -897,10 +961,10 @@
     if (hasMedia) {
       if (mediaItems.length === 1) {
         await addMediaFrame(pptSlide, mediaItems[0], {
-          x: 8.65,
-          y: chrome.bodyTop + 0.04,
-          w: 3.88,
-          h: contentHeight - 0.06,
+          x: useCompactTopRightMediaLayout ? 8.95 : 8.65,
+          y: useCompactTopRightMediaLayout ? 1.72 : chrome.bodyTop + 0.04,
+          w: useCompactTopRightMediaLayout ? 3.35 : 3.88,
+          h: useCompactTopRightMediaLayout ? Math.min(2.3, Math.max(1.95, contentHeight * 0.4)) : contentHeight - 0.06,
         }, palette, deckFont);
       } else {
         await addMediaFrame(pptSlide, mediaItems[0], {
