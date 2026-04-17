@@ -84,6 +84,18 @@
   gap: 0.85rem;
 }
 
+.bullet-field {
+  display: grid;
+  gap: 0.35rem;
+  align-content: start;
+  min-width: 0;
+}
+
+.bullet-field > label {
+  display: block;
+  font-weight: 700;
+}
+
 .bullet-editor-row {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
