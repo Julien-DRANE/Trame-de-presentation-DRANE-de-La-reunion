@@ -35,6 +35,10 @@
     });
   }
 
+  function isDataUrl(value) {
+    return /^data:/i.test(String(value || "").trim());
+  }
+
   function getImageDimensions(src) {
     return new Promise((resolve) => {
       const image = new Image();
@@ -82,18 +86,30 @@
     if (!source) {
       return null;
     }
-    const imageRect = getContainRect(box, await getImageDimensions(source));
+    const normalizedSource = String(source || "").trim();
+    if (!normalizedSource) {
+      return null;
+    }
+    const imageRect = getContainRect(box, await getImageDimensions(normalizedSource));
     const imageOptions = {
-      data: source,
       x: imageRect.x,
       y: imageRect.y,
       w: imageRect.w,
       h: imageRect.h,
     };
+    if (isDataUrl(normalizedSource)) {
+      imageOptions.data = normalizedSource;
+    } else {
+      imageOptions.path = normalizedSource;
+    }
     if (hyperlink) {
       imageOptions.hyperlink = { url: hyperlink };
     }
-    pptSlide.addImage(imageOptions);
+    try {
+      pptSlide.addImage(imageOptions);
+    } catch (error) {
+      return null;
+    }
     return imageRect;
   }
 

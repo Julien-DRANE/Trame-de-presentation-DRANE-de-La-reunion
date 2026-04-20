@@ -75,7 +75,7 @@
     radial-gradient(
       circle closest-side at center,
       transparent 0 92.8%,
-      color-mix(in srgb, var(--slide-decor-wave) 52%, transparent) 93.2% 99.4%,
+      var(--slide-decor-wave-soft) 93.2% 99.4%,
       transparent 100%
     );
 }
@@ -566,7 +566,7 @@
   margin-top: 0.35rem;
   border-radius: 50%;
   background: linear-gradient(145deg, var(--slide-accent), var(--slide-accent-strong));
-  box-shadow: 0 0 0 6px color-mix(in srgb, var(--slide-accent-softer) 20%, transparent);
+  box-shadow: 0 0 0 6px var(--slide-accent-softer);
 }
 
 .slide-bullets.is-numbered li::before,
@@ -1630,7 +1630,7 @@
   margin-top: 0.35rem;
   border-radius: 50%;
   background: linear-gradient(145deg, var(--slide-accent), var(--slide-accent-strong));
-  box-shadow: 0 0 0 5px color-mix(in srgb, var(--slide-accent-softer) 20%, transparent);
+  box-shadow: 0 0 0 5px var(--slide-accent-softer);
 }
 
 .slide-side-bullets .slide-sub-bullets li::before {
@@ -1639,7 +1639,7 @@
   margin-top: 0;
   left: -0.8rem;
   top: 0.48rem;
-  box-shadow: 0 0 0 4px color-mix(in srgb, var(--slide-accent-softer) 20%, transparent);
+  box-shadow: 0 0 0 4px var(--slide-accent-softer);
   background: var(--slide-accent-strong);
 }
 
@@ -1790,7 +1790,7 @@
   width: 0.5rem;
   height: 0.5rem;
   margin-top: 0.22rem;
-  box-shadow: 0 0 0 4px color-mix(in srgb, var(--slide-accent-softer) 20%, transparent);
+  box-shadow: 0 0 0 4px var(--slide-accent-softer);
 }
 
 .deck-slide-compact .slide-bullet-marker {
@@ -2145,7 +2145,7 @@
   width: 0.45rem;
   height: 0.45rem;
   margin-top: 0.2rem;
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--slide-accent-softer) 20%, transparent);
+  box-shadow: 0 0 0 3px var(--slide-accent-softer);
 }
 
 @media (max-width: 960px) {

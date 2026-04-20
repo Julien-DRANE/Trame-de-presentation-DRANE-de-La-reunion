@@ -6,6 +6,7 @@
   const DB_VERSION = 1;
   const STORE_NAME = "media";
   const urlCache = new Map();
+  const warnedCrossOriginImageUrls = new Set();
 
   function createEmbedPlaceholderDataUrl(label, layout) {
     const text = encodeURIComponent(label || (layout === "audio" ? "Audio" : "Video"));
@@ -13,6 +14,32 @@
       return `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 360"><rect width="1280" height="360" rx="28" fill="%23dbe9fb"/><rect x="36" y="36" width="1208" height="288" rx="24" fill="%23ffffff"/><circle cx="170" cy="180" r="76" fill="%232c73da"/><polygon points="145,138 145,222 216,180" fill="%23ffffff"/><rect x="300" y="116" width="730" height="26" rx="13" fill="%232c73da" fill-opacity="0.14"/><rect x="300" y="168" width="608" height="18" rx="9" fill="%232c73da" fill-opacity="0.18"/><rect x="300" y="208" width="486" height="18" rx="9" fill="%232c73da" fill-opacity="0.12"/><text x="300" y="270" font-family="Segoe UI, Arial, sans-serif" font-size="38" font-weight="700" fill="%23122033">${text}</text></svg>`;
     }
     return `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720"><rect width="1280" height="720" rx="36" fill="%23dbe9fb"/><rect x="80" y="80" width="1120" height="560" rx="28" fill="%23ffffff"/><circle cx="640" cy="360" r="96" fill="%232c73da"/><polygon points="610,305 610,415 705,360" fill="%23ffffff"/><text x="640" y="560" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="42" font-weight="700" fill="%23122033">${text}</text></svg>`;
+  }
+
+  function createImagePlaceholderDataUrl(label) {
+    const text = encodeURIComponent(label || "Image externe");
+    return `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720"><rect width="1280" height="720" rx="36" fill="%23dbe9fb"/><rect x="80" y="80" width="1120" height="560" rx="28" fill="%23ffffff"/><rect x="210" y="180" width="860" height="340" rx="24" fill="%23e8f1fd" stroke="%232c73da" stroke-opacity="0.2" stroke-width="8"/><circle cx="390" cy="270" r="44" fill="%232c73da" fill-opacity="0.26"/><path d="M250 470l180-170 130 120 170-170 200 220H250z" fill="%232c73da" fill-opacity="0.32"/><text x="640" y="590" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="38" font-weight="700" fill="%23122033">${text}</text></svg>`;
+  }
+
+  function isDataUrl(value) {
+    return /^data:/i.test(String(value || "").trim());
+  }
+
+  function isCrossOriginHttpUrl(value) {
+    const source = String(value || "").trim();
+    if (!source) {
+      return false;
+    }
+    let parsed;
+    try {
+      parsed = new URL(source, window.location.href);
+    } catch (error) {
+      return false;
+    }
+    if (!/^https?:$/i.test(parsed.protocol)) {
+      return false;
+    }
+    return parsed.origin !== window.location.origin;
   }
 
   function extractIframeAttributes(rawValue) {
@@ -532,15 +559,29 @@
   }
 
   async function urlToDataUrl(url) {
+    const source = String(url || "").trim();
+    if (!source) {
+      return "";
+    }
+    if (isDataUrl(source)) {
+      return source;
+    }
+    if (isCrossOriginHttpUrl(source)) {
+      if (!warnedCrossOriginImageUrls.has(source)) {
+        warnedCrossOriginImageUrls.add(source);
+        console.warn("[media-export] Image externe ignoree en export (CORS):", source);
+      }
+      return "";
+    }
     try {
-      const response = await fetch(url, { mode: "cors" });
+      const response = await fetch(source, { mode: "cors" });
       if (!response.ok) {
-        return url;
+        return "";
       }
       const blob = await response.blob();
       return await blobToDataUrl(blob);
     } catch (error) {
-      return url;
+      return "";
     }
   }
 
@@ -593,9 +634,15 @@
     for (const item of items || []) {
       if (item.kind === "image") {
         const rawPreview = exportUrls[item.id] || item.thumbnailUrl || item.externalUrl || "";
-        previewMap[item.id] = item.externalUrl && !String(rawPreview).startsWith("data:")
-          ? await urlToDataUrl(rawPreview)
-          : rawPreview;
+        if (isDataUrl(rawPreview)) {
+          previewMap[item.id] = rawPreview;
+        } else if (item.externalUrl) {
+          const converted = await urlToDataUrl(rawPreview);
+          previewMap[item.id] = converted || createImagePlaceholderDataUrl(item.name || "Image externe");
+          linkMap[item.id] = item.externalUrl;
+        } else {
+          previewMap[item.id] = rawPreview || createImagePlaceholderDataUrl(item.name || "Image");
+        }
         continue;
       }
 
