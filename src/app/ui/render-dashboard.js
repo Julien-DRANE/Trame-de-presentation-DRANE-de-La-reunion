@@ -5,6 +5,7 @@
   function renderDashboard(payload) {
     const state = payload.state;
     const refs = payload.refs;
+    const selectedTableCell = payload.selectedTableCell || { row: 0, column: 0 };
     const selectedSlide = state.slides.find((slide) => slide.id === state.selectedSlideId) || state.slides[0];
     const bloomLevels = ns.data.bloomLevels || [];
     const colorPalettes = ns.data.colorPalettes || [];
@@ -90,6 +91,8 @@
     refs.slideDecorativeAccentSolid.checked = Boolean(selectedSlide.decorativeAccentSolid);
     refs.slideBulletsNumbered.checked = Boolean(selectedSlide.bulletsNumbered);
     refs.slideBulletsProgressive.checked = Boolean(selectedSlide.bulletsProgressive);
+    refs.slideBulletsSubProgressive.checked = Boolean(selectedSlide.bulletsSubProgressive);
+    refs.slideBulletsSubProgressive.disabled = !Boolean(selectedSlide.bulletsProgressive);
     refs.slideTableProgressive.checked = Boolean(selectedSlide.tableProgressive);
     refs.slideTableProgressiveOrder.value = selectedSlide.tableProgressiveOrder === "column" ? "column" : "row";
     refs.slideBullet1.value = selectedSlide.bullets[0] || "";
@@ -100,10 +103,14 @@
     });
     refs.extraBulletsList.innerHTML = renderExtraBullets(selectedSlide);
     refs.tableEditorGrid.innerHTML = renderTableEditor(selectedSlide);
-    const currentFillTarget = refs.tableFillTarget.value === "column" ? "column" : "row";
+    const currentFillTarget = refs.tableFillTarget.value === "column"
+      ? "column"
+      : refs.tableFillTarget.value === "cell"
+        ? "cell"
+        : "row";
     const currentFillIndex = refs.tableFillIndex.value;
     refs.tableFillTarget.value = currentFillTarget;
-    refs.tableFillIndex.innerHTML = renderTableFillIndexOptions(selectedSlide, currentFillTarget);
+    refs.tableFillIndex.innerHTML = renderTableFillIndexOptions(selectedSlide, currentFillTarget, selectedTableCell);
     if (refs.tableFillIndex.querySelector(`option[value="${ns.utils.escapeHtml(currentFillIndex)}"]`)) {
       refs.tableFillIndex.value = currentFillIndex;
     }
@@ -150,6 +157,7 @@
       refs.canvasTextStyleGrid.hidden = selectedCanvasElement.type !== "text";
       refs.canvasImageMediaWrap.hidden = selectedCanvasElement.type !== "image";
       refs.canvasArrowControls.hidden = selectedCanvasElement.type !== "arrow";
+      refs.canvasShapeControls.hidden = selectedCanvasElement.type !== "shape";
       if (selectedCanvasElement.type === "text") {
         const sanitizedCanvasText = ns.utils.sanitizeRichText(selectedCanvasElement.text || "", 600);
         refs.canvasTextFont.innerHTML = [
@@ -182,6 +190,8 @@
       refs.canvasArrowRotation.value = selectedCanvasElement.type === "arrow" ? String(Math.round(Number(selectedCanvasElement.rotation) || 0)) : "0";
       refs.canvasArrowLength.value = selectedCanvasElement.type === "arrow" ? String(Math.round(Number(selectedCanvasElement.arrowLength) || 100)) : "100";
       refs.canvasArrowLengthValue.textContent = `${refs.canvasArrowLength.value} %`;
+      refs.canvasShapeKind.value = selectedCanvasElement.type === "shape" ? (selectedCanvasElement.shapeKind || "circle") : "circle";
+      refs.canvasShapeColor.value = selectedCanvasElement.type === "shape" ? (selectedCanvasElement.color || "#0a66ff") : "#0a66ff";
     } else {
       refs.canvasElementX.max = "94";
       refs.canvasElementY.min = "-14";
@@ -191,6 +201,7 @@
       refs.canvasTextStyleGrid.hidden = true;
       refs.canvasImageMediaWrap.hidden = true;
       refs.canvasArrowControls.hidden = true;
+      refs.canvasShapeControls.hidden = true;
       refs.canvasTextContent.innerHTML = "";
       refs.canvasTextContent.style.fontFamily = "";
       refs.canvasTextFont.innerHTML = [
@@ -213,6 +224,8 @@
       refs.canvasArrowRotation.value = "0";
       refs.canvasArrowLength.value = "100";
       refs.canvasArrowLengthValue.textContent = "100 %";
+      refs.canvasShapeKind.value = "circle";
+      refs.canvasShapeColor.value = "#0a66ff";
     }
     refs.slideNote.value = selectedSlide.note;
     const isTableMode = (selectedSlide.contentType || "bullets") === "table";
@@ -513,6 +526,9 @@
     }
     if (element.type === "arrow") {
       return "Flèche";
+    }
+    if (element.type === "shape") {
+      return element.shapeKind === "square" ? "Carré" : element.shapeKind === "bubble" ? "Bulle" : "Cercle";
     }
     return "Texte";
   }
@@ -905,21 +921,30 @@
     return rows;
   }
 
-  function renderTableFillIndexOptions(selectedSlide, target) {
+  function renderTableFillIndexOptions(selectedSlide, target, selectedTableCell) {
     const table = normalizeTable(selectedSlide.table);
+    const safeCell = selectedTableCell || { row: 0, column: 0 };
     const count = target === "column"
       ? (table[0] ? table[0].length : 0)
+      : target === "cell"
+        ? 1
       : table.length;
 
     return Array.from({ length: count }, (unused, index) => {
+      if (target === "cell") {
+        const rowIndex = Math.max(0, Math.min(table.length - 1, Number(safeCell.row) || 0));
+        const columnIndex = Math.max(0, Math.min((table[0] ? table[0].length : 1) - 1, Number(safeCell.column) || 0));
+        const value = `${rowIndex}-${columnIndex}`;
+        return `<option value="${value}">Cellule ${rowIndex + 1}, ${columnIndex + 1}</option>`;
+      }
       const label = target === "column" ? `Colonne ${index + 1}` : `Ligne ${index + 1}`;
       return `<option value="${index}">${ns.utils.escapeHtml(label)}</option>`;
     }).join("");
   }
 
   function getDefaultTableFillColor(selectedSlide, target, indexValue) {
-    const key = target === "column" ? "columns" : "rows";
-    const index = Number(indexValue);
+    const key = target === "column" ? "columns" : target === "cell" ? "cells" : "rows";
+    const index = target === "cell" ? String(indexValue || "") : Number(indexValue);
     const tableHighlights = selectedSlide.tableHighlights || {};
     const existing = tableHighlights[key] && tableHighlights[key][String(index)];
     return existing || "#dcecff";
@@ -938,26 +963,46 @@
         index: Number(key),
         color: tableHighlights.columns[key],
       })),
+      ...Object.keys(tableHighlights.cells || {}).map((key) => ({
+        target: "cell",
+        index: key,
+        color: tableHighlights.cells[key],
+      })),
     ].sort((a, b) => {
+      const targetOrder = { row: 0, column: 1, cell: 2 };
       if (a.target !== b.target) {
-        return a.target.localeCompare(b.target);
+        return (targetOrder[a.target] || 99) - (targetOrder[b.target] || 99);
       }
-      return a.index - b.index;
+      return String(a.index).localeCompare(String(b.index), undefined, { numeric: true });
     });
 
     if (!entries.length) {
       return '<p class="table-fill-empty">Aucun remplissage actif.</p>';
     }
 
+    const getEntryLabel = (entry) => {
+      if (entry.target === "column") {
+        return `Colonne ${entry.index + 1}`;
+      }
+      if (entry.target === "row") {
+        return `Ligne ${entry.index + 1}`;
+      }
+      const match = String(entry.index).match(/^(\d+)-(\d+)$/);
+      if (!match) {
+        return "Cellule";
+      }
+      return `Cellule ${Number(match[1]) + 1}, ${Number(match[2]) + 1}`;
+    };
+
     return entries.map((entry) => `
       <div class="table-fill-item">
         <span class="table-fill-swatch" style="background:${ns.utils.escapeHtml(entry.color)};"></span>
-        <span class="table-fill-label">${entry.target === "column" ? "Colonne" : "Ligne"} ${entry.index + 1}</span>
+        <span class="table-fill-label">${ns.utils.escapeHtml(getEntryLabel(entry))}</span>
         <button
           class="icon-button icon-button-danger"
           type="button"
-          data-remove-table-fill="${entry.target}-${entry.index}"
-          aria-label="Retirer la couleur de ${entry.target === "column" ? "la colonne" : "la ligne"} ${entry.index + 1}"
+          data-remove-table-fill="${entry.target}:${entry.index}"
+          aria-label="Retirer la couleur de ${ns.utils.escapeHtml(getEntryLabel(entry))}"
         >
           x
         </button>
@@ -966,9 +1011,10 @@
   }
 
   function getTableCellFillStyle(tableHighlights, rowIndex, columnIndex) {
+    const cellColor = tableHighlights && tableHighlights.cells ? tableHighlights.cells[`${rowIndex}-${columnIndex}`] : "";
     const rowColor = tableHighlights && tableHighlights.rows ? tableHighlights.rows[String(rowIndex)] : "";
     const columnColor = tableHighlights && tableHighlights.columns ? tableHighlights.columns[String(columnIndex)] : "";
-    const color = rowColor || columnColor;
+    const color = cellColor || rowColor || columnColor;
     return color ? `background:${ns.utils.escapeHtml(color)};` : "";
   }
 

@@ -276,6 +276,10 @@
                 <input id="slide-bullets-progressive" type="checkbox" />
                 <span>Révéler les points en présentation</span>
               </label>
+              <label class="inline-checkbox">
+                <input id="slide-bullets-sub-progressive" type="checkbox" />
+                <span>Révéler les sous-points</span>
+              </label>
               <div class="bullet-grid">
                 <div class="bullet-field">
                   <label for="slide-bullet-1">Point 1</label>
@@ -333,7 +337,7 @@
                   Ordre de révélation
                   <select id="slide-table-progressive-order">
                     <option value="row">Ligne par ligne</option>
-                    <option value="column">Colonne 1 puis 2</option>
+                    <option value="column">Colonne par colonne</option>
                   </select>
                 </label>
                 <div class="table-fill-panel">
@@ -344,6 +348,7 @@
                     <select id="table-fill-target">
                       <option value="row">Ligne</option>
                       <option value="column">Colonne</option>
+                      <option value="cell">Cellule sélectionnée</option>
                     </select>
                     <select id="table-fill-index"></select>
                     <input id="table-fill-color" type="color" value="#dcecff" aria-label="Couleur de remplissage du tableau" />
@@ -396,6 +401,9 @@
                 <div class="canvas-editor-toolbar">
                   <button id="canvas-add-text" class="button button-ghost" type="button">Ajouter un texte</button>
                   <button id="canvas-add-arrow" class="button button-ghost" type="button">Ajouter une flèche</button>
+                  <button id="canvas-add-circle" class="button button-ghost" type="button">Cercle</button>
+                  <button id="canvas-add-square" class="button button-ghost" type="button">Carré</button>
+                  <button id="canvas-add-bubble" class="button button-ghost" type="button">Bulle</button>
                 </div>
                 <label class="checkbox-field">
                   <input id="canvas-progressive" type="checkbox" />
@@ -493,6 +501,21 @@
                         <input id="canvas-arrow-length" type="range" min="40" max="800" step="1" value="100" />
                         <span id="canvas-arrow-length-value" class="range-field-value">100 %</span>
                       </div>
+                    </label>
+                  </div>
+
+                  <div id="canvas-shape-controls" class="canvas-editor-grid canvas-editor-grid-tight" hidden>
+                    <label>
+                      Forme
+                      <select id="canvas-shape-kind">
+                        <option value="circle">Cercle</option>
+                        <option value="square">Carré</option>
+                        <option value="bubble">Bulle</option>
+                      </select>
+                    </label>
+                    <label>
+                      Couleur
+                      <input id="canvas-shape-color" type="color" value="#0a66ff" />
                     </label>
                   </div>
 

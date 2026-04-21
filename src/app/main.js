@@ -75,6 +75,7 @@
     slideNoteEditor: document.querySelector("#slide-note-editor"),
     slideBulletsNumbered: document.querySelector("#slide-bullets-numbered"),
     slideBulletsProgressive: document.querySelector("#slide-bullets-progressive"),
+    slideBulletsSubProgressive: document.querySelector("#slide-bullets-sub-progressive"),
     slideTableProgressive: document.querySelector("#slide-table-progressive"),
     slideTableProgressiveOrderWrap: document.querySelector("#slide-table-progressive-order-wrap"),
     slideTableProgressiveOrder: document.querySelector("#slide-table-progressive-order"),
@@ -107,6 +108,9 @@
     freeLinksList: document.querySelector("#free-links-list"),
     canvasAddText: document.querySelector("#canvas-add-text"),
     canvasAddArrow: document.querySelector("#canvas-add-arrow"),
+    canvasAddCircle: document.querySelector("#canvas-add-circle"),
+    canvasAddSquare: document.querySelector("#canvas-add-square"),
+    canvasAddBubble: document.querySelector("#canvas-add-bubble"),
     canvasProgressive: document.querySelector("#canvas-progressive"),
     canvasElementsList: document.querySelector("#canvas-elements-list"),
     canvasElementFields: document.querySelector("#canvas-element-fields"),
@@ -135,6 +139,9 @@
     canvasArrowRotation: document.querySelector("#canvas-arrow-rotation"),
     canvasArrowLength: document.querySelector("#canvas-arrow-length"),
     canvasArrowLengthValue: document.querySelector("#canvas-arrow-length-value"),
+    canvasShapeControls: document.querySelector("#canvas-shape-controls"),
+    canvasShapeKind: document.querySelector("#canvas-shape-kind"),
+    canvasShapeColor: document.querySelector("#canvas-shape-color"),
     canvasDuplicateElement: document.querySelector("#canvas-duplicate-element"),
     canvasDeleteElement: document.querySelector("#canvas-delete-element"),
     visualPrimaryMedia: document.querySelector("#visual-primary-media"),
@@ -175,6 +182,7 @@
   let pendingBulletFocus = null;
   let pendingSubBulletFocus = null;
   let pendingTableFocus = null;
+  let selectedTableCell = { row: 0, column: 0 };
   let pendingVisualFieldFocus = null;
   let pendingVisualChartFocus = null;
   let pendingPreviewPanelFocus = false;
@@ -361,7 +369,8 @@
 
   function render() {
     syncSelectedCanvasElement();
-    ns.ui.renderDashboard({ state, refs, selectedCanvasElementId });
+    getSafeSelectedTableCell(getSelectedSlide());
+    ns.ui.renderDashboard({ state, refs, selectedCanvasElementId, selectedTableCell });
     updateCanvasTextToolbarState();
     scheduleStateSave();
     if (pendingBulletFocus) {
@@ -759,6 +768,7 @@
       const tableHighlights = sanitizeTableHighlightsForSize(slide.tableHighlights, table.length, table[0] ? table[0].length : 0);
       return Object.assign({}, slide, { table, tableHighlights });
     });
+    getSafeSelectedTableCell(getSelectedSlide());
     render();
   }
 
@@ -942,16 +952,20 @@
     return Math.round(Math.max(40, Math.min(800, safeValue)));
   }
 
+  function normalizeCanvasShapeKind(value) {
+    return value === "square" || value === "bubble" ? value : "circle";
+  }
+
   function normalizeCanvasElement(element, index) {
     const input = element && typeof element === "object" ? element : {};
-    const type = input.type === "image" || input.type === "arrow" ? input.type : "text";
+    const type = input.type === "image" || input.type === "arrow" || input.type === "shape" ? input.type : "text";
     const normalized = {
       id: typeof input.id === "string" && input.id ? input.id : ns.utils.createId("canvas"),
       type,
       x: clampCanvasMetric(input.x, 10 + ((index % 3) * 8), 0, 94),
       y: clampCanvasMetric(input.y, 12 + ((index % 4) * 6), -14, 94),
-      w: clampCanvasMetric(input.w, type === "arrow" ? 18 : type === "image" ? 28 : 34, 6, 100),
-      h: clampCanvasMetric(input.h, type === "arrow" ? 10 : type === "image" ? 30 : 18, 6, 100),
+      w: clampCanvasMetric(input.w, type === "arrow" ? 18 : type === "image" ? 28 : type === "shape" ? 22 : 34, 6, 100),
+      h: clampCanvasMetric(input.h, type === "arrow" ? 10 : type === "image" ? 30 : type === "shape" ? 22 : 18, 6, 100),
       revealOrder: Math.max(1, Math.min(24, Math.round(Number(input.revealOrder) || (index + 1)))),
     };
 
@@ -968,6 +982,12 @@
       normalized.color = normalizeCanvasColor(input.color, "#0a66ff");
       normalized.rotation = normalizeCanvasRotation(input.rotation, 0);
       normalized.arrowLength = normalizeCanvasArrowLength(input.arrowLength, 100);
+      return normalized;
+    }
+
+    if (type === "shape") {
+      normalized.shapeKind = normalizeCanvasShapeKind(input.shapeKind);
+      normalized.color = normalizeCanvasColor(input.color, "#0a66ff");
       return normalized;
     }
 
@@ -1041,6 +1061,17 @@
         color: "#0a66ff",
         rotation: 0,
         arrowLength: 100,
+      },
+      shape: {
+        id: ns.utils.createId("canvas"),
+        type: "shape",
+        x: 40,
+        y: 26,
+        w: 20,
+        h: 20,
+        revealOrder: 1,
+        shapeKind: "circle",
+        color: "#0a66ff",
       },
     };
 
@@ -1760,10 +1791,84 @@
       return result;
     };
 
+    const sanitizeCellMap = (input, maxRow, maxCol) => {
+      const result = {};
+      if (!input || typeof input !== "object") {
+        return result;
+      }
+      Object.keys(input).forEach((key) => {
+        const match = String(key).match(/^(\d+)-(\d+)$/);
+        if (!match) {
+          return;
+        }
+        const rowIndex = Number(match[1]);
+        const columnIndex = Number(match[2]);
+        if (!Number.isInteger(rowIndex) || !Number.isInteger(columnIndex) || rowIndex < 0 || columnIndex < 0 || rowIndex >= maxRow || columnIndex >= maxCol) {
+          return;
+        }
+        result[`${rowIndex}-${columnIndex}`] = input[key];
+      });
+      return result;
+    };
+
     return {
       rows: sanitizeMap(tableHighlights && tableHighlights.rows, rowCount),
       columns: sanitizeMap(tableHighlights && tableHighlights.columns, colCount),
+      cells: sanitizeCellMap(tableHighlights && tableHighlights.cells, rowCount, colCount),
     };
+  }
+
+  function serializeTableCellKey(rowIndex, columnIndex) {
+    return `${rowIndex}-${columnIndex}`;
+  }
+
+  function parseTableCellKey(value) {
+    const match = String(value || "").match(/^(\d+)-(\d+)$/);
+    if (!match) {
+      return null;
+    }
+    return {
+      row: Number(match[1]),
+      column: Number(match[2]),
+    };
+  }
+
+  function getSafeSelectedTableCell(slide) {
+    const table = normalizeTable(slide && slide.table);
+    const maxRow = Math.max(0, table.length - 1);
+    const maxColumn = Math.max(0, (table[0] ? table[0].length : 1) - 1);
+    const row = Math.max(0, Math.min(maxRow, Number(selectedTableCell && selectedTableCell.row) || 0));
+    const column = Math.max(0, Math.min(maxColumn, Number(selectedTableCell && selectedTableCell.column) || 0));
+    selectedTableCell = { row, column };
+    return selectedTableCell;
+  }
+
+  function syncTableFillControls() {
+    const slide = getSelectedSlide();
+    if (!slide) {
+      return;
+    }
+    const target = refs.tableFillTarget.value === "column"
+      ? "column"
+      : refs.tableFillTarget.value === "cell"
+        ? "cell"
+        : "row";
+    const table = normalizeTable(slide.table);
+    const safeCell = getSafeSelectedTableCell(slide);
+    const count = target === "column"
+      ? (table[0] ? table[0].length : 0)
+      : target === "cell"
+        ? 1
+        : table.length;
+    refs.tableFillIndex.innerHTML = Array.from({ length: count }, (unused, index) => {
+      if (target === "cell") {
+        const value = serializeTableCellKey(safeCell.row, safeCell.column);
+        return `<option value="${value}">Cellule ${safeCell.row + 1}, ${safeCell.column + 1}</option>`;
+      }
+      const label = target === "column" ? `Colonne ${index + 1}` : `Ligne ${index + 1}`;
+      return `<option value="${index}">${label}</option>`;
+    }).join("");
+    refs.tableFillColor.value = getSelectedTableFillColor();
   }
 
   function normalizeHexColor(value) {
@@ -1776,24 +1881,30 @@
 
   function getSelectedTableFillColor() {
     const slide = getSelectedSlide();
-    const target = refs.tableFillTarget.value === "column" ? "columns" : "rows";
-    const index = Number(refs.tableFillIndex.value);
+    const target = refs.tableFillTarget.value === "column"
+      ? "columns"
+      : refs.tableFillTarget.value === "cell"
+        ? "cells"
+        : "rows";
+    const index = target === "cells" ? refs.tableFillIndex.value : Number(refs.tableFillIndex.value);
     const tableHighlights = slide.tableHighlights || {};
     return normalizeHexColor(tableHighlights[target] && tableHighlights[target][String(index)]);
   }
 
   function setSelectedTableFill(target, index, color) {
-    if ((target !== "row" && target !== "column") || !Number.isInteger(index) || index < 0 || !/^#[0-9a-fA-F]{6}$/.test(color || "")) {
+    const isCellTarget = target === "cell";
+    if ((target !== "row" && target !== "column" && target !== "cell") || (!isCellTarget && (!Number.isInteger(index) || index < 0)) || (isCellTarget && !parseTableCellKey(index)) || !/^#[0-9a-fA-F]{6}$/.test(color || "")) {
       return;
     }
     state.slides = state.slides.map((slide) => {
       if (slide.id !== state.selectedSlideId) {
         return slide;
       }
-      const key = target === "row" ? "rows" : "columns";
+      const key = target === "row" ? "rows" : target === "column" ? "columns" : "cells";
       const tableHighlights = {
         rows: Object.assign({}, slide.tableHighlights && slide.tableHighlights.rows),
         columns: Object.assign({}, slide.tableHighlights && slide.tableHighlights.columns),
+        cells: Object.assign({}, slide.tableHighlights && slide.tableHighlights.cells),
       };
       tableHighlights[key][String(index)] = color.toLowerCase();
       return Object.assign({}, slide, { tableHighlights });
@@ -1802,17 +1913,19 @@
   }
 
   function removeSelectedTableFill(target, index) {
-    if ((target !== "row" && target !== "column") || !Number.isInteger(index) || index < 0) {
+    const isCellTarget = target === "cell";
+    if ((target !== "row" && target !== "column" && target !== "cell") || (!isCellTarget && (!Number.isInteger(index) || index < 0)) || (isCellTarget && !parseTableCellKey(index))) {
       return;
     }
     state.slides = state.slides.map((slide) => {
       if (slide.id !== state.selectedSlideId) {
         return slide;
       }
-      const key = target === "row" ? "rows" : "columns";
+      const key = target === "row" ? "rows" : target === "column" ? "columns" : "cells";
       const tableHighlights = {
         rows: Object.assign({}, slide.tableHighlights && slide.tableHighlights.rows),
         columns: Object.assign({}, slide.tableHighlights && slide.tableHighlights.columns),
+        cells: Object.assign({}, slide.tableHighlights && slide.tableHighlights.cells),
       };
       delete tableHighlights[key][String(index)];
       return Object.assign({}, slide, { tableHighlights });
@@ -2539,6 +2652,9 @@
   refs.slideBulletsProgressive.addEventListener("change", (event) => updateSelectedSlide({
     bulletsProgressive: Boolean(event.target.checked),
   }));
+  refs.slideBulletsSubProgressive.addEventListener("change", (event) => updateSelectedSlide({
+    bulletsSubProgressive: Boolean(event.target.checked),
+  }));
   refs.slideTableProgressive.addEventListener("change", (event) => updateSelectedSlide({
     tableProgressive: Boolean(event.target.checked),
   }));
@@ -2609,6 +2725,9 @@
   });
   refs.canvasAddText.addEventListener("click", () => addCanvasElement("text"));
   refs.canvasAddArrow.addEventListener("click", () => addCanvasElement("arrow"));
+  refs.canvasAddCircle.addEventListener("click", () => addCanvasElement("shape", { shapeKind: "circle" }));
+  refs.canvasAddSquare.addEventListener("click", () => addCanvasElement("shape", { shapeKind: "square" }));
+  refs.canvasAddBubble.addEventListener("click", () => addCanvasElement("shape", { shapeKind: "bubble" }));
   refs.canvasProgressive.addEventListener("change", (event) => updateSelectedCanvasData({
     progressive: Boolean(event.target.checked),
   }));
@@ -2793,6 +2912,12 @@
       arrowLength: Number(nextValue),
     }, false);
   });
+  refs.canvasShapeKind.addEventListener("change", (event) => updateSelectedCanvasElement({
+    shapeKind: normalizeCanvasShapeKind(event.target.value),
+  }, false));
+  refs.canvasShapeColor.addEventListener("input", (event) => updateSelectedCanvasElement({
+    color: normalizeCanvasColor(event.target.value, "#0a66ff"),
+  }, false));
   refs.freeLinksList.addEventListener("input", (event) => {
     const labelInput = event.target.closest("[data-free-link-label]");
     if (labelInput) {
@@ -2941,10 +3066,22 @@
       return;
     }
     const [rowIndex, columnIndex] = input.getAttribute("data-table-cell").split("-").map(Number);
+    selectedTableCell = { row: rowIndex, column: columnIndex };
     pendingTableFocus = { row: rowIndex, column: columnIndex, caret: input.selectionStart || 0 };
     updateSelectedTableCell(rowIndex, columnIndex, ns.utils.clampText(input.value, 120), false);
   });
-  refs.tableFillTarget.addEventListener("change", () => render());
+  refs.tableEditorGrid.addEventListener("focusin", (event) => {
+    const input = event.target.closest("[data-table-cell]");
+    if (!input) {
+      return;
+    }
+    const [rowIndex, columnIndex] = input.getAttribute("data-table-cell").split("-").map(Number);
+    selectedTableCell = { row: rowIndex, column: columnIndex };
+    if (refs.tableFillTarget.value === "cell") {
+      syncTableFillControls();
+    }
+  });
+  refs.tableFillTarget.addEventListener("change", () => syncTableFillControls());
   refs.tableFillIndex.addEventListener("change", () => {
     refs.tableFillColor.value = getSelectedTableFillColor();
   });
@@ -2968,7 +3105,9 @@
     resizeSelectedTable((slide.table || []).length, Math.max(2, getTableColumnCount(slide.table) - 1));
   });
   refs.addTableFill.addEventListener("click", () => {
-    setSelectedTableFill(refs.tableFillTarget.value, Number(refs.tableFillIndex.value), normalizeHexColor(refs.tableFillColor.value));
+    const target = refs.tableFillTarget.value;
+    const index = target === "cell" ? refs.tableFillIndex.value : Number(refs.tableFillIndex.value);
+    setSelectedTableFill(target, index, normalizeHexColor(refs.tableFillColor.value));
   });
   refs.mediaUploadTrigger.addEventListener("click", () => refs.mediaUpload.click());
   refs.importJson.addEventListener("click", () => refs.importJsonInput.click());
@@ -3240,8 +3379,8 @@
     }
 
     if (removeTableFillTrigger) {
-      const [target, index] = removeTableFillTrigger.getAttribute("data-remove-table-fill").split("-");
-      removeSelectedTableFill(target, Number(index));
+      const [target, index] = removeTableFillTrigger.getAttribute("data-remove-table-fill").split(":");
+      removeSelectedTableFill(target, target === "cell" ? index : Number(index));
       return;
     }
 

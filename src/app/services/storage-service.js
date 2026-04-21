@@ -34,6 +34,10 @@
     return Math.round(Math.max(40, Math.min(800, safeValue)));
   }
 
+  function normalizeCanvasShapeKind(value) {
+    return value === "square" || value === "bubble" ? value : "circle";
+  }
+
   function safeRead(key) {
     try {
       return localStorage.getItem(key);
@@ -129,6 +133,7 @@
               : "bullets",
       bulletsNumbered: Boolean(slide.bulletsNumbered),
       bulletsProgressive: Boolean(slide.bulletsProgressive),
+      bulletsSubProgressive: Boolean(slide.bulletsSubProgressive),
       tableProgressive: Boolean(slide.tableProgressive),
       tableProgressiveOrder: slide.tableProgressiveOrder === "column" ? "column" : "row",
       paletteOverride: paletteOptions.includes(slide.paletteOverride) ? slide.paletteOverride : "",
@@ -233,14 +238,14 @@
     }
 
     const utils = ns.utils;
-    const type = input.type === "image" || input.type === "arrow" ? input.type : "text";
+    const type = input.type === "image" || input.type === "arrow" || input.type === "shape" ? input.type : "text";
     const base = {
       id: typeof input.id === "string" && input.id ? input.id : utils.createId("canvas"),
       type,
       x: clampCanvasMetric(input.x, 10 + ((index % 3) * 8), 0, 94),
       y: clampCanvasMetric(input.y, 10 + ((index % 4) * 6), -14, 94),
-      w: clampCanvasMetric(input.w, type === "arrow" ? 18 : type === "image" ? 26 : 32, 6, 100),
-      h: clampCanvasMetric(input.h, type === "arrow" ? 10 : type === "image" ? 28 : 18, 6, 100),
+      w: clampCanvasMetric(input.w, type === "arrow" ? 18 : type === "image" ? 26 : type === "shape" ? 22 : 32, 6, 100),
+      h: clampCanvasMetric(input.h, type === "arrow" ? 10 : type === "image" ? 28 : type === "shape" ? 22 : 18, 6, 100),
       revealOrder: Math.max(1, Math.min(24, Math.round(Number(input.revealOrder) || (index + 1)))),
     };
 
@@ -259,6 +264,13 @@
         color: normalizeHexColor(input.color, "#0a66ff"),
         rotation: normalizeCanvasRotation(input.rotation, 0),
         arrowLength: normalizeCanvasArrowLength(input.arrowLength, 100),
+      });
+    }
+
+    if (type === "shape") {
+      return Object.assign(base, {
+        shapeKind: normalizeCanvasShapeKind(input.shapeKind),
+        color: normalizeHexColor(input.color, "#0a66ff"),
       });
     }
 
@@ -296,9 +308,34 @@
       return result;
     };
 
+    const sanitizeCellMap = (mapInput, maxRow, maxCol) => {
+      const result = {};
+      if (!mapInput || typeof mapInput !== "object") {
+        return result;
+      }
+      Object.keys(mapInput).forEach((key) => {
+        const match = String(key).match(/^(\d+)-(\d+)$/);
+        const value = typeof mapInput[key] === "string" ? mapInput[key].trim() : "";
+        if (!match) {
+          return;
+        }
+        const rowIndex = Number(match[1]);
+        const columnIndex = Number(match[2]);
+        if (!Number.isInteger(rowIndex) || !Number.isInteger(columnIndex) || rowIndex < 0 || columnIndex < 0 || rowIndex >= maxRow || columnIndex >= maxCol) {
+          return;
+        }
+        if (!/^#[0-9a-fA-F]{6}$/.test(value)) {
+          return;
+        }
+        result[`${rowIndex}-${columnIndex}`] = value.toLowerCase();
+      });
+      return result;
+    };
+
     return {
       rows: sanitizeMap(input && input.rows, rowCount),
       columns: sanitizeMap(input && input.columns, colCount),
+      cells: sanitizeCellMap(input && input.cells, rowCount, colCount),
     };
   }
 

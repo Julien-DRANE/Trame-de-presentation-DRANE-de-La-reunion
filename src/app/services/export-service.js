@@ -553,6 +553,35 @@
       .canvas-element-text-content p:last-child {
         margin-bottom: 0;
       }
+      .canvas-element-shape-content {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        border: clamp(0.14rem, 0.28vw, 0.22rem) solid var(--canvas-shape-color, #0a66ff);
+        background: var(--canvas-shape-fill, rgba(10, 102, 255, 0.14));
+        box-shadow: 0 8px 20px rgba(18, 32, 51, 0.08);
+      }
+      .canvas-element-shape-content.is-circle {
+        border-radius: 999px;
+      }
+      .canvas-element-shape-content.is-square {
+        border-radius: 20px;
+      }
+      .canvas-element-shape-content.is-bubble {
+        border-radius: 22px;
+      }
+      .canvas-shape-bubble-tail {
+        position: absolute;
+        left: clamp(0.8rem, 18%, 1.4rem);
+        bottom: calc(-1 * clamp(0.42rem, 10%, 0.7rem));
+        width: clamp(0.95rem, 18%, 1.4rem);
+        height: clamp(0.95rem, 18%, 1.4rem);
+        border-right: clamp(0.14rem, 0.28vw, 0.22rem) solid var(--canvas-shape-color, #0a66ff);
+        border-bottom: clamp(0.14rem, 0.28vw, 0.22rem) solid var(--canvas-shape-color, #0a66ff);
+        background: var(--canvas-shape-fill, rgba(10, 102, 255, 0.14));
+        transform: rotate(40deg);
+        border-bottom-right-radius: 0.3rem;
+      }
       .canvas-element-media-content {
         overflow: hidden;
         border-radius: 22px;
@@ -808,7 +837,7 @@
         cursor: zoom-in;
       }
       .deck-slide.is-table-slide .slide-content {
-        padding-right: clamp(2.3rem, 4.8vw, 3.35rem);
+        padding-right: clamp(1.2rem, 2.4vw, 1.9rem);
       }
       .deck-slide.is-table-slide .slide-body {
         grid-template-columns: minmax(0, 1fr);
@@ -820,17 +849,22 @@
         flex-direction: column;
         flex: 1 1 auto;
         min-height: 0;
+        gap: 0.18rem;
       }
       .deck-slide.is-table-slide .slide-headline {
-        max-width: 22ch;
+        max-width: 24ch;
+        line-height: 1.04;
       }
       .deck-slide.is-table-slide .slide-subtitle-text {
-        max-width: 70ch;
+        max-width: 74ch;
+        margin-bottom: 0.1rem;
+        font-size: clamp(0.98rem, 1.22vw, 1.12rem);
+        line-height: 1.24;
       }
       .deck-slide.is-table-slide .slide-table {
         width: 100%;
         max-width: none;
-        margin-top: 0.72rem;
+        margin-top: 0.42rem;
         flex: 1 1 auto;
         min-height: 0;
         height: 100%;
@@ -842,55 +876,55 @@
       }
       .deck-slide.is-table-slide .slide-table-cell {
         min-height: 0;
-        padding: 0.82rem 0.96rem;
-        font-size: clamp(1rem, 1.5vw, 1.22rem);
-        line-height: 1.28;
+        padding: 0.88rem 1rem;
+        font-size: clamp(1.08rem, 1.62vw, 1.34rem);
+        line-height: 1.22;
         display: flex;
         flex-direction: column;
         justify-content: center;
       }
       .deck-slide.is-table-slide .slide-table.slide-table-dense-1 .slide-table-cell {
-        padding: 0.72rem 0.86rem;
-        font-size: clamp(0.94rem, 1.38vw, 1.14rem);
-        line-height: 1.24;
+        padding: 0.78rem 0.9rem;
+        font-size: clamp(1rem, 1.46vw, 1.22rem);
+        line-height: 1.2;
       }
       .deck-slide.is-table-slide .slide-table.slide-table-dense-2 .slide-table-cell {
-        padding: 0.64rem 0.78rem;
-        font-size: clamp(0.88rem, 1.28vw, 1.06rem);
-        line-height: 1.22;
-      }
-      .deck-slide.is-table-slide .slide-table.slide-table-dense-3 .slide-table-cell {
-        padding: 0.56rem 0.7rem;
-        font-size: clamp(0.82rem, 1.18vw, 0.98rem);
+        padding: 0.68rem 0.82rem;
+        font-size: clamp(0.94rem, 1.34vw, 1.14rem);
         line-height: 1.18;
       }
+      .deck-slide.is-table-slide .slide-table.slide-table-dense-3 .slide-table-cell {
+        padding: 0.6rem 0.74rem;
+        font-size: clamp(0.86rem, 1.22vw, 1.04rem);
+        line-height: 1.15;
+      }
       .deck-slide.is-table-slide .slide-table.slide-table-dense-4 .slide-table-cell {
-        padding: 0.46rem 0.6rem;
-        font-size: clamp(0.74rem, 1.02vw, 0.9rem);
-        line-height: 1.12;
-      }
-      .deck-slide.is-table-slide .slide-table.slide-table-dense-5 .slide-table-cell {
-        padding: 0.34rem 0.48rem;
-        font-size: clamp(0.66rem, 0.9vw, 0.8rem);
-        line-height: 1.04;
-      }
-      .deck-slide.is-table-slide .slide-table[data-row-count="8"] .slide-table-cell {
-        padding: 0.42rem 0.56rem;
-        font-size: clamp(0.72rem, 1.04vw, 0.9rem);
+        padding: 0.5rem 0.62rem;
+        font-size: clamp(0.78rem, 1.08vw, 0.94rem);
         line-height: 1.1;
       }
-      .deck-slide.is-table-slide .slide-table.slide-table-dense-4[data-row-count="8"] .slide-table-cell {
-        padding: 0.32rem 0.44rem;
-        font-size: clamp(0.64rem, 0.88vw, 0.78rem);
+      .deck-slide.is-table-slide .slide-table.slide-table-dense-5 .slide-table-cell {
+        padding: 0.38rem 0.5rem;
+        font-size: clamp(0.7rem, 0.94vw, 0.84rem);
         line-height: 1.02;
       }
+      .deck-slide.is-table-slide .slide-table[data-row-count="8"] .slide-table-cell {
+        padding: 0.46rem 0.6rem;
+        font-size: clamp(0.76rem, 1.08vw, 0.94rem);
+        line-height: 1.08;
+      }
+      .deck-slide.is-table-slide .slide-table.slide-table-dense-4[data-row-count="8"] .slide-table-cell {
+        padding: 0.36rem 0.48rem;
+        font-size: clamp(0.68rem, 0.9vw, 0.82rem);
+        line-height: 1;
+      }
       .deck-slide.is-table-slide .slide-table.slide-table-dense-5[data-row-count="8"] .slide-table-cell {
-        padding: 0.24rem 0.34rem;
-        font-size: clamp(0.58rem, 0.78vw, 0.7rem);
-        line-height: 0.98;
+        padding: 0.28rem 0.38rem;
+        font-size: clamp(0.62rem, 0.8vw, 0.74rem);
+        line-height: 0.96;
       }
       .deck-slide.is-table-slide .slide-footer {
-        padding-top: 0.5rem;
+        padding-top: 0.24rem;
       }
       .slide-table-row {
         display: grid;
@@ -1996,51 +2030,51 @@
       }
       .table-lightbox-table .slide-table-cell {
         min-height: 0;
-        padding: 1.1rem 1.18rem;
-        font-size: clamp(1.5rem, 2.45vw, 2.28rem);
+        padding: 1.14rem 1.22rem;
+        font-size: clamp(1.62rem, 2.62vw, 2.44rem);
         line-height: 1.08;
         display: flex;
         flex-direction: column;
         justify-content: center;
       }
       .table-lightbox-table.slide-table.slide-table-dense-1 .slide-table-cell {
-        padding: 1rem 1.06rem;
-        font-size: clamp(1.34rem, 2.12vw, 1.92rem);
+        padding: 1.04rem 1.1rem;
+        font-size: clamp(1.44rem, 2.28vw, 2.08rem);
         line-height: 1.08;
       }
       .table-lightbox-table.slide-table.slide-table-dense-2 .slide-table-cell {
-        padding: 0.92rem 0.98rem;
-        font-size: clamp(1.22rem, 1.92vw, 1.68rem);
+        padding: 0.96rem 1.02rem;
+        font-size: clamp(1.3rem, 2.04vw, 1.82rem);
         line-height: 1.06;
       }
       .table-lightbox-table.slide-table.slide-table-dense-3 .slide-table-cell {
-        padding: 0.82rem 0.88rem;
-        font-size: clamp(1.12rem, 1.72vw, 1.46rem);
+        padding: 0.86rem 0.92rem;
+        font-size: clamp(1.18rem, 1.84vw, 1.58rem);
         line-height: 1.04;
       }
       .table-lightbox-table.slide-table.slide-table-dense-4 .slide-table-cell {
-        padding: 0.72rem 0.8rem;
-        font-size: clamp(1rem, 1.54vw, 1.28rem);
+        padding: 0.76rem 0.84rem;
+        font-size: clamp(1.06rem, 1.64vw, 1.38rem);
         line-height: 1.02;
       }
       .table-lightbox-table.slide-table.slide-table-dense-5 .slide-table-cell {
-        padding: 0.62rem 0.72rem;
-        font-size: clamp(0.92rem, 1.38vw, 1.14rem);
+        padding: 0.66rem 0.76rem;
+        font-size: clamp(0.98rem, 1.46vw, 1.22rem);
         line-height: 1;
       }
       .table-lightbox-table[data-row-count="8"] .slide-table-cell {
-        padding: 0.78rem 0.88rem;
-        font-size: clamp(1.14rem, 1.78vw, 1.5rem);
+        padding: 0.82rem 0.92rem;
+        font-size: clamp(1.2rem, 1.9vw, 1.62rem);
         line-height: 1.04;
       }
       .table-lightbox-table.slide-table.slide-table-dense-4[data-row-count="8"] .slide-table-cell {
-        padding: 0.62rem 0.72rem;
-        font-size: clamp(0.96rem, 1.42vw, 1.18rem);
+        padding: 0.66rem 0.76rem;
+        font-size: clamp(1rem, 1.5vw, 1.26rem);
         line-height: 1;
       }
       .table-lightbox-table.slide-table.slide-table-dense-5[data-row-count="8"] .slide-table-cell {
-        padding: 0.54rem 0.64rem;
-        font-size: clamp(0.88rem, 1.28vw, 1.06rem);
+        padding: 0.58rem 0.68rem;
+        font-size: clamp(0.92rem, 1.36vw, 1.12rem);
         line-height: 0.98;
       }
       .table-lightbox-close {
@@ -2175,21 +2209,21 @@
           height: 88vh;
         }
         .table-lightbox-table .slide-table-cell {
-          padding: 0.58rem 0.64rem;
-          font-size: 0.96rem;
+          padding: 0.64rem 0.7rem;
+          font-size: 1.04rem;
           line-height: 1.08;
         }
         .table-lightbox-table.slide-table.slide-table-dense-1 .slide-table-cell {
-          padding: 0.54rem 0.6rem;
-          font-size: 0.92rem;
+          padding: 0.58rem 0.64rem;
+          font-size: 0.98rem;
         }
         .table-lightbox-table.slide-table.slide-table-dense-2 .slide-table-cell {
-          padding: 0.5rem 0.56rem;
-          font-size: 0.88rem;
+          padding: 0.54rem 0.6rem;
+          font-size: 0.94rem;
         }
         .table-lightbox-table.slide-table.slide-table-dense-3 .slide-table-cell {
-          padding: 0.46rem 0.52rem;
-          font-size: 0.84rem;
+          padding: 0.5rem 0.56rem;
+          font-size: 0.9rem;
         }
         .slide-side-column {
           gap: 0.7rem;

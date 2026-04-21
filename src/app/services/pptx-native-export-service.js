@@ -1005,9 +1005,10 @@
     const table = Array.isArray(slide.table) ? slide.table : [];
     const tableHighlights = slide.tableHighlights || {};
     return table.map((row, rowIndex) => row.map((cell, colIndex) => {
+      const cellColor = tableHighlights.cells ? tableHighlights.cells[`${rowIndex}-${colIndex}`] : "";
       const rowColor = tableHighlights.rows ? tableHighlights.rows[String(rowIndex)] : "";
       const columnColor = tableHighlights.columns ? tableHighlights.columns[String(colIndex)] : "";
-      const fillColor = rowColor || columnColor;
+      const fillColor = cellColor || rowColor || columnColor;
       const isHeader = rowIndex === 0 || (row.length > 2 && colIndex === 0);
       return {
         text: flattenLinkedText(cell || ""),

@@ -351,9 +351,12 @@
     const utils = ns.utils;
     const opts = options || {};
     const numbered = Boolean(opts.numbered);
-    const startAt = Math.max(1, Number(opts.startAt) || 1);
+    const numberStart = Math.max(1, Number(opts.numberStart !== undefined ? opts.numberStart : opts.startAt) || 1);
+    const revealStart = Math.max(1, Number(opts.revealStart !== undefined ? opts.revealStart : opts.startAt) || 1);
     const className = opts.className || "slide-bullets";
     const progressive = Boolean(opts.progressive);
+    const progressiveChildren = Boolean(opts.progressiveChildren) && progressive;
+    let revealStepCursor = revealStart;
 
     return `
       <ul class="${className}${numbered ? " is-numbered" : ""}">
@@ -361,15 +364,22 @@
           .map((item, index) => {
             const bulletItem = typeof item === "string" ? { text: item, children: [] } : item;
             const marker = numbered
-              ? `<span class="slide-bullet-marker">${String(startAt + index).padStart(2, "0")}</span>`
+              ? `<span class="slide-bullet-marker">${String(numberStart + index).padStart(2, "0")}</span>`
               : "";
-            const revealAttrs = progressive
-              ? ` data-reveal-step="${startAt + index}" class="slide-reveal-item"`
+            const revealStep = progressive ? revealStepCursor++ : null;
+            const revealAttrs = revealStep
+              ? ` data-reveal-step="${revealStep}" class="slide-reveal-item"`
               : "";
             const childrenMarkup = Array.isArray(bulletItem.children) && bulletItem.children.length
               ? `
                 <ul class="slide-sub-bullets">
-                  ${bulletItem.children.map((child) => `<li>${createLinkedTextMarkup(child, { textClass: "slide-sub-bullet-text", linksClass: "slide-link-bubbles slide-link-bubbles-sub" })}</li>`).join("")}
+                  ${bulletItem.children.map((child) => {
+                    const childRevealStep = progressiveChildren ? revealStepCursor++ : null;
+                    const childRevealAttrs = childRevealStep
+                      ? ` data-reveal-step="${childRevealStep}" class="slide-reveal-item"`
+                      : "";
+                    return `<li${childRevealAttrs}>${createLinkedTextMarkup(child, { textClass: "slide-sub-bullet-text", linksClass: "slide-link-bubbles slide-link-bubbles-sub" })}</li>`;
+                  }).join("")}
                 </ul>
               `
               : "";
@@ -392,6 +402,19 @@
       text,
       children: Array.isArray(subBullets[index]) ? subBullets[index].filter((item) => item && item.trim()) : [],
     }));
+  }
+
+  function countBulletRevealSteps(items, options) {
+    const bulletItems = Array.isArray(items) ? items : [];
+    const opts = options || {};
+    const progressive = Boolean(opts.progressive);
+    const progressiveChildren = Boolean(opts.progressiveChildren) && progressive;
+
+    return bulletItems.reduce((count, item) => {
+      const bulletItem = item && typeof item === "object" ? item : { text: String(item || ""), children: [] };
+      const children = Array.isArray(bulletItem.children) ? bulletItem.children : [];
+      return count + (progressive ? 1 : 0) + (progressiveChildren ? children.length : 0);
+    }, 0);
   }
 
   function splitBulletsForLayout(bulletsInput) {
@@ -491,9 +514,10 @@
   }
 
   function getTableCellFillStyle(tableHighlights, rowIndex, columnIndex) {
+    const cellColor = tableHighlights && tableHighlights.cells ? tableHighlights.cells[`${rowIndex}-${columnIndex}`] : "";
     const rowColor = tableHighlights && tableHighlights.rows ? tableHighlights.rows[String(rowIndex)] : "";
     const columnColor = tableHighlights && tableHighlights.columns ? tableHighlights.columns[String(columnIndex)] : "";
-    const color = rowColor || columnColor;
+    const color = cellColor || rowColor || columnColor;
     return color ? `background:${ns.utils.escapeHtml(color)};` : "";
   }
 
@@ -579,7 +603,7 @@
     return `
       <div class="slide-table${densityClass}" data-table-lightbox="true" data-row-count="${rowCount}" data-column-count="${columnCount}">
         ${table.map((row, rowIndex) => `
-          <div class="slide-table-row${progressive && rowIndex > 0 && columnCount > 2 ? " slide-reveal-item" : ""}" style="grid-template-columns: repeat(${row.length}, minmax(0, 1fr));"${progressive && rowIndex > 0 && columnCount > 2 ? ` data-reveal-step="${rowIndex}"` : ""}>
+          <div class="slide-table-row${progressive && progressiveOrder === "row" && rowIndex > 0 && columnCount > 2 ? " slide-reveal-item" : ""}" style="grid-template-columns: repeat(${row.length}, minmax(0, 1fr));"${progressive && progressiveOrder === "row" && rowIndex > 0 && columnCount > 2 ? ` data-reveal-step="${rowIndex}"` : ""}>
             ${row.map((cell, columnIndex) => {
               const isHeaderCell = rowIndex === 0 || (columnCount > 2 && columnIndex === 0);
               const headerClass = isHeaderCell ? " slide-table-cell-header" : "";
@@ -587,7 +611,8 @@
               const revealStep = progressiveOrder === "column"
                 ? (columnIndex * bodyRowCount) + rowIndex
                 : ((rowIndex - 1) * columnCount) + columnIndex + 1;
-              const revealAttrs = progressive && rowIndex > 0 && columnCount <= 2
+              const shouldRevealCell = progressive && rowIndex > 0 && (columnCount <= 2 || progressiveOrder === "column");
+              const revealAttrs = shouldRevealCell
                 ? ` class="slide-table-cell${headerClass} slide-reveal-item" data-reveal-step="${revealStep}"`
                 : ` class="slide-table-cell${headerClass}"`;
               return `<div${revealAttrs}${fillStyle ? ` style="${fillStyle}"` : ""}>${createLinkedTextMarkup(cell || "", { textClass: "slide-table-cell-text", linksClass: "slide-link-bubbles slide-link-bubbles-table" })}</div>`;
@@ -640,14 +665,16 @@
     `;
   }
 
-  function createBulletSideColumnMarkup(extraBullets, slide, options, numberingStart, progressive, layoutOptions) {
+  function createBulletSideColumnMarkup(extraBullets, slide, options, numberingStart, revealStart, progressive, progressiveChildren, layoutOptions) {
     const layout = layoutOptions || {};
     const sideBulletsMarkup = Array.isArray(extraBullets) && extraBullets.length
       ? createBulletListMarkup(extraBullets, {
           className: "slide-side-bullets",
           numbered: Boolean(slide && slide.bulletsNumbered),
-          startAt: numberingStart,
+          numberStart: numberingStart,
+          revealStart,
           progressive: Boolean(progressive),
+          progressiveChildren: Boolean(progressiveChildren),
         })
       : "";
     const mediaMarkup = createSlideMediaMarkup(slide, options);
@@ -880,16 +907,32 @@
     return Math.round(Math.max(40, Math.min(800, safeValue)));
   }
 
+  function normalizeCanvasShapeKind(value) {
+    return value === "square" || value === "bubble" ? value : "circle";
+  }
+
+  function canvasHexToRgba(value, alpha) {
+    const match = String(value || "").match(/^#?([0-9a-f]{6})$/i);
+    if (!match) {
+      return `rgba(10, 102, 255, ${alpha})`;
+    }
+    const hex = match[1];
+    const r = Number.parseInt(hex.slice(0, 2), 16);
+    const g = Number.parseInt(hex.slice(2, 4), 16);
+    const b = Number.parseInt(hex.slice(4, 6), 16);
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  }
+
   function normalizeCanvasElement(element, index) {
     const input = element && typeof element === "object" ? element : {};
-    const type = input.type === "image" || input.type === "arrow" ? input.type : "text";
+    const type = input.type === "image" || input.type === "arrow" || input.type === "shape" ? input.type : "text";
     const normalized = {
       id: typeof input.id === "string" && input.id ? input.id : ns.utils.createId("canvas"),
       type,
       x: clampCanvasMetric(input.x, 10 + ((index % 3) * 8), 0, 94),
       y: clampCanvasMetric(input.y, 12 + ((index % 4) * 6), -14, 94),
-      w: clampCanvasMetric(input.w, type === "arrow" ? 18 : type === "image" ? 28 : 34, 6, 100),
-      h: clampCanvasMetric(input.h, type === "arrow" ? 10 : type === "image" ? 30 : 18, 6, 100),
+      w: clampCanvasMetric(input.w, type === "arrow" ? 18 : type === "image" ? 28 : type === "shape" ? 22 : 34, 6, 100),
+      h: clampCanvasMetric(input.h, type === "arrow" ? 10 : type === "image" ? 30 : type === "shape" ? 22 : 18, 6, 100),
       revealOrder: Math.max(1, Math.min(24, Math.round(Number(input.revealOrder) || (index + 1)))),
     };
 
@@ -906,6 +949,12 @@
       normalized.color = /^#[0-9a-fA-F]{6}$/.test(input.color || "") ? input.color : "#0a66ff";
       normalized.rotation = normalizeCanvasRotation(input.rotation, 0);
       normalized.arrowLength = normalizeCanvasArrowLength(input.arrowLength, 100);
+      return normalized;
+    }
+
+    if (type === "shape") {
+      normalized.shapeKind = normalizeCanvasShapeKind(input.shapeKind);
+      normalized.color = /^#[0-9a-fA-F]{6}$/.test(input.color || "") ? input.color : "#0a66ff";
       return normalized;
     }
 
@@ -981,6 +1030,19 @@
       `;
     }
 
+    if (element.type === "shape") {
+      const shapeKind = normalizeCanvasShapeKind(element.shapeKind);
+      const shapeTailMarkup = shapeKind === "bubble" ? '<span class="canvas-shape-bubble-tail" aria-hidden="true"></span>' : "";
+      return `
+        <div ${baseAttrs}${revealAttrs}>
+          <div class="canvas-element-content canvas-element-shape-content is-${ns.utils.escapeHtml(shapeKind)}" style="--canvas-shape-color:${ns.utils.escapeHtml(element.color || "#0a66ff")}; --canvas-shape-fill:${ns.utils.escapeHtml(canvasHexToRgba(element.color || "#0a66ff", 0.14))};">
+            ${shapeTailMarkup}
+          </div>
+          ${interactive ? '<button class="canvas-resize-handle" type="button" data-canvas-resize-handle="true" aria-label="Redimensionner l’élément"></button>' : ""}
+        </div>
+      `;
+    }
+
     const textFont = getFontOption(element.fontOptionId || opts.deckFontId || "studio");
     return `
       <div ${baseAttrs}${revealAttrs}>
@@ -1026,6 +1088,7 @@
     const extraBulletsWeight = Number(bulletColumns.extraWeight) || 0;
     const bulletsNumbered = Boolean(slide.bulletsNumbered);
     const bulletsProgressive = Boolean(slide.bulletsProgressive) && !opts.compact && !isFreeMode && !isTableMode && !isVisualMode && !isCanvasMode;
+    const bulletsSubProgressive = bulletsProgressive && Boolean(slide.bulletsSubProgressive);
     const tableProgressive = Boolean(slide.tableProgressive) && !opts.compact && isTableMode;
     const tableProgressiveOrder = slide.tableProgressiveOrder === "column" ? "column" : "row";
     const visualData = slide.visualData || {};
@@ -1038,17 +1101,28 @@
     );
     const canKeepMediaWithExtendedBullets = Boolean(slideMedia) && allBullets.length > 3 && allBullets.length <= 6;
     const useSecondBulletSideLayout = shouldUseSecondBulletSideLayout(slide, allBullets, slideMediaItems.length);
+    const mainBulletsRevealCount = countBulletRevealSteps(mainBullets, {
+      progressive: bulletsProgressive,
+      progressiveChildren: bulletsSubProgressive,
+    });
+    const firstBulletRevealCount = countBulletRevealSteps(allBullets.slice(0, 1), {
+      progressive: bulletsProgressive,
+      progressiveChildren: bulletsSubProgressive,
+    });
     const bulletMarkup = mainBullets.length
       ? createBulletListMarkup(mainBullets, {
           className: "slide-bullets",
           numbered: bulletsNumbered,
-          startAt: 1,
+          numberStart: 1,
+          revealStart: 1,
           progressive: bulletsProgressive,
+          progressiveChildren: bulletsSubProgressive,
         })
       : createBulletListMarkup(["Ajoutez un point cle pour structurer la slide."], {
           className: "slide-bullets",
           numbered: false,
-          startAt: 1,
+          numberStart: 1,
+          revealStart: 1,
           progressive: false,
         });
     const extendedBulletMarkup = createBulletListMarkup(
@@ -1056,8 +1130,10 @@
       {
         className: "slide-bullets",
         numbered: allBullets.length ? bulletsNumbered : false,
-        startAt: 1,
+        numberStart: 1,
+        revealStart: 1,
         progressive: allBullets.length ? bulletsProgressive : false,
+        progressiveChildren: allBullets.length ? bulletsSubProgressive : false,
       }
     );
     const compactClass = opts.compact ? " deck-slide-compact" : "";
@@ -1069,7 +1145,9 @@
           moveMediaBelowPrimaryBullets || useFloatingTopRightMedia ? Object.assign({}, slide, { mediaId: "", secondaryMediaId: "" }) : slide,
           opts,
           mainBullets.length + 1,
+          mainBulletsRevealCount + 1,
           bulletsProgressive,
+          bulletsSubProgressive,
           undefined
         )
       : createSlideMediaMarkup(slide, opts);
@@ -1079,7 +1157,9 @@
           Object.assign({}, slide, { mediaId: "", secondaryMediaId: "" }),
           opts,
           2,
-          bulletsProgressive
+          firstBulletRevealCount + 1,
+          bulletsProgressive,
+          bulletsSubProgressive
         )
       : "";
     const headline = slide.title ? `<h3 class="slide-headline">${utils.escapeHtml(slide.title)}</h3>` : "";
@@ -1115,8 +1195,10 @@
           ${createBulletListMarkup([allBullets[0]], {
             className: "slide-bullets",
             numbered: bulletsNumbered,
-            startAt: 1,
+            numberStart: 1,
+            revealStart: 1,
             progressive: bulletsProgressive,
+            progressiveChildren: bulletsSubProgressive,
           })}
           <aside class="slide-media-slot slide-side-bullets-slot slide-side-bullets-slot-second-heavy">${secondBulletSideMarkup}</aside>
         </div>
