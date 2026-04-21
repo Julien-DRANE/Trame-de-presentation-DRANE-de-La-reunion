@@ -127,6 +127,10 @@
   gap: 0.9rem;
 }
 
+.thumb-strip[hidden] {
+  display: none;
+}
+
 @media (max-width: 1240px) {
   .workspace {
     grid-template-columns: 1fr;

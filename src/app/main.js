@@ -49,6 +49,7 @@
     mediaUpload: document.querySelector("#media-upload"),
     mediaUploadTrigger: document.querySelector("#media-upload-trigger"),
     toggleMediaPanel: document.querySelector("#toggle-media-panel"),
+    toggleThumbStrip: document.querySelector("#toggle-thumb-strip"),
     slideMediaPanelBody: document.querySelector("#slide-media-panel-body"),
     clearSlideMedia: document.querySelector("#clear-slide-media"),
     mediaLinkInput: document.querySelector("#media-link-input"),
@@ -726,6 +727,11 @@
 
   function toggleMediaPanel() {
     state.uiMediaPanelCollapsed = !state.uiMediaPanelCollapsed;
+    render();
+  }
+
+  function toggleThumbStrip() {
+    state.uiThumbStripCollapsed = !state.uiThumbStripCollapsed;
     render();
   }
 
@@ -3125,6 +3131,7 @@
   refs.importJson.addEventListener("click", () => refs.importJsonInput.click());
   refs.toggleNightMode.addEventListener("click", toggleNightMode);
   refs.toggleMediaPanel.addEventListener("click", toggleMediaPanel);
+  refs.toggleThumbStrip.addEventListener("click", toggleThumbStrip);
   refs.importJsonInput.addEventListener("change", async (event) => {
     const file = event.target.files && event.target.files[0];
     if (!file) {

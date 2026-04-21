@@ -134,6 +134,7 @@
       view: "engineering",
       uiNightMode: false,
       uiMediaPanelCollapsed: false,
+      uiThumbStripCollapsed: false,
       settings: {
         title: "Ingénierie de formation",
         subtitle: "Deck structuré selon Bloom et principes cognitifs.",

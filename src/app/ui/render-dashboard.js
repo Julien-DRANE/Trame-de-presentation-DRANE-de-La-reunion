@@ -292,6 +292,9 @@
     refs.pedagogyBrief.innerHTML = renderPedagogyBrief(selectedSlide, principles);
     refs.mediaLibrary.innerHTML = renderMediaLibrary(state.mediaLibrary, selectedSlide);
     refs.thumbStrip.innerHTML = renderThumbStrip(state, selectedSlide.id);
+    refs.thumbStrip.hidden = Boolean(state.uiThumbStripCollapsed);
+    refs.toggleThumbStrip.textContent = state.uiThumbStripCollapsed ? "Déplier" : "Replier";
+    refs.toggleThumbStrip.setAttribute("aria-expanded", state.uiThumbStripCollapsed ? "false" : "true");
   }
 
   function getMediaSelectionText(selectedSlide, mediaItems) {

@@ -80,6 +80,7 @@
       view: viewOptions.includes(input.view) ? input.view : fallbackState.view,
       uiNightMode: Boolean(input.uiNightMode),
       uiMediaPanelCollapsed: Boolean(input.uiMediaPanelCollapsed),
+      uiThumbStripCollapsed: Boolean(input.uiThumbStripCollapsed),
       settings: {
         title: utils.clampText(input.settings && input.settings.title, 60) || fallbackState.settings.title,
         subtitle: utils.clampText(input.settings && input.settings.subtitle, 90) || fallbackState.settings.subtitle,
