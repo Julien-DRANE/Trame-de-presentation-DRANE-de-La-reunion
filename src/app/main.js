@@ -458,7 +458,7 @@
     refs.noteMeta.textContent = `${selectedSlide.note.length}/180 caractères`;
     refs.objectiveMeta.textContent = `${selectedSlide.objective.length}/180 caractères`;
     refs.evidenceMeta.textContent = `${selectedSlide.evidence.length}/120 caractères`;
-    refs.freeBodyMeta.textContent = `${ns.utils.richTextLength(selectedSlide.freeBody || "")}/1600 caractères`;
+    refs.freeBodyMeta.textContent = `${ns.utils.richTextLength(selectedSlide.freeBody || "")}/3200 caractères`;
     refs.visualBodyMeta.textContent = `${(visualData.body || "").length}/320 caractères`;
     refs.visualCalloutMeta.textContent = `${(visualData.callout || "").length}/180 caractères`;
     refs.densityBadge.className = density.className;
@@ -1843,6 +1843,18 @@
     return selectedTableCell;
   }
 
+  function isEditableTarget(target) {
+    const node = target instanceof Element ? target : null;
+    if (!node) {
+      return false;
+    }
+    const tagName = (node.tagName || "").toLowerCase();
+    if (/^(input|textarea|select)$/i.test(tagName)) {
+      return true;
+    }
+    return Boolean(node.closest('[contenteditable="true"], [contenteditable=""], [contenteditable="plaintext-only"]'));
+  }
+
   function syncTableFillControls() {
     const slide = getSelectedSlide();
     if (!slide) {
@@ -2082,7 +2094,7 @@
       if (slide.id !== state.selectedSlideId) {
         return slide;
       }
-      return Object.assign({}, slide, { freeBody: ns.utils.sanitizeRichText(value, 1600) });
+      return Object.assign({}, slide, { freeBody: ns.utils.sanitizeRichText(value, 3200) });
     });
     scheduleStateSave();
   }
@@ -2091,7 +2103,7 @@
     const selectedSlide = getSelectedSlide();
     syncSelectedCanvasElement();
     renderStage(selectedSlide, { preserveInteractiveMedia: true });
-    refs.freeBodyMeta.textContent = `${ns.utils.richTextLength(selectedSlide.freeBody || "")}/1600 caractères`;
+    refs.freeBodyMeta.textContent = `${ns.utils.richTextLength(selectedSlide.freeBody || "")}/3200 caractères`;
   }
 
   function saveFreeEditorSelection() {
@@ -2117,7 +2129,7 @@
   }
 
   function normalizeFreeEditorMarkup(assignToEditor) {
-    const sanitized = ns.utils.sanitizeRichText(refs.slideFreeBody.innerHTML, 1600);
+    const sanitized = ns.utils.sanitizeRichText(refs.slideFreeBody.innerHTML, 3200);
     if (assignToEditor) {
       refs.slideFreeBody.innerHTML = sanitized;
     }
@@ -2667,7 +2679,7 @@
   refs.addBullet.addEventListener("click", addSelectedBullet);
   refs.slideFreeBody.addEventListener("input", () => {
     saveFreeEditorSelection();
-    if (ns.utils.richTextLength(refs.slideFreeBody.innerHTML) > 1600) {
+    if (ns.utils.richTextLength(refs.slideFreeBody.innerHTML) > 3200) {
       normalizeFreeEditorMarkup(true);
       return;
     }
@@ -3828,7 +3840,7 @@
       ((event.key === "Delete") || (event.key === "Backspace")) &&
       (getSelectedSlide().contentType || "bullets") === "canvas" &&
       selectedCanvasElementId &&
-      !/^(input|textarea|select)$/i.test((event.target && event.target.tagName) || "")
+      !isEditableTarget(event.target)
     ) {
       event.preventDefault();
       removeSelectedCanvasElement();

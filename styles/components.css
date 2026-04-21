@@ -1436,7 +1436,7 @@ select {
 }
 
 .free-editor {
-  min-height: 12rem;
+  min-height: 17rem;
   padding: 0.95rem 1rem;
   border: 1px solid rgba(18, 32, 51, 0.12);
   border-radius: 18px;
@@ -1444,6 +1444,7 @@ select {
   color: var(--ink);
   line-height: 1.38;
   overflow-y: auto;
+  resize: vertical;
 }
 
 .free-editor:focus {

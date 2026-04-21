@@ -116,7 +116,7 @@
     }
     refs.tableFillColor.value = getDefaultTableFillColor(selectedSlide, currentFillTarget, refs.tableFillIndex.value);
     refs.tableFillList.innerHTML = renderTableFillList(selectedSlide);
-    const sanitizedFreeBody = ns.utils.sanitizeRichText(selectedSlide.freeBody || "", 1600);
+    const sanitizedFreeBody = ns.utils.sanitizeRichText(selectedSlide.freeBody || "", 3200);
     if (document.activeElement !== refs.slideFreeBody || refs.slideFreeBody.innerHTML !== sanitizedFreeBody) {
       refs.slideFreeBody.innerHTML = sanitizedFreeBody;
     }
@@ -254,7 +254,7 @@
     refs.titleMeta.textContent = `${selectedSlide.title.length}/72 caractères`;
     refs.subtitleMeta.textContent = `${selectedSlide.subtitle.length}/170 caractères`;
     refs.noteMeta.textContent = `${selectedSlide.note.length}/180 caractères`;
-    refs.freeBodyMeta.textContent = `${ns.utils.richTextLength(selectedSlide.freeBody || "")}/1600 caractères`;
+    refs.freeBodyMeta.textContent = `${ns.utils.richTextLength(selectedSlide.freeBody || "")}/3200 caractères`;
     refs.visualBodyMeta.textContent = `${(visualData.body || "").length}/320 caractères`;
     refs.visualCalloutMeta.textContent = `${(visualData.callout || "").length}/180 caractères`;
     refs.objectiveMeta.textContent = `${selectedSlide.objective.length}/180 caractères`;

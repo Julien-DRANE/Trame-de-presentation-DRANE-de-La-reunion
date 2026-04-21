@@ -601,7 +601,7 @@
     const densityLevel = computeTableDensityLevel(table, opts);
     const densityClass = densityLevel > 0 ? ` slide-table-dense-${densityLevel}` : "";
     return `
-      <div class="slide-table${densityClass}" data-table-lightbox="true" data-row-count="${rowCount}" data-column-count="${columnCount}">
+      <div class="slide-table${densityClass}" data-table-lightbox="true" data-row-count="${rowCount}" data-column-count="${columnCount}" style="--table-row-count:${rowCount};">
         ${table.map((row, rowIndex) => `
           <div class="slide-table-row${progressive && progressiveOrder === "row" && rowIndex > 0 && columnCount > 2 ? " slide-reveal-item" : ""}" style="grid-template-columns: repeat(${row.length}, minmax(0, 1fr));"${progressive && progressiveOrder === "row" && rowIndex > 0 && columnCount > 2 ? ` data-reveal-step="${rowIndex}"` : ""}>
             ${row.map((cell, columnIndex) => {
@@ -625,7 +625,7 @@
 
   function createFreeMarkup(slide, options) {
     const utils = ns.utils;
-    const bodyMarkup = utils.sanitizeRichText(slide.freeBody || "", 1600);
+    const bodyMarkup = utils.sanitizeRichText(slide.freeBody || "", 3200);
     const freeLinks = Array.isArray(slide.freeLinks) ? slide.freeLinks : [];
     const linksMarkup = freeLinks.length
       ? `

@@ -141,7 +141,7 @@
       decorativeAccentSolid: slide.decorativeAccentSolid === undefined ? true : Boolean(slide.decorativeAccentSolid),
       tableHighlights,
       table,
-      freeBody: utils.sanitizeRichText(slide.freeBody, 1600),
+      freeBody: utils.sanitizeRichText(slide.freeBody, 3200),
       freeLinks,
       freeMediaIds,
       visualData,
