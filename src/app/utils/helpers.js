@@ -161,6 +161,14 @@
         return content;
       }
 
+      if (tag === "ul") {
+        return `<ul>${inner}</ul>`;
+      }
+
+      if (tag === "li") {
+        return `<li>${inner}</li>`;
+      }
+
       if (tag === "p" || tag === "div") {
         return `<p>${inner}</p>`;
       }

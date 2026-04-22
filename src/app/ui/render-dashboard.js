@@ -128,10 +128,15 @@
     refs.visualShowImages.checked = visualData.showImages !== false;
     refs.visualPrimaryMediaReveal.checked = Boolean(visualData.primaryMediaReveal);
     refs.visualSecondaryMediaReveal.checked = Boolean(visualData.secondaryMediaReveal);
+    refs.visualShowBody.checked = visualData.showBody !== false;
+    refs.visualShowCallout.checked = visualData.showCallout !== false;
     refs.visualBody.value = visualData.body || "";
-    refs.visualCallout.value = visualData.callout || "";
-    refs.visualArrowDirection.value = visualData.arrowDirection || "right";
-    refs.visualArrowColor.value = visualData.arrowColor || "#60b2e5";
+    refs.visualCallout.value = visualData.callout || "";    if (refs.visualArrowDirection) {
+      refs.visualArrowDirection.value = visualData.arrowDirection || "right";
+    }
+    if (refs.visualArrowColor) {
+      refs.visualArrowColor.value = visualData.arrowColor || "#60b2e5";
+    }
     refs.visualShowChart.checked = visualData.showChart !== false;
     refs.visualChartEditor.hidden = visualData.showChart === false;
     refs.visualChartReveal.checked = Boolean(visualData.chartReveal);
@@ -166,6 +171,8 @@
         ].join("");
         refs.canvasTextFont.value = selectedCanvasElement.fontOptionId || "";
         refs.canvasTextContent.style.fontFamily = getCanvasFontOption(selectedCanvasElement.fontOptionId || (state.settings.font || "studio")).body;
+        refs.canvasTextContent.style.fontSize = String(Math.round(Number(selectedCanvasElement.fontSize) || 28)) + "px";
+        refs.canvasTextContent.style.lineHeight = "1.12";
         if (document.activeElement !== refs.canvasTextContent || refs.canvasTextContent.innerHTML !== sanitizedCanvasText) {
           refs.canvasTextContent.innerHTML = sanitizedCanvasText;
         }
@@ -174,6 +181,8 @@
       }
       if (selectedCanvasElement.type !== "text") {
         refs.canvasTextContent.style.fontFamily = "";
+        refs.canvasTextContent.style.fontSize = "";
+        refs.canvasTextContent.style.lineHeight = "";
       }
       refs.canvasTextSize.value = selectedCanvasElement.type === "text" ? String(Math.round(Number(selectedCanvasElement.fontSize) || 28)) : "28";
       refs.canvasTextSizeValue.textContent = `${refs.canvasTextSize.value} px`;
@@ -204,6 +213,8 @@
       refs.canvasShapeControls.hidden = true;
       refs.canvasTextContent.innerHTML = "";
       refs.canvasTextContent.style.fontFamily = "";
+      refs.canvasTextContent.style.fontSize = "";
+      refs.canvasTextContent.style.lineHeight = "";
       refs.canvasTextFont.innerHTML = [
         '<option value="">Typographie du document</option>',
         ...fontOptions.map((font) => `<option value="${ns.utils.escapeHtml(font.id)}">${ns.utils.escapeHtml(font.label)}</option>`),
@@ -243,6 +254,9 @@
     refs.slideFreeEditor.classList.toggle("is-collapsed", !isFreeMode);
     refs.slideVisualEditor.classList.toggle("is-collapsed", !isVisualMode);
     refs.slideCanvasEditor.classList.toggle("is-collapsed", !isCanvasMode);
+    refs.globalPanelBody.hidden = Boolean(state.uiGlobalPanelCollapsed);
+    refs.toggleGlobalPanel.textContent = state.uiGlobalPanelCollapsed ? "Déplier" : "Replier";
+    refs.toggleGlobalPanel.setAttribute("aria-expanded", state.uiGlobalPanelCollapsed ? "false" : "true");
     refs.clearSlideMedia.hidden = isFreeMode || isVisualMode || isCanvasMode;
     refs.slideMediaPanelBody.hidden = Boolean(state.uiMediaPanelCollapsed);
     refs.toggleMediaPanel.textContent = state.uiMediaPanelCollapsed ? "Déplier" : "Replier";

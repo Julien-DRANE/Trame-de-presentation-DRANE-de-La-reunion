@@ -536,7 +536,7 @@
         padding: 0.55rem 0.7rem;
         border-radius: 18px;
         background: rgba(255, 255, 255, 0.66);
-        line-height: 1.25;
+        line-height: 1.12;
         overflow-wrap: anywhere;
         white-space: normal;
         box-shadow: 0 10px 24px rgba(18, 32, 51, 0.10);
@@ -548,9 +548,22 @@
         box-shadow: none;
       }
       .canvas-element-text-content p {
-        margin: 0 0 0.35em;
+        margin: 0 0 0.18em;
       }
       .canvas-element-text-content p:last-child {
+        margin-bottom: 0;
+      }
+      .canvas-element-text-content ul {
+        display: block;
+        width: 100%;
+        margin: 0.05em 0 0.18em;
+        padding-left: 1.15em;
+        list-style: disc outside;
+      }
+      .canvas-element-text-content li {
+        margin: 0 0 0.12em;
+      }
+      .canvas-element-text-content li:last-child {
         margin-bottom: 0;
       }
       .canvas-element-shape-content {

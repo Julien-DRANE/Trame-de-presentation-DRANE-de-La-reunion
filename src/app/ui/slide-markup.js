@@ -710,6 +710,8 @@
       : {
           primaryMediaId: "",
           secondaryMediaId: "",
+          showBody: true,
+          showCallout: true,
           body: "",
           callout: "",
           arrowDirection: "right",
@@ -730,6 +732,8 @@
       showImages: raw.showImages !== false,
       primaryMediaReveal: Boolean(raw.primaryMediaReveal),
       secondaryMediaReveal: Boolean(raw.secondaryMediaReveal),
+      showBody: raw.showBody !== false,
+      showCallout: raw.showCallout !== false,
       body: typeof raw.body === "string" ? raw.body : fallback.body,
       callout: typeof raw.callout === "string" ? raw.callout : fallback.callout,
       arrowDirection: raw.arrowDirection || fallback.arrowDirection,
@@ -796,22 +800,24 @@
     const arrowRevealStep = hasTwoMedia
       ? visibleMediaCards.reduce((maxStep, item) => Math.max(maxStep, item.revealStep || 0), 0) || null
       : null;
-    const bodyRevealStep = primaryMedia && visualData.primaryMediaReveal ? 1 : null;
-    const calloutRevealStep = secondaryMedia && visualData.secondaryMediaReveal
+    const showBodyBlock = visualData.showBody !== false;
+    const showCalloutBlock = visualData.showCallout !== false;
+    const bodyRevealStep = showBodyBlock && primaryMedia && visualData.primaryMediaReveal ? 1 : null;
+    const calloutRevealStep = showCalloutBlock && secondaryMedia && visualData.secondaryMediaReveal
       ? (primaryMedia && visualData.primaryMediaReveal ? 2 : 1)
       : null;
     const chartRevealBase = visibleMediaCards.reduce((maxStep, item) => Math.max(maxStep, item.revealStep || 0), 0);
     const chartRevealStep = visualData.showChart && visualData.chartReveal ? chartRevealBase + 1 : null;
-    const bodyMarkup = createLinkedTextMarkup(visualData.body || "", {
+    const bodyMarkup = showBodyBlock ? createLinkedTextMarkup(visualData.body || "", {
       multiline: true,
       limit: 320,
       linksClass: "slide-link-bubbles slide-link-bubbles-visual",
-    });
-    const calloutMarkup = createLinkedTextMarkup(visualData.callout || "", {
+    }) : "";
+    const calloutMarkup = showCalloutBlock ? createLinkedTextMarkup(visualData.callout || "", {
       multiline: true,
       limit: 180,
       linksClass: "slide-link-bubbles slide-link-bubbles-visual",
-    });
+    }) : "";
     const chartTitle = visualData.chartTitle || "";
     const chartBars = visualData.chartBars
       .slice(0, Math.max(1, Math.min(6, Number(visualData.chartBarCount) || 3)));
@@ -853,13 +859,7 @@
                 item.media ? `visual-media-${index}-${item.media.id || "media"}` : ""
               ))
               .join("")}
-            ${hasTwoMedia ? `
-              <div class="slide-visual-relation-card${arrowRevealStep ? " slide-reveal-item" : ""}" aria-hidden="true"${arrowRevealStep ? ` data-reveal-step="${arrowRevealStep}"` : ""}>
-                <div class="slide-visual-arrow-wrap">
-                  ${createVisualArrowMarkup(arrowDirection, visualData.arrowColor)}
-                </div>
-              </div>
-            ` : ""}
+
           </div>
         ` : ""}
         <div class="slide-visual-support-column${visualData.showChart ? " has-chart" : ""}${hasAnyMedia ? "" : " is-expanded"}">
@@ -874,7 +874,7 @@
             </div>
           ` : ""}
           ${visualData.showChart ? `
-            <div class="slide-visual-chart-card${chartRevealStep ? " slide-reveal-item" : ""}"${chartRevealStep ? ` data-reveal-step="${chartRevealStep}"` : ""} data-chart-title="${ns.utils.escapeHtml(chartTitle)}" data-chart-body="${ns.utils.escapeHtml(visualData.body || "")}" data-chart-callout="${ns.utils.escapeHtml(visualData.callout || "")}" data-chart-bars="${chartBarsData}">
+            <div class="slide-visual-chart-card${chartRevealStep ? " slide-reveal-item" : ""}"${chartRevealStep ? ` data-reveal-step="${chartRevealStep}"` : ""} data-chart-title="${ns.utils.escapeHtml(chartTitle)}" data-chart-body="${ns.utils.escapeHtml(showBodyBlock ? (visualData.body || "") : "")}" data-chart-callout="${ns.utils.escapeHtml(showCalloutBlock ? (visualData.callout || "") : "")}" data-chart-bars="${chartBarsData}">
               ${chartTitle ? `<p class="slide-visual-chart-title">${ns.utils.escapeHtml(chartTitle)}</p>` : ""}
               <div class="slide-visual-chart-grid${chartBars.length > 4 ? " is-dense" : ""}" data-chart-count="${chartBars.length}" style="grid-template-columns: repeat(${chartBars.length}, minmax(0, 1fr));">
                 ${chartBarsMarkup}

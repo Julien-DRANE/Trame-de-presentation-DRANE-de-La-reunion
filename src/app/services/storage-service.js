@@ -79,6 +79,7 @@
     return {
       view: viewOptions.includes(input.view) ? input.view : fallbackState.view,
       uiNightMode: Boolean(input.uiNightMode),
+      uiGlobalPanelCollapsed: Boolean(input.uiGlobalPanelCollapsed),
       uiMediaPanelCollapsed: Boolean(input.uiMediaPanelCollapsed),
       uiThumbStripCollapsed: Boolean(input.uiThumbStripCollapsed),
       settings: {
@@ -206,6 +207,8 @@
       showImages: raw.showImages !== false,
       primaryMediaReveal: Boolean(raw.primaryMediaReveal),
       secondaryMediaReveal: Boolean(raw.secondaryMediaReveal),
+      showBody: raw.showBody !== false,
+      showCallout: raw.showCallout !== false,
       body: typeof raw.body === "string" ? utils.clampText(raw.body, 320) : fallback.body,
       callout: typeof raw.callout === "string" ? utils.clampText(raw.callout, 180) : fallback.callout,
       arrowDirection: raw.arrowDirection === "up" || raw.arrowDirection === "down" || raw.arrowDirection === "left" ? raw.arrowDirection : "right",

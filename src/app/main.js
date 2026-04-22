@@ -45,9 +45,11 @@
     slideHint: document.querySelector("#slide-hint"),
     densityBadge: document.querySelector("#density-badge"),
     thumbStrip: document.querySelector("#thumb-strip"),
+    globalPanelBody: document.querySelector("#global-panel-body"),
     pedagogyBrief: document.querySelector("#pedagogy-brief"),
     mediaUpload: document.querySelector("#media-upload"),
     mediaUploadTrigger: document.querySelector("#media-upload-trigger"),
+    toggleGlobalPanel: document.querySelector("#toggle-global-panel"),
     toggleMediaPanel: document.querySelector("#toggle-media-panel"),
     toggleThumbStrip: document.querySelector("#toggle-thumb-strip"),
     slideMediaPanelBody: document.querySelector("#slide-media-panel-body"),
@@ -126,6 +128,7 @@
     canvasTextBold: document.querySelector("#canvas-text-bold"),
     canvasTextItalic: document.querySelector("#canvas-text-italic"),
     canvasTextUnderline: document.querySelector("#canvas-text-underline"),
+    canvasTextBullets: document.querySelector("#canvas-text-bullets"),
     canvasTextColorPalette: document.querySelector("#canvas-text-color-palette"),
     canvasTextStyleGrid: document.querySelector("#canvas-text-style-grid"),
     canvasTextFont: document.querySelector("#canvas-text-font"),
@@ -150,10 +153,12 @@
     visualShowImages: document.querySelector("#visual-show-images"),
     visualPrimaryMediaReveal: document.querySelector("#visual-primary-media-reveal"),
     visualSecondaryMediaReveal: document.querySelector("#visual-secondary-media-reveal"),
+    visualShowBody: document.querySelector("#visual-show-body"),
     visualBody: document.querySelector("#visual-body"),
     visualBodyMeta: document.querySelector("#visual-body-meta"),
     visualCallout: document.querySelector("#visual-callout"),
     visualCalloutMeta: document.querySelector("#visual-callout-meta"),
+    visualShowCallout: document.querySelector("#visual-show-callout"),
     visualArrowDirection: document.querySelector("#visual-arrow-direction"),
     visualArrowColor: document.querySelector("#visual-arrow-color"),
     visualShowChart: document.querySelector("#visual-show-chart"),
@@ -722,6 +727,11 @@
 
   function toggleNightMode() {
     state.uiNightMode = !state.uiNightMode;
+    render();
+  }
+
+  function toggleGlobalPanel() {
+    state.uiGlobalPanelCollapsed = !state.uiGlobalPanelCollapsed;
     render();
   }
 
@@ -1421,6 +1431,7 @@
     let activeBold = false;
     let activeItalic = false;
     let activeUnderline = false;
+    let activeBullets = false;
     const selectedElement = getCanvasSelectedElement(getSelectedCanvasData().elements);
     const activeColor = selectedElement && selectedElement.type === "text"
       ? normalizeCanvasColor(selectedElement.color, "#1d1917")
@@ -1433,6 +1444,7 @@
         activeBold = Boolean(findCanvasTextEditorFormatAncestor(range, "strong"));
         activeItalic = Boolean(findCanvasTextEditorFormatAncestor(range, "em"));
         activeUnderline = Boolean(findCanvasTextEditorFormatAncestor(range, "u"));
+        activeBullets = Boolean(findCanvasTextEditorFormatAncestor(range, "ul") || findCanvasTextEditorFormatAncestor(range, "li"));
       }
     }
 
@@ -1442,6 +1454,8 @@
     refs.canvasTextItalic.setAttribute("aria-pressed", activeItalic ? "true" : "false");
     refs.canvasTextUnderline.classList.toggle("is-active", activeUnderline);
     refs.canvasTextUnderline.setAttribute("aria-pressed", activeUnderline ? "true" : "false");
+    refs.canvasTextBullets.classList.toggle("is-active", activeBullets);
+    refs.canvasTextBullets.setAttribute("aria-pressed", activeBullets ? "true" : "false");
     document.querySelectorAll("[data-canvas-text-color-value]").forEach((button) => {
       button.classList.toggle(
         "is-active",
@@ -1471,17 +1485,53 @@
     refs.canvasTextContent.style.fontFamily = font.body || "";
   }
 
+  function selectionCoversCanvasText(range) {
+    if (!range) {
+      return false;
+    }
+    const selectedText = String(range.toString() || "").replace(/\s+/g, " ").trim();
+    const fullText = String(refs.canvasTextContent.textContent || "").replace(/\s+/g, " ").trim();
+    return Boolean(selectedText) && selectedText === fullText;
+  }
+
+  function clearCanvasTextEditorFontSizeStyles() {
+    refs.canvasTextContent.querySelectorAll("span[style]").forEach((span) => {
+      const nextStyle = String(span.getAttribute("style") || "")
+        .replace(/(^|;)\s*font-size\s*:[^;]+;?/gi, "$1")
+        .replace(/;{2,}/g, ";")
+        .trim()
+        .replace(/^;+|;+$/g, "");
+      if (nextStyle) {
+        span.setAttribute("style", nextStyle);
+      } else {
+        span.removeAttribute("style");
+      }
+    });
+  }
+
+  function syncCanvasTextEditorBaseFontSize(size) {
+    const normalizedSize = Math.round(clampCanvasMetric(size, 28, 16, 72));
+    clearCanvasTextEditorFontSizeStyles();
+    refs.canvasTextContent.style.fontSize = normalizedSize + "px";
+    refs.canvasTextSizeValue.textContent = normalizedSize + " px";
+    updateSelectedCanvasElement({
+      fontSize: normalizedSize,
+      text: ns.utils.sanitizeRichText(refs.canvasTextContent.innerHTML, 600),
+    }, false);
+  }
+
   function applyCanvasTextEditorFontSize(size) {
+    const normalizedSize = Math.round(clampCanvasMetric(size, 28, 16, 72));
     const selectionData = getCanvasTextEditorSelection();
-    if (!selectionData || selectionData.selection.isCollapsed) {
+    if (!selectionData || selectionData.selection.isCollapsed || selectionCoversCanvasText(selectionData.range)) {
+      syncCanvasTextEditorBaseFontSize(normalizedSize);
       return;
     }
 
     const selection = selectionData.selection;
     const range = selectionData.range;
-    const normalizedSize = Math.round(clampCanvasMetric(size, 28, 16, 72));
     const wrapper = document.createElement("span");
-    wrapper.setAttribute("style", `font-size:${normalizedSize}px;`);
+    wrapper.setAttribute("style", "font-size:" + normalizedSize + "px;");
     try {
       const content = range.extractContents();
       wrapper.appendChild(content);
@@ -1489,13 +1539,14 @@
       range.selectNodeContents(wrapper);
       selection.removeAllRanges();
       selection.addRange(range);
-      refs.canvasTextSizeValue.textContent = `${normalizedSize} px`;
+      refs.canvasTextSizeValue.textContent = normalizedSize + " px";
       saveCanvasTextEditorSelection();
       normalizeCanvasTextEditorMarkup(false);
     } catch (error) {
       return;
     }
   }
+
 
   function getCanvasTextEditorSelection() {
     const selectedElement = getCanvasSelectedElement(getSelectedCanvasData().elements);
@@ -1573,6 +1624,21 @@
 
     try {
       document.execCommand(command, false);
+      saveCanvasTextEditorSelection();
+      normalizeCanvasTextEditorMarkup(false);
+    } catch (error) {
+      return;
+    }
+  }
+
+  function applyCanvasTextEditorBullets() {
+    const selectionData = getCanvasTextEditorSelection();
+    if (!selectionData) {
+      return;
+    }
+
+    try {
+      document.execCommand("insertUnorderedList", false);
       saveCanvasTextEditorSelection();
       normalizeCanvasTextEditorMarkup(false);
     } catch (error) {
@@ -2871,6 +2937,16 @@
   refs.canvasTextUnderline.addEventListener("click", (event) => {
     event.preventDefault();
   });
+  refs.canvasTextBullets.addEventListener("mousedown", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    markCanvasTextEditorToolbarInteraction();
+    saveCanvasTextEditorSelection();
+    applyCanvasTextEditorBullets();
+  });
+  refs.canvasTextBullets.addEventListener("click", (event) => {
+    event.preventDefault();
+  });
   refs.canvasTextSize.addEventListener("input", (event) => {
     const nextValue = String(Math.round(clampCanvasMetric(event.target.value, 28, 16, 72)));
     refs.canvasTextSizeValue.textContent = `${nextValue} px`;
@@ -2968,6 +3044,12 @@
   refs.visualSecondaryMediaReveal.addEventListener("change", (event) => updateSelectedVisualData({
     secondaryMediaReveal: Boolean(event.target.checked),
   }));
+  refs.visualShowBody.addEventListener("change", (event) => updateSelectedVisualData({
+    showBody: Boolean(event.target.checked),
+  }, false));
+  refs.visualShowCallout.addEventListener("change", (event) => updateSelectedVisualData({
+    showCallout: Boolean(event.target.checked),
+  }, false));
   refs.visualBody.addEventListener("input", (event) => {
     pendingVisualFieldFocus = {
       refKey: "visualBody",
@@ -2985,13 +3067,16 @@
     updateSelectedVisualData({
       callout: ns.utils.clampText(event.target.value, 180),
     }, false);
-  });
-  refs.visualArrowDirection.addEventListener("change", (event) => updateSelectedVisualData({
-    arrowDirection: event.target.value === "up" || event.target.value === "down" || event.target.value === "left" ? event.target.value : "right",
-  }));
-  refs.visualArrowColor.addEventListener("change", (event) => updateSelectedVisualData({
-    arrowColor: normalizeVisualArrowColor(event.target.value),
-  }));
+  });  if (refs.visualArrowDirection) {
+    refs.visualArrowDirection.addEventListener("change", (event) => updateSelectedVisualData({
+      arrowDirection: event.target.value === "up" || event.target.value === "down" || event.target.value === "left" ? event.target.value : "right",
+    }));
+  }
+  if (refs.visualArrowColor) {
+    refs.visualArrowColor.addEventListener("change", (event) => updateSelectedVisualData({
+      arrowColor: normalizeVisualArrowColor(event.target.value),
+    }));
+  }
   refs.visualShowChart.addEventListener("change", (event) => updateSelectedVisualData({
     showChart: Boolean(event.target.checked),
   }));
@@ -3130,6 +3215,7 @@
   refs.mediaUploadTrigger.addEventListener("click", () => refs.mediaUpload.click());
   refs.importJson.addEventListener("click", () => refs.importJsonInput.click());
   refs.toggleNightMode.addEventListener("click", toggleNightMode);
+  refs.toggleGlobalPanel.addEventListener("click", toggleGlobalPanel);
   refs.toggleMediaPanel.addEventListener("click", toggleMediaPanel);
   refs.toggleThumbStrip.addEventListener("click", toggleThumbStrip);
   refs.importJsonInput.addEventListener("change", async (event) => {

@@ -18,6 +18,8 @@
       showImages: true,
       primaryMediaReveal: false,
       secondaryMediaReveal: false,
+      showBody: true,
+      showCallout: true,
       body: "Présentez ici le message visuel principal en 2 ou 3 lignes utiles.",
       callout: "Mettez en évidence une relation, une progression ou un point d'attention.",
       arrowDirection: "right",
@@ -133,6 +135,7 @@
     return {
       view: "engineering",
       uiNightMode: false,
+      uiGlobalPanelCollapsed: false,
       uiMediaPanelCollapsed: false,
       uiThumbStripCollapsed: false,
       settings: {

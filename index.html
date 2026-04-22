@@ -78,13 +78,14 @@
               </div>
               <div class="panel-heading-actions">
                 <input id="import-json-input" class="media-upload-input" type="file" accept=".json,application/json" />
+                <button id="toggle-global-panel" class="button button-soft" type="button" aria-expanded="true">Replier</button>
                 <button id="toggle-night-mode" class="button button-soft" type="button" aria-pressed="false">Mode nuit</button>
                 <button id="import-json" class="button button-ghost" type="button">Importer JSON</button>
                 <button id="export-json" class="button button-ghost" type="button">Exporter JSON</button>
               </div>
             </div>
-
-            <div class="form-grid">
+            <div id="global-panel-body">
+              <div class="form-grid">
               <label>
                 Titre du diaporama
                 <input id="deck-title" type="text" maxlength="60" />
@@ -250,8 +251,8 @@
                   <select id="slide-content-type">
                     <option value="bullets">Points</option>
                     <option value="table">Tableau</option>
-                    <option value="free">Libre</option>
-                    <option value="visual">Visuel</option>
+                    <option value="free">Zone de texte libre</option>
+                    <option value="visual">Histogramme</option>
                     <option value="canvas">Canvas libre</option>
                   </select>
                 </label>
@@ -438,6 +439,7 @@
                         <button id="canvas-text-bold" class="button button-ghost canvas-text-action" type="button" aria-pressed="false" aria-label="Mettre le texte en gras"><strong>G</strong></button>
                         <button id="canvas-text-italic" class="button button-ghost canvas-text-action" type="button" aria-pressed="false" aria-label="Mettre le texte en italique"><em>I</em></button>
                         <button id="canvas-text-underline" class="button button-ghost canvas-text-action" type="button" aria-pressed="false" aria-label="Souligner le texte"><u>S</u></button>
+                        <button id="canvas-text-bullets" class="button button-ghost canvas-text-action" type="button" aria-pressed="false" aria-label="Afficher des puces">Puces</button>
                         <div id="canvas-text-color-palette" class="canvas-text-color-palette" aria-label="Couleur du texte sélectionné">
                           <span class="canvas-text-color-label">Couleur</span>
                           <button class="canvas-text-color-swatch is-active" type="button" data-canvas-text-color-value="#1d1917" aria-label="Noir doux" title="Noir doux" style="--swatch-color:#1d1917;"></button>
@@ -554,28 +556,19 @@
                   </label>
                 </div>
 
+                <label class="checkbox-field">
+                  <input id="visual-show-body" type="checkbox" checked />
+                  <span>Afficher le texte d'accompagnement</span>
+                </label>
                 <label>
                   Texte d'accompagnement
                   <textarea id="visual-body" rows="4" maxlength="320"></textarea>
                   <span id="visual-body-meta" class="field-meta"></span>
                 </label>
-
-                <div class="visual-editor-grid visual-editor-grid-tight">
-                  <label>
-                    Flèche
-                    <select id="visual-arrow-direction">
-                      <option value="right">Vers la droite</option>
-                      <option value="left">Vers la gauche</option>
-                      <option value="up">Vers le haut</option>
-                      <option value="down">Vers le bas</option>
-                    </select>
-                  </label>
-                  <label>
-                    Couleur de la flèche
-                    <input id="visual-arrow-color" type="color" value="#60b2e5" />
-                  </label>
-                </div>
-
+                <label class="checkbox-field">
+                  <input id="visual-show-callout" type="checkbox" checked />
+                  <span>Afficher le texte mis en évidence</span>
+                </label>
                 <label>
                   Texte mis en évidence
                   <textarea id="visual-callout" rows="3" maxlength="180"></textarea>
