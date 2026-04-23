@@ -131,6 +131,47 @@
   display: none;
 }
 
+body.is-canvas-preview-fullscreen {
+  overflow: hidden;
+}
+
+.app-shell.is-canvas-preview-fullscreen {
+  width: min(100vw - 1rem, 100%);
+}
+
+.preview-panel.is-canvas-editor-fullscreen {
+  position: fixed;
+  inset: 0.75rem;
+  z-index: 140;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.preview-panel.is-canvas-editor-fullscreen .stage-wrap {
+  flex: 1 1 auto;
+  min-height: 0;
+  grid-template-columns: 1fr;
+  place-items: center;
+  align-content: center;
+  padding: 1rem;
+  overflow: hidden;
+}
+
+.preview-panel.is-canvas-editor-fullscreen .stage {
+  width: 1280px;
+  height: 720px;
+  min-height: 0;
+  margin: 0 auto;
+  transform: scale(var(--canvas-editor-scale, 1));
+  transform-origin: center center;
+}
+
+.preview-panel.is-canvas-editor-fullscreen .presentation-progress,
+.preview-panel.is-canvas-editor-fullscreen .pedagogy-brief {
+  display: none;
+}
+
 @media (max-width: 1240px) {
   .workspace {
     grid-template-columns: 1fr;

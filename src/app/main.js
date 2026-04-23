@@ -34,6 +34,7 @@
     slideList: document.querySelector("#slide-list"),
     principlesList: document.querySelector("#principles-list"),
     previewPanel: document.querySelector("#preview-panel"),
+    stageWrap: document.querySelector("#preview-panel .stage-wrap"),
     stage: document.querySelector("#stage"),
     chartLightbox: document.querySelector("#chart-lightbox"),
     chartLightboxContent: document.querySelector("#chart-lightbox-content"),
@@ -43,6 +44,7 @@
     tableLightboxClose: document.querySelector("#table-lightbox-close"),
     presentationProgress: document.querySelector("#presentation-progress"),
     slideHint: document.querySelector("#slide-hint"),
+    toggleCanvasPreviewFullscreen: document.querySelector("#toggle-canvas-preview-fullscreen"),
     densityBadge: document.querySelector("#density-badge"),
     thumbStrip: document.querySelector("#thumb-strip"),
     globalPanelBody: document.querySelector("#global-panel-body"),
@@ -201,6 +203,7 @@
   let activeCanvasInteraction = null;
   let suppressCanvasClickUntil = 0;
   let isPptxExportRunning = false;
+  let isCanvasPreviewFullscreen = false;
   const defaultPptxButtonLabel = refs.exportPptx ? refs.exportPptx.textContent : "Exporter PPTX";
   const isPresentationMode = new URLSearchParams(window.location.search).get("present") === "1";
 
@@ -377,6 +380,8 @@
     syncSelectedCanvasElement();
     getSafeSelectedTableCell(getSelectedSlide());
     ns.ui.renderDashboard({ state, refs, selectedCanvasElementId, selectedTableCell });
+    syncCanvasPreviewFullscreenUi();
+    syncCanvasPreviewFullscreenScale();
     updateCanvasTextToolbarState();
     scheduleStateSave();
     if (pendingBulletFocus) {
@@ -738,6 +743,59 @@
   function toggleMediaPanel() {
     state.uiMediaPanelCollapsed = !state.uiMediaPanelCollapsed;
     render();
+  }
+
+  function syncCanvasPreviewFullscreenScale() {
+    if (!isCanvasPreviewFullscreen || !refs.previewPanel || !refs.stageWrap) {
+      if (refs.previewPanel) {
+        refs.previewPanel.style.removeProperty("--canvas-editor-scale");
+      }
+      return;
+    }
+    const wrapRect = refs.stageWrap.getBoundingClientRect();
+    const scale = Math.min(wrapRect.width / 1280, wrapRect.height / 720);
+    refs.previewPanel.style.setProperty("--canvas-editor-scale", String(Math.max(scale, 0.1)));
+  }
+
+  function setCanvasPreviewFullscreen(nextValue) {
+    const active = Boolean(nextValue);
+    isCanvasPreviewFullscreen = active;
+    refs.previewPanel.classList.toggle("is-canvas-editor-fullscreen", active);
+    refs.appShell.classList.toggle("is-canvas-preview-fullscreen", active);
+    document.body.classList.toggle("is-canvas-preview-fullscreen", active);
+    if (refs.toggleCanvasPreviewFullscreen) {
+      refs.toggleCanvasPreviewFullscreen.textContent = active ? "Quitter le plein écran" : "Éditer en plein écran";
+      refs.toggleCanvasPreviewFullscreen.setAttribute("aria-pressed", active ? "true" : "false");
+    }
+    if (active) {
+      refs.previewPanel.focus();
+      window.requestAnimationFrame(syncCanvasPreviewFullscreenScale);
+      return;
+    }
+    syncCanvasPreviewFullscreenScale();
+  }
+
+  function toggleCanvasPreviewFullscreen() {
+    const slide = getSelectedSlide();
+    if (!slide || (slide.contentType || "bullets") !== "canvas") {
+      return;
+    }
+    setCanvasPreviewFullscreen(!isCanvasPreviewFullscreen);
+  }
+
+  function syncCanvasPreviewFullscreenUi() {
+    const slide = getSelectedSlide();
+    const isCanvasMode = Boolean(slide) && (slide.contentType || "bullets") === "canvas";
+    if (!isCanvasMode && isCanvasPreviewFullscreen) {
+      setCanvasPreviewFullscreen(false);
+    }
+    if (!refs.toggleCanvasPreviewFullscreen) {
+      return;
+    }
+    refs.toggleCanvasPreviewFullscreen.hidden = !isCanvasMode;
+    refs.toggleCanvasPreviewFullscreen.disabled = !isCanvasMode;
+    refs.toggleCanvasPreviewFullscreen.textContent = isCanvasPreviewFullscreen ? "Quitter le plein écran" : "Éditer en plein écran";
+    refs.toggleCanvasPreviewFullscreen.setAttribute("aria-pressed", isCanvasPreviewFullscreen ? "true" : "false");
   }
 
   function toggleThumbStrip() {
@@ -3285,6 +3343,9 @@
   refs.toggleGlobalPanel.addEventListener("click", toggleGlobalPanel);
   refs.toggleMediaPanel.addEventListener("click", toggleMediaPanel);
   refs.toggleThumbStrip.addEventListener("click", toggleThumbStrip);
+  if (refs.toggleCanvasPreviewFullscreen) {
+    refs.toggleCanvasPreviewFullscreen.addEventListener("click", toggleCanvasPreviewFullscreen);
+  }
   refs.importJsonInput.addEventListener("change", async (event) => {
     const file = event.target.files && event.target.files[0];
     if (!file) {
@@ -3381,6 +3442,7 @@
   });
 
   window.addEventListener("beforeunload", persistStateNow);
+  window.addEventListener("resize", syncCanvasPreviewFullscreenScale);
   refs.tabs.forEach((tab) => {
     tab.addEventListener("click", () => setView(tab.getAttribute("data-switch-view")));
   });
@@ -3994,6 +4056,11 @@
 
     if (event.key === "Escape" && refs.tableLightbox.classList.contains("is-open")) {
       closeTableLightbox();
+      return;
+    }
+
+    if (event.key === "Escape" && isCanvasPreviewFullscreen) {
+      setCanvasPreviewFullscreen(false);
       return;
     }
 
