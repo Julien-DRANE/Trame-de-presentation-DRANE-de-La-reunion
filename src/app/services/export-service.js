@@ -529,10 +529,15 @@
         height: 100%;
       }
       .canvas-element-text-content {
-        display: flex;
+        display: inline-flex;
+        flex-direction: column;
         align-items: flex-start;
-        width: 100%;
-        height: 100%;
+        justify-content: flex-start;
+        box-sizing: border-box;
+        width: fit-content;
+        max-width: 100%;
+        min-height: 0;
+        height: auto;
         padding: 0.55rem 0.7rem;
         border-radius: 18px;
         background: rgba(255, 255, 255, 0.66);
