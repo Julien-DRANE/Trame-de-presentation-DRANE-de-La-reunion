@@ -1597,6 +1597,12 @@ select {
   color: var(--blue-deep);
 }
 
+.canvas-element-chip.is-locked,
+.canvas-element-chip:disabled {
+  opacity: 0.72;
+  cursor: not-allowed;
+}
+
 .canvas-element-chip-label {
   min-width: 0;
   flex: 1 1 auto;
@@ -1653,11 +1659,27 @@ select {
   gap: 0.35rem;
 }
 
+.canvas-layer-action,
 .canvas-order-handle {
   min-width: 2.35rem;
   padding-inline: 0.55rem;
+  font-weight: 800;
+}
+
+.canvas-layer-action.is-active {
+  border-color: rgba(44, 115, 218, 0.3);
+  background: rgba(44, 115, 218, 0.12);
+  color: var(--blue-deep);
+}
+
+.canvas-order-handle {
   cursor: grab;
   letter-spacing: -0.08em;
+}
+
+.canvas-layer-action {
+  min-width: 2.35rem;
+  padding-inline: 0.55rem;
   font-weight: 800;
 }
 

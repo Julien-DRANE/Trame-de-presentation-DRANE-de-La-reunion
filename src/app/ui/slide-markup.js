@@ -934,6 +934,7 @@
       w: clampCanvasMetric(input.w, type === "arrow" ? 18 : type === "image" ? 28 : type === "shape" ? 22 : 34, 6, 100),
       h: clampCanvasMetric(input.h, type === "arrow" ? 10 : type === "image" ? 30 : type === "shape" ? 22 : 18, 6, 100),
       revealOrder: Math.max(1, Math.min(24, Math.round(Number(input.revealOrder) || (index + 1)))),
+      locked: Boolean(input.locked),
     };
 
     normalized.w = Math.min(normalized.w, Math.max(6, 100 - normalized.x));
@@ -985,71 +986,74 @@
   function createCanvasElementMarkup(element, options) {
     const opts = options || {};
     const interactive = Boolean(opts.canvasInteractive);
-    const selected = interactive && opts.selectedCanvasElementId === element.id;
-    const selectionClass = selected ? " is-selected" : "";
-    const interactiveClass = interactive ? " is-interactive" : "";
-    const revealClass = opts.canvasProgressive && Number(element.revealOrder) > 0 ? " slide-reveal-item" : "";
+    const locked = Boolean(element.locked);
+    const selected = interactive && !locked && opts.selectedCanvasElementId === element.id;
+    const selectionClass = selected ? ' is-selected' : '';
+    const interactiveClass = interactive && !locked ? ' is-interactive' : '';
+    const lockedClass = locked ? ' is-locked' : '';
+    const revealClass = opts.canvasProgressive && Number(element.revealOrder) > 0 ? ' slide-reveal-item' : '';
     const revealAttrs = opts.canvasProgressive && Number(element.revealOrder) > 0
       ? ` data-reveal-step="${Math.max(1, Math.round(Number(element.revealOrder) || 1))}"`
-      : "";
+      : '';
     const baseAttrs = `
-      class="canvas-element canvas-element-${ns.utils.escapeHtml(element.type)}${selectionClass}${interactiveClass}${revealClass}"
+      class="canvas-element canvas-element-${ns.utils.escapeHtml(element.type)}${selectionClass}${interactiveClass}${lockedClass}${revealClass}"
       data-canvas-element-id="${ns.utils.escapeHtml(element.id)}"
       data-canvas-element-type="${ns.utils.escapeHtml(element.type)}"
+      data-canvas-locked="${locked ? 'true' : 'false'}"
       style="left:${element.x}%; top:${element.y}%; width:${element.w}%; height:${element.h}%;"
     `;
 
-    if (element.type === "image") {
+    if (element.type === 'image') {
       const media = getResolvedMediaById(element.mediaId, opts);
-      const transparentPngClass = isTransparentPngMedia(media) ? " is-transparent-png" : "";
+      const transparentPngClass = isTransparentPngMedia(media) ? ' is-transparent-png' : '';
       const mediaMarkup = media
         ? createResolvedMediaMarkup(media, Object.assign({}, opts, {
           mediaInstanceKey: `canvas-media-${element.id}`
         }))
-        : `<div class="canvas-element-placeholder">Choisissez un media</div>`;
+        : '<div class="canvas-element-placeholder">Choisissez un media</div>';
       return `
         <div ${baseAttrs}${revealAttrs}>
           <div class="canvas-element-content canvas-element-media-content${transparentPngClass}">${mediaMarkup}</div>
-          ${interactive ? '<button class="canvas-resize-handle" type="button" data-canvas-resize-handle="true" aria-label="Redimensionner l’élément"></button>' : ""}
+          ${interactive && !locked ? '<button class="canvas-resize-handle" type="button" data-canvas-resize-handle="true" aria-label="Redimensionner l’élément"></button>' : ''}
         </div>
       `;
     }
 
-    if (element.type === "arrow") {
-      const baseRotation = element.direction === "down" ? 90 : element.direction === "left" ? 180 : element.direction === "up" ? -90 : 0;
+    if (element.type === 'arrow') {
+      const baseRotation = element.direction === 'down' ? 90 : element.direction === 'left' ? 180 : element.direction === 'up' ? -90 : 0;
       const totalRotation = baseRotation + normalizeCanvasRotation(element.rotation, 0);
       return `
         <div ${baseAttrs}${revealAttrs}>
-          <div class="canvas-element-content canvas-element-arrow-content" data-canvas-base-rotation="${baseRotation}" style="width:${Math.max(40, Number(element.arrowLength) || 100)}%; transform:rotate(${totalRotation}deg); --canvas-arrow-color:${ns.utils.escapeHtml(element.color || "#0a66ff")};">
+          <div class="canvas-element-content canvas-element-arrow-content" data-canvas-base-rotation="${baseRotation}" style="width:${Math.max(40, Number(element.arrowLength) || 100)}%; transform:rotate(${totalRotation}deg); --canvas-arrow-color:${ns.utils.escapeHtml(element.color || '#0a66ff')};">
             <span class="canvas-arrow-shaft" aria-hidden="true"></span>
             <span class="canvas-arrow-head" aria-hidden="true"></span>
           </div>
-          ${interactive ? '<button class="canvas-rotate-handle" type="button" data-canvas-rotate-handle="true" aria-label="Faire tourner la flèche"></button>' : ""}
-          ${interactive ? '<button class="canvas-resize-handle" type="button" data-canvas-resize-handle="true" aria-label="Redimensionner l’élément"></button>' : ""}
+          ${interactive && !locked ? '<button class="canvas-rotate-handle" type="button" data-canvas-rotate-handle="true" aria-label="Faire tourner la flèche"></button>' : ''}
+          ${interactive && !locked ? '<button class="canvas-resize-handle" type="button" data-canvas-resize-handle="true" aria-label="Redimensionner l’élément"></button>' : ''}
         </div>
       `;
     }
 
-    if (element.type === "shape") {
+    if (element.type === 'shape') {
       const shapeKind = normalizeCanvasShapeKind(element.shapeKind);
-      const shapeTailMarkup = shapeKind === "bubble" ? '<span class="canvas-shape-bubble-tail" aria-hidden="true"></span>' : "";
+      const shapeTailMarkup = shapeKind === 'bubble' ? '<span class="canvas-shape-bubble-tail" aria-hidden="true"></span>' : '';
       return `
         <div ${baseAttrs}${revealAttrs}>
-          <div class="canvas-element-content canvas-element-shape-content is-${ns.utils.escapeHtml(shapeKind)}" style="--canvas-shape-color:${ns.utils.escapeHtml(element.color || "#0a66ff")}; --canvas-shape-fill:${ns.utils.escapeHtml(canvasHexToRgba(element.color || "#0a66ff", 0.14))};">
+          <div class="canvas-element-content canvas-element-shape-content is-${ns.utils.escapeHtml(shapeKind)}" style="--canvas-shape-color:${ns.utils.escapeHtml(element.color || '#0a66ff')}; --canvas-shape-fill:${ns.utils.escapeHtml(canvasHexToRgba(element.color || '#0a66ff', 0.14))};">
             ${shapeTailMarkup}
           </div>
-          ${interactive ? '<button class="canvas-resize-handle" type="button" data-canvas-resize-handle="true" aria-label="Redimensionner l’élément"></button>' : ""}
+          ${interactive && !locked ? '<button class="canvas-resize-handle" type="button" data-canvas-resize-handle="true" aria-label="Redimensionner l’élément"></button>' : ''}
         </div>
       `;
     }
 
-    const textFont = getFontOption(element.fontOptionId || opts.deckFontId || "studio");
+    const textFont = getFontOption(element.fontOptionId || opts.deckFontId || 'studio');
     return `
       <div ${baseAttrs}${revealAttrs}>
-        <div class="canvas-element-content canvas-element-text-content${element.showFrame === false ? " is-frameless" : ""}" style="font-family:${ns.utils.escapeHtml(textFont.body)}; font-size:${element.fontSize}px; color:${ns.utils.escapeHtml(element.color)};">
+        <div class="canvas-element-content canvas-element-text-content${element.showFrame === false ? ' is-frameless' : ''}" style="font-family:${ns.utils.escapeHtml(textFont.body)}; font-size:${element.fontSize}px; color:${ns.utils.escapeHtml(element.color)};">
           ${createCanvasTextMarkup(element.text)}
         </div>
-        ${interactive ? '<button class="canvas-resize-handle" type="button" data-canvas-resize-handle="true" aria-label="Redimensionner l’élément"></button>' : ""}
+        ${interactive && !locked ? '<button class="canvas-resize-handle" type="button" data-canvas-resize-handle="true" aria-label="Redimensionner l’élément"></button>' : ''}
       </div>
     `;
   }

@@ -983,6 +983,7 @@
       w: clampCanvasMetric(input.w, type === "arrow" ? 18 : type === "image" ? 28 : type === "shape" ? 22 : 34, 6, 100),
       h: clampCanvasMetric(input.h, type === "arrow" ? 10 : type === "image" ? 30 : type === "shape" ? 22 : 18, 6, 100),
       revealOrder: Math.max(1, Math.min(24, Math.round(Number(input.revealOrder) || (index + 1)))),
+      locked: Boolean(input.locked),
     };
 
     normalized.w = Math.min(normalized.w, Math.max(6, 100 - normalized.x));
@@ -1054,6 +1055,7 @@
         bold: false,
         italic: false,
         underline: false,
+        locked: false,
       },
       image: {
         id: ns.utils.createId("canvas"),
@@ -1064,6 +1066,7 @@
         h: 30,
         revealOrder: 1,
         mediaId: "",
+        locked: false,
       },
       arrow: {
         id: ns.utils.createId("canvas"),
@@ -1077,6 +1080,7 @@
         color: "#0a66ff",
         rotation: 0,
         arrowLength: 100,
+        locked: false,
       },
       shape: {
         id: ns.utils.createId("canvas"),
@@ -1088,6 +1092,7 @@
         revealOrder: 1,
         shapeKind: "circle",
         color: "#0a66ff",
+        locked: false,
       },
     };
 
@@ -1144,9 +1149,51 @@
       x: clampCanvasMetric((Number(source.x) || 0) + 2.5, Number(source.x) || 0, 0, 94),
       y: clampCanvasMetric((Number(source.y) || 0) + 2.5, Number(source.y) || 0, -14, 94),
       revealOrder: nextRevealOrder,
+      locked: false,
     }), current.elements.length);
     selectedCanvasElementId = duplicated.id;
     updateCanvasElements((elements) => elements.concat(duplicated));
+  }
+
+  function toggleCanvasElementLock(elementId) {
+    const current = getSelectedCanvasData();
+    const target = (current.elements || []).find((element) => element.id === elementId);
+    if (!target) {
+      return;
+    }
+    const nextLocked = !Boolean(target.locked);
+    if (nextLocked && selectedCanvasElementId === elementId) {
+      selectedCanvasElementId = null;
+    }
+    updateCanvasElementById(elementId, { locked: nextLocked });
+  }
+
+  function moveCanvasLayer(elementId, direction) {
+    const current = getSelectedCanvasData();
+    const elements = Array.isArray(current.elements) ? current.elements.slice() : [];
+    const sourceIndex = elements.findIndex((element) => element.id === elementId);
+    if (sourceIndex === -1) {
+      return;
+    }
+    const targetIndex = direction === "up"
+      ? Math.min(elements.length - 1, sourceIndex + 1)
+      : Math.max(0, sourceIndex - 1);
+    if (targetIndex === sourceIndex) {
+      return;
+    }
+    updateCanvasElements((items) => {
+      const nextItems = items.slice();
+      const fromIndex = nextItems.findIndex((element) => element.id === elementId);
+      if (fromIndex === -1) {
+        return nextItems;
+      }
+      const toIndex = direction === "up"
+        ? Math.min(nextItems.length - 1, fromIndex + 1)
+        : Math.max(0, fromIndex - 1);
+      const moved = nextItems.splice(fromIndex, 1)[0];
+      nextItems.splice(toIndex, 0, moved);
+      return nextItems;
+    });
   }
 
   function addCanvasMediaElement(mediaId) {
@@ -1709,7 +1756,7 @@
     const element = canvasData.elements.find((item) => item.id === elementId);
     const surfaceData = getCanvasSurfaceRect();
     const elementNode = refs.stage.querySelector(`[data-canvas-element-id="${elementId}"]`);
-    if (!element || !surfaceData || !elementNode) {
+    if (!element || element.locked || !surfaceData || !elementNode) {
       return;
     }
 
@@ -3391,12 +3438,27 @@
     const removeTableFillTrigger = event.target.closest("[data-remove-table-fill]");
     const toggleFreeMediaTrigger = event.target.closest("[data-toggle-free-media]");
     const addCanvasMediaTrigger = event.target.closest("[data-add-canvas-media]");
+    const toggleCanvasLockTrigger = event.target.closest("[data-toggle-canvas-lock]");
+    const moveCanvasLayerTrigger = event.target.closest("[data-canvas-layer-move]");
     const selectCanvasElementTrigger = event.target.closest("[data-select-canvas-element]");
     const addSlideTrigger = event.target.closest("[data-add-slide-bloom]");
     const bloomTrigger = event.target.closest("[data-set-bloom]");
 
     if (!event.target.closest(".add-slide-group") && isAddSlideMenuOpen) {
       closeAddSlideMenu();
+    }
+
+    if (toggleCanvasLockTrigger) {
+      toggleCanvasElementLock(toggleCanvasLockTrigger.getAttribute("data-toggle-canvas-lock"));
+      return;
+    }
+
+    if (moveCanvasLayerTrigger) {
+      moveCanvasLayer(
+        moveCanvasLayerTrigger.getAttribute("data-canvas-layer-move"),
+        moveCanvasLayerTrigger.getAttribute("data-canvas-layer-direction") === "down" ? "down" : "up"
+      );
+      return;
     }
 
     if (selectCanvasElementTrigger) {
@@ -3838,7 +3900,7 @@
     const rotateHandle = event.target.closest("[data-canvas-rotate-handle]");
     const resizeHandle = event.target.closest("[data-canvas-resize-handle]");
     const canvasElement = event.target.closest("[data-canvas-element-id]");
-    if (!canvasElement) {
+    if (!canvasElement || canvasElement.getAttribute("data-canvas-locked") === "true") {
       return;
     }
     beginCanvasInteraction(
@@ -3857,6 +3919,9 @@
       const canvasElement = event.target.closest("[data-canvas-element-id]");
       const canvasSurface = event.target.closest("[data-canvas-surface]");
       if (canvasElement) {
+        if (canvasElement.getAttribute("data-canvas-locked") === "true") {
+          return;
+        }
         selectedCanvasElementId = canvasElement.getAttribute("data-canvas-element-id");
         render();
         return;

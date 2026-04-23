@@ -589,6 +589,7 @@
       return '<p class="extra-bullets-empty">Aucun élément sur le canvas.</p>';
     }
     const mediaUrls = ns.services.media.getUrlMap();
+    const layerOrder = elements.map((element) => element.id);
 
     const ordered = elements
       .slice()
@@ -596,18 +597,48 @@
 
     return ordered
       .map((element, index) => {
-        const activeClass = element.id === activeId ? " is-active" : "";
-        const previewMarkup = element.type === "image"
+        const locked = Boolean(element.locked);
+        const activeClass = element.id === activeId && !locked ? ' is-active' : '';
+        const lockedClass = locked ? ' is-locked' : '';
+        const layerIndex = layerOrder.indexOf(element.id);
+        const canMoveDown = layerIndex > 0;
+        const canMoveUp = layerIndex >= 0 && layerIndex < (layerOrder.length - 1);
+        const previewMarkup = element.type === 'image'
           ? getCanvasElementMediaPreview(element, mediaItems, mediaUrls)
           : `<span class="canvas-element-chip-text-preview">${ns.utils.escapeHtml(getCanvasElementTextPreview(element))}</span>`;
         return `
           <div class="canvas-element-row${activeClass}" data-canvas-reveal-row="${ns.utils.escapeHtml(element.id)}">
-            <button class="canvas-element-chip${activeClass}" type="button" data-select-canvas-element="${ns.utils.escapeHtml(element.id)}">
+            <button class="canvas-element-chip${activeClass}${lockedClass}" type="button" data-select-canvas-element="${ns.utils.escapeHtml(element.id)}"${locked ? ' disabled title="Objet verrouillé"' : ''}>
               <span class="canvas-element-chip-index">${index + 1}</span>
               <span class="canvas-element-chip-label">${previewMarkup}</span>
-              <span class="canvas-element-chip-meta">Ordre ${index + 1}</span>
+              <span class="canvas-element-chip-meta">Ordre ${index + 1}${locked ? ' · Verrouillé' : ''}</span>
             </button>
             <div class="canvas-element-chip-actions">
+              <button
+                class="button button-ghost canvas-layer-action${locked ? ' is-active' : ''}"
+                type="button"
+                data-toggle-canvas-lock="${ns.utils.escapeHtml(element.id)}"
+                aria-label="${locked ? 'Déverrouiller' : 'Verrouiller'} l'objet"
+                title="${locked ? 'Déverrouiller' : 'Verrouiller'}"
+              >${locked ? '🔒' : '🔓'}</button>
+              <button
+                class="button button-ghost canvas-layer-action"
+                type="button"
+                data-canvas-layer-move="${ns.utils.escapeHtml(element.id)}"
+                data-canvas-layer-direction="down"
+                aria-label="Placer en dessous"
+                title="Placer en dessous"
+                ${canMoveDown ? '' : 'disabled'}
+              >↓</button>
+              <button
+                class="button button-ghost canvas-layer-action"
+                type="button"
+                data-canvas-layer-move="${ns.utils.escapeHtml(element.id)}"
+                data-canvas-layer-direction="up"
+                aria-label="Placer au-dessus"
+                title="Placer au-dessus"
+                ${canMoveUp ? '' : 'disabled'}
+              >↑</button>
               <button
                 class="button button-ghost canvas-order-handle"
                 type="button"
@@ -620,7 +651,7 @@
           </div>
         `;
       })
-      .join("");
+      .join('');
   }
 
   function renderVisualMediaOptions(mediaItems, placeholder) {
