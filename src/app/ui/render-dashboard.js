@@ -583,6 +583,16 @@
     return Number.isFinite(numeric) ? numeric.toFixed(1).replace(/\.0$/, "") : "0";
   }
 
+  function renderCanvasRevealGroupOptions(value) {
+    const activeValue = String(value || '').trim().toUpperCase();
+    return ['<option value="">-</option>']
+      .concat(Array.from({ length: 26 }, (_, index) => {
+        const letter = String.fromCharCode(65 + index);
+        return `<option value="${letter}"${activeValue === letter ? ' selected' : ''}>${letter}</option>`;
+      }))
+      .join('');
+  }
+
   function renderCanvasElementsList(canvasData, activeId, mediaItems) {
     const elements = canvasData && Array.isArray(canvasData.elements) ? canvasData.elements : [];
     if (!elements.length) {
@@ -611,9 +621,15 @@
             <button class="canvas-element-chip${activeClass}${lockedClass}" type="button" data-select-canvas-element="${ns.utils.escapeHtml(element.id)}"${locked ? ' disabled title="Objet verrouillé"' : ''}>
               <span class="canvas-element-chip-index">${index + 1}</span>
               <span class="canvas-element-chip-label">${previewMarkup}</span>
-              <span class="canvas-element-chip-meta">Ordre ${index + 1}${locked ? ' · Verrouillé' : ''}</span>
+              <span class="canvas-element-chip-meta">Ordre ${index + 1}${element.revealGroup ? ' · Groupe ' + ns.utils.escapeHtml(element.revealGroup) : ''}${locked ? ' · Verrouillé' : ''}</span>
             </button>
             <div class="canvas-element-chip-actions">
+              <label class="canvas-reveal-group-field" title="Révéler en même temps que les objets du même groupe">
+                <span class="sr-only">Groupe de révélation</span>
+                <select class="canvas-reveal-group-select" data-canvas-reveal-group-select="${ns.utils.escapeHtml(element.id)}">
+                  ${renderCanvasRevealGroupOptions(element.revealGroup)}
+                </select>
+              </label>
               <button
                 class="button button-ghost canvas-layer-action${locked ? ' is-active' : ''}"
                 type="button"

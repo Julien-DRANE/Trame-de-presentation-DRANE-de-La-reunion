@@ -923,6 +923,11 @@
     return `rgba(${r}, ${g}, ${b}, ${alpha})`;
   }
 
+  function normalizeCanvasRevealGroup(value) {
+    const normalized = String(value || '').trim().toUpperCase();
+    return /^[A-Z]$/.test(normalized) ? normalized : '';
+  }
+
   function normalizeCanvasElement(element, index) {
     const input = element && typeof element === "object" ? element : {};
     const type = input.type === "image" || input.type === "arrow" || input.type === "shape" ? input.type : "text";
@@ -934,6 +939,7 @@
       w: clampCanvasMetric(input.w, type === "arrow" ? 18 : type === "image" ? 28 : type === "shape" ? 22 : 34, 6, 100),
       h: clampCanvasMetric(input.h, type === "arrow" ? 10 : type === "image" ? 30 : type === "shape" ? 22 : 18, 6, 100),
       revealOrder: Math.max(1, Math.min(24, Math.round(Number(input.revealOrder) || (index + 1)))),
+      revealGroup: normalizeCanvasRevealGroup(input.revealGroup),
       locked: Boolean(input.locked),
     };
 
@@ -983,17 +989,47 @@
     return ns.utils.sanitizeRichText(value, 600);
   }
 
+  function createCanvasRevealStepMap(elements) {
+    const ordered = (Array.isArray(elements) ? elements : [])
+      .slice()
+      .sort((a, b) => {
+        const orderDelta = (Number(a.revealOrder) || 0) - (Number(b.revealOrder) || 0);
+        if (orderDelta !== 0) {
+          return orderDelta;
+        }
+        return String(a.id || '').localeCompare(String(b.id || ''));
+      });
+    const stepMap = new Map();
+    const groupStepMap = new Map();
+    let nextStep = 1;
+    ordered.forEach((element) => {
+      const group = normalizeCanvasRevealGroup(element && element.revealGroup);
+      if (group) {
+        if (!groupStepMap.has(group)) {
+          groupStepMap.set(group, nextStep);
+          nextStep += 1;
+        }
+        stepMap.set(element.id, groupStepMap.get(group));
+        return;
+      }
+      stepMap.set(element.id, nextStep);
+      nextStep += 1;
+    });
+    return stepMap;
+  }
+
   function createCanvasElementMarkup(element, options) {
     const opts = options || {};
     const interactive = Boolean(opts.canvasInteractive);
+    const revealStep = Number(opts.canvasRevealStep) || 0;
     const locked = Boolean(element.locked);
     const selected = interactive && !locked && opts.selectedCanvasElementId === element.id;
     const selectionClass = selected ? ' is-selected' : '';
     const interactiveClass = interactive && !locked ? ' is-interactive' : '';
     const lockedClass = locked ? ' is-locked' : '';
-    const revealClass = opts.canvasProgressive && Number(element.revealOrder) > 0 ? ' slide-reveal-item' : '';
-    const revealAttrs = opts.canvasProgressive && Number(element.revealOrder) > 0
-      ? ` data-reveal-step="${Math.max(1, Math.round(Number(element.revealOrder) || 1))}"`
+    const revealClass = opts.canvasProgressive && revealStep > 0 ? ' slide-reveal-item' : '';
+    const revealAttrs = opts.canvasProgressive && revealStep > 0
+      ? ` data-reveal-step="${revealStep}"`
       : '';
     const baseAttrs = `
       class="canvas-element canvas-element-${ns.utils.escapeHtml(element.type)}${selectionClass}${interactiveClass}${lockedClass}${revealClass}"
@@ -1060,9 +1096,11 @@
 
   function createCanvasMarkup(slide, settings, options) {
     const canvasData = getCanvasData(slide);
+    const revealStepMap = createCanvasRevealStepMap(canvasData.elements);
     const elementsMarkup = canvasData.elements
       .map((element) => createCanvasElementMarkup(element, Object.assign({}, options, {
         canvasProgressive: Boolean(canvasData.progressive) && !options.canvasInteractive,
+        canvasRevealStep: revealStepMap.get(element.id) || 0,
         deckFontId: (settings && settings.font) || "studio",
       })))
       .join("");

@@ -972,6 +972,11 @@
     return value === "square" || value === "bubble" ? value : "circle";
   }
 
+  function normalizeCanvasRevealGroup(value) {
+    const normalized = String(value || '').trim().toUpperCase();
+    return /^[A-Z]$/.test(normalized) ? normalized : '';
+  }
+
   function normalizeCanvasElement(element, index) {
     const input = element && typeof element === "object" ? element : {};
     const type = input.type === "image" || input.type === "arrow" || input.type === "shape" ? input.type : "text";
@@ -983,6 +988,7 @@
       w: clampCanvasMetric(input.w, type === "arrow" ? 18 : type === "image" ? 28 : type === "shape" ? 22 : 34, 6, 100),
       h: clampCanvasMetric(input.h, type === "arrow" ? 10 : type === "image" ? 30 : type === "shape" ? 22 : 18, 6, 100),
       revealOrder: Math.max(1, Math.min(24, Math.round(Number(input.revealOrder) || (index + 1)))),
+      revealGroup: normalizeCanvasRevealGroup(input.revealGroup),
       locked: Boolean(input.locked),
     };
 
@@ -1047,6 +1053,7 @@
         w: 36,
         h: 18,
         revealOrder: 1,
+        revealGroup: "",
         text: ns.utils.plainTextToRichHtml("Nouvelle zone de texte", 600),
         fontSize: 28,
         fontOptionId: "",
@@ -1065,6 +1072,7 @@
         w: 24,
         h: 30,
         revealOrder: 1,
+        revealGroup: "",
         mediaId: "",
         locked: false,
       },
@@ -1076,6 +1084,7 @@
         w: 18,
         h: 10,
         revealOrder: 1,
+        revealGroup: "",
         direction: "right",
         color: "#0a66ff",
         rotation: 0,
@@ -1090,6 +1099,7 @@
         w: 20,
         h: 20,
         revealOrder: 1,
+        revealGroup: "",
         shapeKind: "circle",
         color: "#0a66ff",
         locked: false,
@@ -2862,6 +2872,16 @@
   refs.canvasProgressive.addEventListener("change", (event) => updateSelectedCanvasData({
     progressive: Boolean(event.target.checked),
   }));
+  refs.canvasElementsList.addEventListener("change", (event) => {
+    const groupSelect = event.target.closest("[data-canvas-reveal-group-select]");
+    if (!groupSelect) {
+      return;
+    }
+    updateCanvasElementById(
+      groupSelect.getAttribute("data-canvas-reveal-group-select"),
+      { revealGroup: normalizeCanvasRevealGroup(groupSelect.value) }
+    );
+  });
   refs.canvasDuplicateElement.addEventListener("click", duplicateSelectedCanvasElement);
   refs.canvasDeleteElement.addEventListener("click", removeSelectedCanvasElement);
   refs.canvasElementX.addEventListener("input", (event) => {

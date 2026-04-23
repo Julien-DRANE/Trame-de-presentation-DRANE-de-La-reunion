@@ -1659,6 +1659,23 @@ select {
   gap: 0.35rem;
 }
 
+.canvas-reveal-group-field {
+  display: inline-flex;
+  align-items: center;
+}
+
+.canvas-reveal-group-select {
+  min-width: 3.2rem;
+  height: 2.35rem;
+  padding: 0 0.6rem;
+  border: 1px solid rgba(18, 32, 51, 0.12);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--ink);
+  font-weight: 800;
+  text-align: center;
+}
+
 .canvas-layer-action,
 .canvas-order-handle {
   min-width: 2.35rem;

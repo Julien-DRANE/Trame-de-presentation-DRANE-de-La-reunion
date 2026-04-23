@@ -2373,7 +2373,6 @@
           item.classList.remove("presentation-reveal-visible");
         });
       }
-
       function revealNextItemInCurrentSlide() {
         const screen = getActiveScreen();
         if (!screen) {
@@ -2383,13 +2382,18 @@
         if (!slide || slide.getAttribute("data-progressive-content") !== "true") {
           return false;
         }
-        const nextHiddenItem = Array.from(screen.querySelectorAll("[data-reveal-step].presentation-reveal-hidden"))
-          .sort((a, b) => Number(a.getAttribute("data-reveal-step")) - Number(b.getAttribute("data-reveal-step")))[0];
-        if (!nextHiddenItem) {
+        const hiddenItems = Array.from(screen.querySelectorAll("[data-reveal-step].presentation-reveal-hidden"))
+          .sort((a, b) => Number(a.getAttribute("data-reveal-step")) - Number(b.getAttribute("data-reveal-step")));
+        if (!hiddenItems.length) {
           return false;
         }
-        nextHiddenItem.classList.remove("presentation-reveal-hidden");
-        nextHiddenItem.classList.add("presentation-reveal-visible");
+        const nextStep = Number(hiddenItems[0].getAttribute("data-reveal-step")) || 0;
+        hiddenItems
+          .filter((item) => (Number(item.getAttribute("data-reveal-step")) || 0) === nextStep)
+          .forEach((item) => {
+            item.classList.remove("presentation-reveal-hidden");
+            item.classList.add("presentation-reveal-visible");
+          });
         return true;
       }
 
