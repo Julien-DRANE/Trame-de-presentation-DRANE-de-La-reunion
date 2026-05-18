@@ -105,7 +105,9 @@
     tableFillList: document.querySelector("#table-fill-list"),
     tableEditorGrid: document.querySelector("#table-editor-grid"),
     slideFreeBody: document.querySelector("#slide-free-body"),
+    freeTextBullets: document.querySelector("#free-text-bullets"),
     freeTextColor: document.querySelector("#free-text-color"),
+    freeTextSize: document.querySelector("#free-text-size"),
     freeBodyMeta: document.querySelector("#free-body-meta"),
     freeLinkLabel: document.querySelector("#free-link-label"),
     freeLinkUrl: document.querySelector("#free-link-url"),
@@ -2348,7 +2350,7 @@
     }
 
     const wrapper = document.createElement("span");
-    wrapper.setAttribute("style", `font-size:${size}%;`);
+    wrapper.setAttribute("style", `font-size:${Math.round(Math.min(72, Math.max(8, Number(size) || 8)))}px;`);
     try {
       const content = range.extractContents();
       wrapper.appendChild(content);
@@ -2356,6 +2358,21 @@
       range.selectNodeContents(wrapper);
       selection.removeAllRanges();
       selection.addRange(range);
+      saveFreeEditorSelection();
+      normalizeFreeEditorMarkup(false);
+    } catch (error) {
+      return;
+    }
+  }
+
+  function applyFreeEditorBullets() {
+    if (!restoreFreeEditorSelection()) {
+      refs.slideFreeBody.focus();
+      return;
+    }
+
+    try {
+      document.execCommand("insertUnorderedList", false);
       saveFreeEditorSelection();
       normalizeFreeEditorMarkup(false);
     } catch (error) {
@@ -2475,6 +2492,18 @@
       parent.insertBefore(element.firstChild, element);
     }
     parent.removeChild(element);
+  }
+
+  function isFreeEditorSelectionInsideList() {
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) {
+      return false;
+    }
+    const range = selection.getRangeAt(0);
+    if (!refs.slideFreeBody.contains(range.commonAncestorContainer)) {
+      return false;
+    }
+    return Boolean(findFreeEditorFormatAncestor(range, "ul") || findFreeEditorFormatAncestor(range, "li"));
   }
 
   function insertFreeEditorLineBreak() {
@@ -2878,6 +2907,9 @@
   refs.slideFreeBody.addEventListener("keyup", saveFreeEditorSelection);
   refs.slideFreeBody.addEventListener("keydown", (event) => {
     if (event.key === "Enter") {
+      if (isFreeEditorSelectionInsideList()) {
+        return;
+      }
       event.preventDefault();
       insertFreeEditorLineBreak();
     }
@@ -3470,18 +3502,6 @@
     });
   });
 
-  document.querySelectorAll("[data-free-size]").forEach((button) => {
-    button.addEventListener("mousedown", (event) => {
-      event.preventDefault();
-      markFreeEditorToolbarInteraction();
-      saveFreeEditorSelection();
-    });
-    button.addEventListener("click", () => {
-      refs.slideFreeBody.focus();
-      applyFreeEditorFontSize(button.getAttribute("data-free-size"));
-    });
-  });
-
   if (refs.freeTextColor) {
     refs.freeTextColor.addEventListener("mousedown", () => {
       markFreeEditorToolbarInteraction();
@@ -3494,6 +3514,29 @@
     refs.freeTextColor.addEventListener("change", (event) => {
       refs.slideFreeBody.focus();
       applyFreeEditorTextColor(event.target.value);
+    });
+  }
+
+  if (refs.freeTextSize) {
+    refs.freeTextSize.addEventListener("mousedown", () => {
+      markFreeEditorToolbarInteraction();
+      saveFreeEditorSelection();
+    });
+    refs.freeTextSize.addEventListener("change", (event) => {
+      refs.slideFreeBody.focus();
+      applyFreeEditorFontSize(event.target.value);
+    });
+  }
+
+  if (refs.freeTextBullets) {
+    refs.freeTextBullets.addEventListener("mousedown", (event) => {
+      event.preventDefault();
+      markFreeEditorToolbarInteraction();
+      saveFreeEditorSelection();
+    });
+    refs.freeTextBullets.addEventListener("click", () => {
+      refs.slideFreeBody.focus();
+      applyFreeEditorBullets();
     });
   }
 

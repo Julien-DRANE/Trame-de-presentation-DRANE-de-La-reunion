@@ -368,17 +368,28 @@
                       <button class="button button-ghost free-editor-action" type="button" data-free-command="bold"><strong>G</strong></button>
                       <button class="button button-ghost free-editor-action" type="button" data-free-command="italic"><em>I</em></button>
                       <button class="button button-ghost free-editor-action" type="button" data-free-command="underline"><u>S</u></button>
+                      <button id="free-text-bullets" class="button button-ghost free-editor-action" type="button" aria-label="Afficher des puces">Puces</button>
                       <label class="free-editor-color-control">
                         <span>Couleur</span>
                         <input id="free-text-color" type="color" value="#1d1917" aria-label="Couleur du texte sélectionné" />
                       </label>
-                      <div class="free-editor-size-group" aria-label="Taille du texte">
-                        <button class="button button-ghost free-editor-size" type="button" data-free-size="100">100%</button>
-                        <button class="button button-ghost free-editor-size" type="button" data-free-size="110">110%</button>
-                        <button class="button button-ghost free-editor-size" type="button" data-free-size="120">120%</button>
-                        <button class="button button-ghost free-editor-size" type="button" data-free-size="130">130%</button>
-                        <button class="button button-ghost free-editor-size" type="button" data-free-size="140">140%</button>
-                      </div>
+                      <label class="free-editor-size-control">
+                        <span>Taille</span>
+                        <select id="free-text-size" aria-label="Taille du texte sélectionné">
+                          <option value="8">8 px</option>
+                          <option value="10">10 px</option>
+                          <option value="12">12 px</option>
+                          <option value="14">14 px</option>
+                          <option value="16">16 px</option>
+                          <option value="18">18 px</option>
+                          <option value="20">20 px</option>
+                          <option value="24">24 px</option>
+                          <option value="28">28 px</option>
+                          <option value="32">32 px</option>
+                          <option value="40">40 px</option>
+                          <option value="48">48 px</option>
+                        </select>
+                      </label>
                     </div>
                     <div id="slide-free-body" class="free-editor" contenteditable="true"></div>
                   </div>

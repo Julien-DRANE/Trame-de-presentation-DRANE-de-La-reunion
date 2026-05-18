@@ -1022,6 +1022,14 @@
         color: var(--slide-text);
         line-height: 1.36;
       }
+      .slide-free-body ul {
+        margin: 0;
+        padding-left: 1.45rem;
+        color: var(--slide-text);
+      }
+      .slide-free-body li + li {
+        margin-top: 0.2rem;
+      }
       .slide-free-links {
         display: flex;
         flex-wrap: wrap;

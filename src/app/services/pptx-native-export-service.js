@@ -499,9 +499,13 @@
       }
       if (tag === "span") {
         const styleAttr = String(node.getAttribute("style") || "");
-        const sizeMatch = styleAttr.match(/font-size\s*:\s*(90|100|110|120|130|140)%/i);
-        if (sizeMatch) {
-          nextStyle.fontScale = Number(sizeMatch[1]) / 100;
+        const percentSizeMatch = styleAttr.match(/font-size\s*:\s*(90|100|110|120|130|140)%/i);
+        if (percentSizeMatch) {
+          nextStyle.fontScale = Number(percentSizeMatch[1]) / 100;
+        }
+        const pxSizeMatch = styleAttr.match(/font-size\s*:\s*(8|10|12|14|1[6-9]|[2-6][0-9]|7[0-2])px/i);
+        if (pxSizeMatch) {
+          nextStyle.fontScale = Number(pxSizeMatch[1]) / 16;
         }
         const colorMatch = styleAttr.match(/color\s*:\s*(#[0-9a-fA-F]{6})/i);
         if (colorMatch) {
@@ -521,6 +525,19 @@
           if (runs.some((run) => String(run.text || "").trim())) {
             paragraphs.push(runs);
           }
+          return;
+        }
+        if (tag === "ul") {
+          Array.from(node.children).forEach((child) => {
+            if (!child || child.tagName.toLowerCase() !== "li") {
+              return;
+            }
+            const runs = [{ text: "• ", fontScale: 1 }];
+            Array.from(child.childNodes).forEach((grandChild) => walk(grandChild, {}, runs));
+            if (runs.some((run) => String(run.text || "").trim())) {
+              paragraphs.push(runs);
+            }
+          });
           return;
         }
       }

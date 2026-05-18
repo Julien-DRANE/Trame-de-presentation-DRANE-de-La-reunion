@@ -1401,12 +1401,6 @@ select {
   padding-inline: 0.8rem;
 }
 
-.free-editor-size-group {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem;
-}
-
 .free-editor-color-control {
   display: inline-flex;
   align-items: center;
@@ -1430,9 +1424,26 @@ select {
   cursor: pointer;
 }
 
-.free-editor-size {
-  min-width: 3.5rem;
-  padding-inline: 0.65rem;
+.free-editor-size-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.35rem 0.65rem;
+  border: 1px solid rgba(18, 32, 51, 0.1);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.82);
+  color: var(--ink);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.free-editor-size-control select {
+  min-width: 5.5rem;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
 }
 
 .free-editor {
@@ -1445,6 +1456,15 @@ select {
   line-height: 1.38;
   overflow-y: auto;
   resize: vertical;
+}
+
+.free-editor ul {
+  margin: 0.35rem 0;
+  padding-left: 1.35rem;
+}
+
+.free-editor li + li {
+  margin-top: 0.25rem;
 }
 
 .free-editor:focus {

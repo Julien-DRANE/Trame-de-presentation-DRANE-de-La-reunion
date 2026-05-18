@@ -137,7 +137,7 @@
           : String(node.style.fontSize || "").trim();
         const fontSize = /^(90|100|110|120|130|140)%$/i.test(rawFontSize)
           ? rawFontSize.toLowerCase()
-          : /^(1[6-9]|[2-6][0-9]|7[0-2])px$/i.test(rawFontSize)
+          : /^(8|10|12|14|1[6-9]|[2-6][0-9]|7[0-2])px$/i.test(rawFontSize)
             ? rawFontSize.toLowerCase()
             : "";
         const color = normalizeRichTextColor(tag === "font" ? node.getAttribute("color") : node.style.color);
