@@ -440,11 +440,24 @@
       return mainWeight + childrenWeight;
     };
 
+    const estimateSingleColumnHeight = (items) => items.reduce((sum, item) => {
+      const bulletItem = item && typeof item === "object" ? item : { text: String(item || ""), children: [] };
+      const mainTextLength = String(bulletItem.text || "").replace(/\s+/g, " ").trim().length;
+      const mainLines = Math.max(1, Math.ceil(mainTextLength / 52));
+      const childrenHeight = (Array.isArray(bulletItem.children) ? bulletItem.children : []).reduce((childSum, child) => {
+        const childLength = String(child || "").replace(/\s+/g, " ").trim().length;
+        const childLines = Math.max(1, Math.ceil(childLength / 62));
+        return childSum + (childLines * 0.84);
+      }, 0);
+      return sum + (mainLines * 1.08) + childrenHeight + 0.22;
+    }, 0);
+
     const weights = bullets.map(getBulletWeight);
     const totalWeight = weights.reduce((sum, value) => sum + value, 0);
-    const splitThreshold = 5.15;
+    const singleColumnHeight = estimateSingleColumnHeight(bullets);
+    const singleColumnFitsLeft = singleColumnHeight <= 8.9;
 
-    if (bullets.length <= 3 && totalWeight <= splitThreshold) {
+    if (bullets.length <= 3 && singleColumnFitsLeft) {
       return {
         mainBullets: bullets.slice(0, 3),
         extraBullets: bullets.slice(3),

@@ -370,11 +370,47 @@
   }
 
   function splitBulletItems(items) {
-    if (!Array.isArray(items) || items.length <= 3) {
+    if (!Array.isArray(items) || !items.length) {
       return [items || []];
     }
-    const pivot = Math.ceil(items.length / 2);
-    return [items.slice(0, pivot), items.slice(pivot)];
+
+    const estimateSingleColumnHeight = (columnItems) => columnItems.reduce((sum, item) => {
+      const bulletItem = item && typeof item === "object" ? item : { text: String(item || ""), children: [] };
+      const mainTextLength = String(bulletItem.text || "").replace(/\s+/g, " ").trim().length;
+      const mainLines = Math.max(1, Math.ceil(mainTextLength / 52));
+      const childrenHeight = (Array.isArray(bulletItem.children) ? bulletItem.children : []).reduce((childSum, child) => {
+        const childLength = String(child || "").replace(/\s+/g, " ").trim().length;
+        const childLines = Math.max(1, Math.ceil(childLength / 62));
+        return childSum + (childLines * 0.84);
+      }, 0);
+      return sum + (mainLines * 1.08) + childrenHeight + 0.22;
+    }, 0);
+
+    if (items.length <= 3 && estimateSingleColumnHeight(items) <= 8.9) {
+      return [items || []];
+    }
+
+    const weights = items.map(getBulletLayoutWeight);
+    let bestSplitIndex = -1;
+    let bestScore = Number.POSITIVE_INFINITY;
+    let runningWeight = 0;
+
+    for (let index = 0; index < items.length - 1; index += 1) {
+      runningWeight += weights[index];
+      const leftWeight = runningWeight;
+      const rightWeight = weights.slice(index + 1).reduce((sum, value) => sum + value, 0);
+      const score = Math.max(leftWeight, rightWeight) + (Math.abs(leftWeight - rightWeight) * 0.22);
+      if (score < bestScore) {
+        bestScore = score;
+        bestSplitIndex = index + 1;
+      }
+    }
+
+    if (bestSplitIndex <= 0) {
+      return [items || []];
+    }
+
+    return [items.slice(0, bestSplitIndex), items.slice(bestSplitIndex)];
   }
 
   function getBulletLayoutWeight(item) {
@@ -942,7 +978,7 @@
         startAt: 2,
         hasMedia: false,
       }, slide, deckFont, palette);
-    } else if (!hasMedia && bulletItems.length > 3) {
+    } else if (!hasMedia && splitBulletItems(bulletItems).length > 1) {
       const columns = splitBulletItems(bulletItems);
       const leftCount = columns[0].length;
       addBulletColumn(pptSlide, columns[0], {
