@@ -1311,11 +1311,7 @@
         <img class="slide-logo slide-logo-region" src="${utils.escapeHtml(logoSources.region)}" alt="Logo region academique" />
         <img class="slide-logo slide-logo-drane" src="${utils.escapeHtml(logoSources.drane)}" alt="Logo Drane" />
         <div class="slide-content">
-          <div class="slide-topline">
-            <div class="slide-meta-right">
-              <span class="slide-number-badge">${utils.escapeHtml(slide.number || "")}</span>
-            </div>
-          </div>
+          <div class="slide-topline"></div>
           ${floatingTopRightMediaMarkup}
           <div class="${isCanvasMode ? "slide-body slide-body-no-media slide-body-canvas" : isVisualMode ? "slide-body slide-body-no-media slide-body-visual" : slideMedia && (!extraBullets.length || isTableMode || canKeepMediaWithExtendedBullets) && !isFreeMode ? `slide-body${stackedMediaLayoutClass}${compactBulletMediaClass}` : "slide-body slide-body-no-media"}">
             <div class="slide-main">
