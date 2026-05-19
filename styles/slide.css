@@ -200,14 +200,14 @@
 .slide-headline {
   margin-top: calc(0.88rem + 1cm);
   margin-bottom: 0.22rem;
-  max-width: 16ch;
+  max-width: min(66%, 24ch);
   font-family: var(--slide-font-heading);
   font-size: clamp(1.56rem, 2.82vw, 2.56rem);
   line-height: 0.98;
 }
 
 .slide-body-no-media .slide-headline {
-  max-width: 20ch;
+  max-width: 66%;
 }
 
 .slide-body {
