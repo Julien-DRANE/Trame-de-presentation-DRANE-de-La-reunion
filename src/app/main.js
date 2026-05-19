@@ -1,6 +1,7 @@
 ﻿(function () {
   const ns = (window.StudioSlides = window.StudioSlides || {});
   const STORAGE_KEY = "studio-ingenierie-formation-v2";
+  const SLIDE_CLIPBOARD_KEY = ns.services.storage.slideClipboardKey || "studio-ingenierie-slide-clipboard-v1";
 
   const refs = {
     appShell: document.querySelector(".app-shell"),
@@ -9,6 +10,8 @@
     addSlide: document.querySelector("#add-slide"),
     addSlideMenu: document.querySelector("#add-slide-menu"),
     duplicateSlide: document.querySelector("#duplicate-slide"),
+    copySlide: document.querySelector("#copy-slide"),
+    pasteSlide: document.querySelector("#paste-slide"),
     deleteSlide: document.querySelector("#delete-slide"),
     deleteSlideInline: document.querySelector("#delete-slide-inline"),
     openPresentation: document.querySelector("#open-presentation"),
@@ -181,6 +184,7 @@
   };
 
   let state = ns.services.storage.loadState(STORAGE_KEY);
+  let hasSlideClipboard = Boolean(ns.services.storage.loadSlideClipboard());
   let scheduledSaveTimer = 0;
   let draggedSlideId = null;
   let draggedListSlideId = null;
@@ -382,6 +386,7 @@
     syncSelectedCanvasElement();
     getSafeSelectedTableCell(getSelectedSlide());
     ns.ui.renderDashboard({ state, refs, selectedCanvasElementId, selectedTableCell });
+    syncSlideClipboardControls();
     syncCanvasPreviewFullscreenUi();
     syncCanvasPreviewFullscreenScale();
     updateCanvasTextToolbarState();
@@ -2722,6 +2727,90 @@
     render();
   }
 
+  function collectSlideMediaIds(slide) {
+    if (!slide || typeof slide !== "object") {
+      return [];
+    }
+
+    const canvasElements = slide.canvasData && Array.isArray(slide.canvasData.elements)
+      ? slide.canvasData.elements
+      : [];
+
+    return ns.utils.uniqueStrings([
+      slide.mediaId,
+      slide.secondaryMediaId,
+      ...(Array.isArray(slide.freeMediaIds) ? slide.freeMediaIds : []),
+      slide.visualData && slide.visualData.primaryMediaId,
+      slide.visualData && slide.visualData.secondaryMediaId,
+      ...canvasElements
+        .filter((element) => element && element.type === "image")
+        .map((element) => element.mediaId),
+    ].filter(Boolean));
+  }
+
+  function syncSlideClipboardControls() {
+    hasSlideClipboard = Boolean(ns.services.storage.loadSlideClipboard());
+    if (refs.pasteSlide) {
+      refs.pasteSlide.disabled = !hasSlideClipboard;
+      refs.pasteSlide.title = hasSlideClipboard
+        ? "Insérer la slide copiée après la slide active"
+        : "Copie d'abord une slide dans une autre présentation ouverte";
+    }
+  }
+
+  function copyCurrentSlide() {
+    closeAddSlideMenu();
+    const selected = getSelectedSlide();
+    if (!selected) {
+      return;
+    }
+
+    const mediaIds = collectSlideMediaIds(selected);
+    const mediaItems = state.mediaLibrary
+      .filter((item) => mediaIds.includes(item.id))
+      .map((item) => ns.services.media.sanitizeMediaItem(item))
+      .filter(Boolean);
+
+    ns.services.storage.saveSlideClipboard({
+      copiedAt: new Date().toISOString(),
+      slide: ns.utils.clone(selected),
+      mediaItems,
+    });
+    hasSlideClipboard = true;
+    syncSlideClipboardControls();
+  }
+
+  async function pasteCopiedSlide() {
+    closeAddSlideMenu();
+    const clipboard = ns.services.storage.loadSlideClipboard();
+    if (!clipboard || !clipboard.slide) {
+      hasSlideClipboard = false;
+      syncSlideClipboardControls();
+      return;
+    }
+
+    const slideToInsert = ns.utils.clone(clipboard.slide);
+    slideToInsert.id = ns.utils.createId("slide");
+    slideToInsert.label = ns.utils.clampText(`${slideToInsert.label || "Slide"} copie`, 24);
+
+    const existingMediaIds = new Set(state.mediaLibrary.map((item) => item.id));
+    const importedMediaItems = (clipboard.mediaItems || [])
+      .filter((item) => item && item.id && !existingMediaIds.has(item.id))
+      .map((item) => ns.services.media.sanitizeMediaItem(item))
+      .filter(Boolean);
+
+    if (importedMediaItems.length) {
+      state.mediaLibrary = await ns.services.media.hydrateMediaLibrary(state.mediaLibrary.concat(importedMediaItems));
+    }
+
+    const selectedIndex = state.slides.findIndex((slide) => slide.id === state.selectedSlideId);
+    const insertIndex = selectedIndex >= 0 ? selectedIndex + 1 : state.slides.length;
+    state.slides.splice(insertIndex, 0, slideToInsert);
+    state.selectedSlideId = slideToInsert.id;
+    reindexSlides();
+    render();
+  }
+
   function deleteCurrentSlide() {
     closeAddSlideMenu();
     deleteSlideById(state.selectedSlideId);
@@ -3430,6 +3519,8 @@
   refs.generateBloomDeck.addEventListener("click", regenerateBloomDeck);
   refs.addSlide.addEventListener("click", toggleAddSlideMenu);
   refs.duplicateSlide.addEventListener("click", duplicateCurrentSlide);
+  refs.copySlide.addEventListener("click", copyCurrentSlide);
+  refs.pasteSlide.addEventListener("click", pasteCopiedSlide);
   refs.deleteSlide.addEventListener("click", deleteCurrentSlide);
   refs.deleteSlideInline.addEventListener("click", deleteCurrentSlide);
   refs.exportJson.addEventListener("click", () => ns.services.exporter.exportJson(state));
@@ -3474,6 +3565,11 @@
   });
 
   window.addEventListener("beforeunload", persistStateNow);
+  window.addEventListener("storage", (event) => {
+    if (event.key === SLIDE_CLIPBOARD_KEY) {
+      syncSlideClipboardControls();
+    }
+  });
   window.addEventListener("resize", syncCanvasPreviewFullscreenScale);
   refs.tabs.forEach((tab) => {
     tab.addEventListener("click", () => setView(tab.getAttribute("data-switch-view")));

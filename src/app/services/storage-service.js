@@ -1,6 +1,7 @@
 (function () {
   const ns = (window.StudioSlides = window.StudioSlides || {});
   ns.services = ns.services || {};
+  const SLIDE_CLIPBOARD_KEY = "studio-ingenierie-slide-clipboard-v1";
 
   const themeOptions = ["random", "mix", "circles", "waves", "clean"];
   const viewOptions = ["engineering", "presentation"];
@@ -419,9 +420,60 @@
     safeWrite(key, JSON.stringify(value));
   }
 
+  function sanitizeSlideClipboard(input) {
+    if (!input || typeof input !== "object") {
+      return null;
+    }
+
+    const bloomLevels = (ns.data && ns.data.bloomLevels) || [];
+    const principles = (ns.data && ns.data.cognitivePrinciples) || [];
+    const allowedBloomIds = bloomLevels.map((item) => item.id);
+    const allowedPrincipleIds = principles.map((item) => item.id);
+    const slide = sanitizeSlide(input.slide, 0, allowedBloomIds, allowedPrincipleIds);
+
+    if (!slide) {
+      return null;
+    }
+
+    const mediaItems = Array.isArray(input.mediaItems)
+      ? input.mediaItems.map((item) => ns.services.media.sanitizeMediaItem(item)).filter(Boolean)
+      : [];
+
+    return {
+      copiedAt: typeof input.copiedAt === "string" ? input.copiedAt : "",
+      slide,
+      mediaItems,
+    };
+  }
+
+  function loadSlideClipboard() {
+    const raw = safeRead(SLIDE_CLIPBOARD_KEY);
+    if (!raw) {
+      return null;
+    }
+
+    try {
+      return sanitizeSlideClipboard(JSON.parse(raw));
+    } catch (error) {
+      return null;
+    }
+  }
+
+  function saveSlideClipboard(value) {
+    const sanitized = sanitizeSlideClipboard(value);
+    if (!sanitized) {
+      return;
+    }
+    safeWrite(SLIDE_CLIPBOARD_KEY, JSON.stringify(sanitized));
+  }
+
   ns.services.storage = {
     loadState,
     saveState,
     sanitizeState,
+    loadSlideClipboard,
+    saveSlideClipboard,
+    sanitizeSlideClipboard,
+    slideClipboardKey: SLIDE_CLIPBOARD_KEY,
   };
 })();
