@@ -526,6 +526,29 @@
     return secondWeight >= firstWeight + 1;
   }
 
+  function shouldUseCompactBulletMediaLayout(slide, bulletsInput, mediaCount) {
+    const bullets = Array.isArray(bulletsInput) ? bulletsInput : [];
+    if (!mediaCount || !bullets.length || Boolean(slide && slide.contentType && slide.contentType !== "bullets")) {
+      return false;
+    }
+
+    const totalWeight = bullets.reduce((sum, item) => sum + getBulletLayoutWeight(item), 0);
+    const totalChildren = bullets.reduce((sum, item) => {
+      const bulletItem = item && typeof item === "object" ? item : { text: String(item || ""), children: [] };
+      return sum + (Array.isArray(bulletItem.children) ? bulletItem.children.length : 0);
+    }, 0);
+    const hasHeavyChildList = bullets.some((item) => {
+      const bulletItem = item && typeof item === "object" ? item : { text: String(item || ""), children: [] };
+      return Array.isArray(bulletItem.children) && bulletItem.children.length >= 3;
+    });
+
+    if (mediaCount > 1) {
+      return totalWeight >= 4.2 || totalChildren >= 4 || hasHeavyChildList;
+    }
+
+    return totalWeight >= 5.2 || totalChildren >= 5;
+  }
+
   function getTableCellFillStyle(tableHighlights, rowIndex, columnIndex) {
     const cellColor = tableHighlights && tableHighlights.cells ? tableHighlights.cells[`${rowIndex}-${columnIndex}`] : "";
     const rowColor = tableHighlights && tableHighlights.rows ? tableHighlights.rows[String(rowIndex)] : "";
@@ -1156,6 +1179,7 @@
     );
     const canKeepMediaWithExtendedBullets = Boolean(slideMedia) && allBullets.length > 3 && allBullets.length <= 6;
     const useSecondBulletSideLayout = shouldUseSecondBulletSideLayout(slide, allBullets, slideMediaItems.length);
+    const useCompactBulletMediaLayout = shouldUseCompactBulletMediaLayout(slide, allBullets, slideMediaItems.length);
     const mainBulletsRevealCount = countBulletRevealSteps(mainBullets, {
       progressive: bulletsProgressive,
       progressiveChildren: bulletsSubProgressive,
@@ -1203,7 +1227,7 @@
           mainBulletsRevealCount + 1,
           bulletsProgressive,
           bulletsSubProgressive,
-          undefined
+          useCompactBulletMediaLayout ? { compactMedia: true } : undefined
         )
       : createSlideMediaMarkup(slide, opts);
     const secondBulletSideMarkup = useSecondBulletSideLayout
@@ -1279,6 +1303,7 @@
     const tableModeClass = isTableMode ? " is-table-slide" : "";
     const visualHeaderClass = isVisualMode && (slide.title || slide.subtitle) ? " is-visual-has-header" : "";
     const stackedMediaLayoutClass = slideMediaItems.length > 1 ? " has-media-stack-layout" : "";
+    const compactBulletMediaClass = useCompactBulletMediaLayout ? " has-compact-media-layout" : "";
 
     return `
       <article class="deck-slide theme-${utils.escapeHtml(themeName)}${compactClass}${visualModeClass}${canvasModeClass}${tableModeClass}${visualHeaderClass}" data-progressive-content="${bulletsProgressive || tableProgressive || visualProgressive || Boolean(canvasData.progressive) ? "true" : "false"}" style="${utils.escapeHtml(paletteStyle)}">
@@ -1292,7 +1317,7 @@
             </div>
           </div>
           ${floatingTopRightMediaMarkup}
-          <div class="${isCanvasMode ? "slide-body slide-body-no-media slide-body-canvas" : isVisualMode ? "slide-body slide-body-no-media slide-body-visual" : slideMedia && (!extraBullets.length || isTableMode || canKeepMediaWithExtendedBullets) && !isFreeMode ? `slide-body${stackedMediaLayoutClass}` : "slide-body slide-body-no-media"}">
+          <div class="${isCanvasMode ? "slide-body slide-body-no-media slide-body-canvas" : isVisualMode ? "slide-body slide-body-no-media slide-body-visual" : slideMedia && (!extraBullets.length || isTableMode || canKeepMediaWithExtendedBullets) && !isFreeMode ? `slide-body${stackedMediaLayoutClass}${compactBulletMediaClass}` : "slide-body slide-body-no-media"}">
             <div class="slide-main">
               ${headline}
               ${subtitle}

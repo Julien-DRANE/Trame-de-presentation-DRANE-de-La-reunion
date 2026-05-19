@@ -9,6 +9,7 @@
     generateBloomDeck: document.querySelector("#generate-bloom-deck"),
     addSlide: document.querySelector("#add-slide"),
     addSlideMenu: document.querySelector("#add-slide-menu"),
+    undoAction: document.querySelector("#undo-action"),
     duplicateSlide: document.querySelector("#duplicate-slide"),
     copySlide: document.querySelector("#copy-slide"),
     pasteSlide: document.querySelector("#paste-slide"),
@@ -185,6 +186,8 @@
 
   let state = ns.services.storage.loadState(STORAGE_KEY);
   let hasSlideClipboard = Boolean(ns.services.storage.loadSlideClipboard());
+  const undoStack = [];
+  const UNDO_LIMIT = 80;
   let scheduledSaveTimer = 0;
   let draggedSlideId = null;
   let draggedListSlideId = null;
@@ -210,6 +213,7 @@
   let suppressCanvasClickUntil = 0;
   let isPptxExportRunning = false;
   let isCanvasPreviewFullscreen = false;
+  let activeUndoEditKey = "";
   const defaultPptxButtonLabel = refs.exportPptx ? refs.exportPptx.textContent : "Exporter PPTX";
   const isPresentationMode = new URLSearchParams(window.location.search).get("present") === "1";
 
@@ -234,6 +238,81 @@
       scheduledSaveTimer = 0;
       ns.services.storage.saveState(STORAGE_KEY, state);
     }, 180);
+  }
+
+  function clearUndoEditSession() {
+    activeUndoEditKey = "";
+  }
+
+  function getEditableUndoTargetKey() {
+    const activeElement = document.activeElement;
+    if (!activeElement) {
+      return "";
+    }
+
+    if (activeElement.matches("input:not([type='checkbox']):not([type='radio']):not([type='file']):not([type='color']), textarea")) {
+      const id = activeElement.id || activeElement.name || activeElement.getAttribute("data-undo-key") || "";
+      return id ? `${activeElement.tagName.toLowerCase()}:${id}` : "";
+    }
+
+    if (activeElement.isContentEditable) {
+      const id = activeElement.id || activeElement.getAttribute("data-undo-key") || "";
+      return id ? `contenteditable:${id}` : "";
+    }
+
+    return "";
+  }
+
+  function pushUndoSnapshot(options) {
+    const opts = options || {};
+    const editKey = opts.editKey === undefined ? getEditableUndoTargetKey() : opts.editKey;
+    if (editKey && activeUndoEditKey === editKey) {
+      return;
+    }
+
+    const snapshot = ns.utils.clone(state);
+    const serialized = JSON.stringify(snapshot);
+    if (undoStack.length && undoStack[undoStack.length - 1].serialized === serialized) {
+      activeUndoEditKey = editKey || "";
+      return;
+    }
+
+    undoStack.push({ serialized, state: snapshot });
+    if (undoStack.length > UNDO_LIMIT) {
+      undoStack.shift();
+    }
+    activeUndoEditKey = editKey || "";
+  }
+
+  function syncUndoButton() {
+    if (!refs.undoAction) {
+      return;
+    }
+    refs.undoAction.disabled = undoStack.length === 0;
+    refs.undoAction.title = undoStack.length
+      ? "Annuler la dernière action"
+      : "Aucune action à annuler";
+  }
+
+  function undoLastAction() {
+    if (!undoStack.length) {
+      return;
+    }
+    const previous = undoStack.pop();
+    clearUndoEditSession();
+    state = ns.services.storage.sanitizeState(ns.utils.clone(previous.state));
+    selectedCanvasElementId = null;
+    activeCanvasInteraction = null;
+    pendingBulletFocus = null;
+    pendingSubBulletFocus = null;
+    pendingTableFocus = null;
+    pendingVisualFieldFocus = null;
+    pendingVisualChartFocus = null;
+    pendingPreviewPanelFocus = false;
+    freeEditorRange = null;
+    canvasTextEditorRange = null;
+    clearCanvasTextSelectionBookmark();
+    render();
   }
 
   function getStageRenderOptions(selectedSlide) {
@@ -386,6 +465,7 @@
     syncSelectedCanvasElement();
     getSafeSelectedTableCell(getSelectedSlide());
     ns.ui.renderDashboard({ state, refs, selectedCanvasElementId, selectedTableCell });
+    syncUndoButton();
     syncSlideClipboardControls();
     syncCanvasPreviewFullscreenUi();
     syncCanvasPreviewFullscreenScale();
@@ -456,6 +536,7 @@
   }
 
   async function importJsonProject(file) {
+    pushUndoSnapshot({ editKey: "" });
     const raw = await file.text();
     const parsed = JSON.parse(raw);
     const nextState = ns.services.storage.sanitizeState(parsed);
@@ -484,6 +565,7 @@
   }
 
   function updateSettings(key, value, limit, rerender = true) {
+    pushUndoSnapshot();
     state.settings[key] = ns.utils.clampText(value, limit);
     if (rerender === false) {
       refreshStageOnly();
@@ -738,16 +820,19 @@
   }
 
   function toggleNightMode() {
+    pushUndoSnapshot({ editKey: "" });
     state.uiNightMode = !state.uiNightMode;
     render();
   }
 
   function toggleGlobalPanel() {
+    pushUndoSnapshot({ editKey: "" });
     state.uiGlobalPanelCollapsed = !state.uiGlobalPanelCollapsed;
     render();
   }
 
   function toggleMediaPanel() {
+    pushUndoSnapshot({ editKey: "" });
     state.uiMediaPanelCollapsed = !state.uiMediaPanelCollapsed;
     render();
   }
@@ -811,6 +896,7 @@
   }
 
   function updateSelectedSlide(patch, rerender = true) {
+    pushUndoSnapshot();
     state.slides = state.slides.map((slide) => {
       if (slide.id !== state.selectedSlideId) {
         return slide;
@@ -825,6 +911,7 @@
   }
 
   function updateSelectedTableCell(rowIndex, columnIndex, value, rerender = true) {
+    pushUndoSnapshot();
     state.slides = state.slides.map((slide) => {
       if (slide.id !== state.selectedSlideId) {
         return slide;
@@ -841,6 +928,7 @@
   }
 
   function resizeSelectedTable(nextRows, nextCols) {
+    pushUndoSnapshot({ editKey: "" });
     state.slides = state.slides.map((slide) => {
       if (slide.id !== state.selectedSlideId) {
         return slide;
@@ -1836,6 +1924,7 @@
     }
 
     event.preventDefault();
+    pushUndoSnapshot({ editKey: "" });
     updateStageCanvasSelection(elementId);
     const elementRect = elementNode.getBoundingClientRect();
     const elementCenterX = elementRect.left + (elementRect.width / 2);
@@ -2102,6 +2191,7 @@
     if ((target !== "row" && target !== "column" && target !== "cell") || (!isCellTarget && (!Number.isInteger(index) || index < 0)) || (isCellTarget && !parseTableCellKey(index)) || !/^#[0-9a-fA-F]{6}$/.test(color || "")) {
       return;
     }
+    pushUndoSnapshot({ editKey: "" });
     state.slides = state.slides.map((slide) => {
       if (slide.id !== state.selectedSlideId) {
         return slide;
@@ -2123,6 +2213,7 @@
     if ((target !== "row" && target !== "column" && target !== "cell") || (!isCellTarget && (!Number.isInteger(index) || index < 0)) || (isCellTarget && !parseTableCellKey(index))) {
       return;
     }
+    pushUndoSnapshot({ editKey: "" });
     state.slides = state.slides.map((slide) => {
       if (slide.id !== state.selectedSlideId) {
         return slide;
@@ -2168,6 +2259,7 @@
   }
 
   function updateSelectedBullet(index, value, rerender) {
+    pushUndoSnapshot();
     state.slides = state.slides.map((slide) => {
       if (slide.id !== state.selectedSlideId) {
         return slide;
@@ -2187,6 +2279,7 @@
   }
 
   function addSelectedBullet() {
+    pushUndoSnapshot({ editKey: "" });
     state.slides = state.slides.map((slide) => {
       if (slide.id !== state.selectedSlideId) {
         return slide;
@@ -2199,6 +2292,7 @@
   }
 
   function updateSelectedSubBullet(parentIndex, subIndex, value, rerender = true) {
+    pushUndoSnapshot();
     state.slides = state.slides.map((slide) => {
       if (slide.id !== state.selectedSlideId) {
         return slide;
@@ -2220,6 +2314,7 @@
   }
 
   function addSelectedSubBullet(parentIndex) {
+    pushUndoSnapshot({ editKey: "" });
     state.slides = state.slides.map((slide) => {
       if (slide.id !== state.selectedSlideId) {
         return slide;
@@ -2234,6 +2329,7 @@
   }
 
   function removeSelectedSubBullet(parentIndex, subIndex) {
+    pushUndoSnapshot({ editKey: "" });
     state.slides = state.slides.map((slide) => {
       if (slide.id !== state.selectedSlideId) {
         return slide;
@@ -2255,6 +2351,7 @@
   }
 
   function removeSelectedBullet(index) {
+    pushUndoSnapshot({ editKey: "" });
     state.slides = state.slides.map((slide) => {
       if (slide.id !== state.selectedSlideId) {
         return slide;
@@ -2284,6 +2381,7 @@
   }
 
   function updateSelectedFreeBody(value) {
+    pushUndoSnapshot();
     state.slides = state.slides.map((slide) => {
       if (slide.id !== state.selectedSlideId) {
         return slide;
@@ -2547,6 +2645,7 @@
       return;
     }
 
+    pushUndoSnapshot({ editKey: "" });
     state.slides = state.slides.map((slide) => {
       if (slide.id !== state.selectedSlideId) {
         return slide;
@@ -2562,6 +2661,7 @@
   }
 
   function removeSelectedFreeLink(index) {
+    pushUndoSnapshot({ editKey: "" });
     state.slides = state.slides.map((slide) => {
       if (slide.id !== state.selectedSlideId) {
         return slide;
@@ -2577,6 +2677,7 @@
   }
 
   function toggleSelectedFreeMedia(mediaId) {
+    pushUndoSnapshot({ editKey: "" });
     state.slides = state.slides.map((slide) => {
       if (slide.id !== state.selectedSlideId) {
         return slide;
@@ -2598,6 +2699,7 @@
       return;
     }
 
+    pushUndoSnapshot({ editKey: "" });
     state.slides = state.slides.map((slide) => {
       if (slide.id !== state.selectedSlideId) {
         return slide;
@@ -2630,6 +2732,7 @@
   }
 
   function updateSelectedFreeLink(index, patch) {
+    pushUndoSnapshot();
     state.slides = state.slides.map((slide) => {
       if (slide.id !== state.selectedSlideId) {
         return slide;
@@ -2649,6 +2752,7 @@
       return;
     }
 
+    pushUndoSnapshot({ editKey: "" });
     state.slides = state.slides.map((slide) => {
       if (slide.id !== state.selectedSlideId) {
         return slide;
@@ -2674,6 +2778,7 @@
   }
 
   function createBlankSlide(bloomLevelId) {
+    pushUndoSnapshot({ editKey: "" });
     const selected = getSelectedSlide();
     const slide = ns.stateFactory.createBlankSlide(
       state.slides.length + 1,
@@ -2716,6 +2821,7 @@
       return;
     }
 
+    pushUndoSnapshot({ editKey: "" });
     const duplicate = ns.utils.clone(selected);
     duplicate.id = ns.utils.createId("slide");
     duplicate.label = ns.utils.clampText(`${selected.label} copie`, 24);
@@ -2789,6 +2895,7 @@
       return;
     }
 
+    pushUndoSnapshot({ editKey: "" });
     const slideToInsert = ns.utils.clone(clipboard.slide);
     slideToInsert.id = ns.utils.createId("slide");
     slideToInsert.label = ns.utils.clampText(`${slideToInsert.label || "Slide"} copie`, 24);
@@ -2827,6 +2934,7 @@
       return;
     }
 
+    pushUndoSnapshot({ editKey: "" });
     state.slides.splice(index, 1);
     reindexSlides();
     state.selectedSlideId = state.slides[Math.max(0, index - 1)].id;
@@ -2841,6 +2949,7 @@
       return;
     }
 
+    pushUndoSnapshot({ editKey: "" });
     const moved = state.slides.splice(currentIndex, 1)[0];
     state.slides.splice(targetIndex, 0, moved);
     reindexSlides();
@@ -2854,6 +2963,7 @@
       return;
     }
 
+    pushUndoSnapshot({ editKey: "" });
     const moved = state.slides.splice(currentIndex, 1)[0];
     state.slides.splice(targetIndex, 0, moved);
     state.selectedSlideId = moved.id;
@@ -2914,6 +3024,7 @@
 
   function regenerateBloomDeck() {
     closeAddSlideMenu();
+    pushUndoSnapshot({ editKey: "" });
     const slides = ns.stateFactory.createBloomDeckSlides().map((slide) => {
       slide.id = ns.utils.createId("slide");
       return slide;
@@ -2932,6 +3043,7 @@
   refs.deckTransition.addEventListener("change", (event) => updateSettings("transition", event.target.value, 12));
   refs.deckTheme.addEventListener("change", (event) => updateSettings("theme", event.target.value, 12));
   refs.deckFrameShadow.addEventListener("change", (event) => {
+    pushUndoSnapshot({ editKey: "" });
     state.settings.frameShadow = Boolean(event.target.checked);
     render();
   });
@@ -3486,6 +3598,7 @@
     }
 
     const importedItems = await ns.services.media.importFiles(files);
+    pushUndoSnapshot({ editKey: "" });
     state.mediaLibrary = state.mediaLibrary.concat(importedItems);
     render();
     event.target.value = "";
@@ -3507,6 +3620,7 @@
     }
 
     ns.services.media.primeMediaUrl(mediaItem);
+    pushUndoSnapshot({ editKey: "" });
     state.mediaLibrary = state.mediaLibrary.concat(mediaItem);
     refs.mediaLinkInput.value = "";
     refs.mediaLinkFeedback.textContent = mediaItem.kind === "embed"
@@ -3518,6 +3632,7 @@
 
   refs.generateBloomDeck.addEventListener("click", regenerateBloomDeck);
   refs.addSlide.addEventListener("click", toggleAddSlideMenu);
+  refs.undoAction.addEventListener("click", undoLastAction);
   refs.duplicateSlide.addEventListener("click", duplicateCurrentSlide);
   refs.copySlide.addEventListener("click", copyCurrentSlide);
   refs.pasteSlide.addEventListener("click", pasteCopiedSlide);
@@ -3565,6 +3680,11 @@
   });
 
   window.addEventListener("beforeunload", persistStateNow);
+  document.addEventListener("focusout", (event) => {
+    if (event.target && (event.target.matches("input, textarea, select") || event.target.isContentEditable)) {
+      clearUndoEditSession();
+    }
+  });
   window.addEventListener("storage", (event) => {
     if (event.key === SLIDE_CLIPBOARD_KEY) {
       syncSlideClipboardControls();
@@ -3714,6 +3834,7 @@
 
     if (mediaDeleteTrigger) {
       const mediaId = mediaDeleteTrigger.getAttribute("data-delete-media");
+      pushUndoSnapshot({ editKey: "" });
       state.mediaLibrary = state.mediaLibrary.filter((item) => item.id !== mediaId);
       state.slides = state.slides.map((slide) => {
         const nextVisualData = slide.visualData
@@ -4188,6 +4309,12 @@
   });
 
   document.addEventListener("keydown", (event) => {
+    if ((event.ctrlKey || event.metaKey) && !event.shiftKey && event.key.toLowerCase() === "z") {
+      event.preventDefault();
+      undoLastAction();
+      return;
+    }
+
     if (event.key === "Escape" && refs.chartLightbox.classList.contains("is-open")) {
       closeChartLightbox();
       return;
