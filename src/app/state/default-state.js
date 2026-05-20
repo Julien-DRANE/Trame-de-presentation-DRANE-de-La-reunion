@@ -145,6 +145,7 @@
         theme: "mix",
         palette: "ocean",
         font: "studio",
+        contentFontScale: 100,
         transition: "fade",
         frameShadow: false,
       },

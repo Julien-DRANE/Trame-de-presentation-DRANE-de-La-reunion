@@ -185,6 +185,18 @@
     };
   }
 
+  function getContentFontScale(settings) {
+    const parsed = Number(settings && settings.contentFontScale);
+    if (!Number.isFinite(parsed)) {
+      return 1;
+    }
+    return Math.max(0.85, Math.min(1.4, (Math.round(parsed / 5) * 5) / 100));
+  }
+
+  function scaleContentFont(settings, size) {
+    return Math.max(7, Number(size) * getContentFontScale(settings));
+  }
+
   function getPalette(settings, slide) {
     const palettes = (ns.data && ns.data.colorPalettes) || [];
     const paletteId = (slide && slide.paletteOverride) || (settings && settings.palette);
@@ -596,13 +608,13 @@
     }, 0);
   }
 
-  function addRichParagraphs(pptSlide, paragraphs, box, deckFont, palette) {
+  function addRichParagraphs(pptSlide, paragraphs, box, deckFont, palette, settings) {
     if (!paragraphs.length) {
       return box.y;
     }
 
     const totalChars = paragraphs.reduce((sum, paragraph) => sum + paragraph.reduce((count, run) => count + String(run.text || "").length, 0), 0);
-    const baseFontSize = totalChars > 900 ? 12.5 : totalChars > 520 ? 14 : 15.5;
+    const baseFontSize = scaleContentFont(settings, totalChars > 900 ? 12.5 : totalChars > 520 ? 14 : 15.5);
     const estimatedHeight = estimateParagraphHeight(paragraphs, baseFontSize);
     const scale = estimatedHeight > box.h ? Math.max(0.78, box.h / estimatedHeight) : 1;
     let cursorY = box.y;
@@ -718,6 +730,7 @@
   }
 
   async function addSlideChrome(pptSlide, slide, state, assets, deckFont, palette) {
+    const contentFontScale = getContentFontScale(state.settings);
     addSlideBackground(pptSlide, palette);
     const decorativeBackground = await renderDecorativeBackgroundToImage(slide, state.settings);
     if (decorativeBackground) {
@@ -787,7 +800,7 @@
         margin: 0,
         fit: "shrink",
         fontFace: deckFont.pptBody || "Aptos",
-        fontSize: 12,
+        fontSize: 12 * contentFontScale,
         color: palette.textMuted,
       });
       bodyTop += 0.44;
@@ -803,11 +816,12 @@
   function addFooter(pptSlide, slide, state, deckFont, palette) {
     const note = String(slide.note || "").trim();
     const footer = String((state.settings && state.settings.footer) || "").trim();
+    const contentFontScale = getContentFontScale(state.settings);
 
     if (note) {
       addLinkedTextBox(pptSlide, note, { x: 0.7, y: 6.67, w: footer ? 9.8 : 12, h: 0.32 }, {
         fontFace: deckFont.pptBody || "Aptos",
-        fontSize: 9.5,
+        fontSize: 9.5 * contentFontScale,
         color: palette.textMuted,
         margin: 0,
         fit: "shrink",
@@ -823,7 +837,7 @@
         margin: 0,
         align: "right",
         fontFace: deckFont.pptBody || "Aptos",
-        fontSize: 9.5,
+        fontSize: 9.5 * contentFontScale,
         color: palette.textMuted,
       });
     }
@@ -896,13 +910,13 @@
     return (items || []).reduce((sum, item) => sum + 1 + ((item.children || []).length), 0);
   }
 
-  function addBulletColumn(pptSlide, items, box, slide, deckFont, palette) {
+  function addBulletColumn(pptSlide, items, box, slide, deckFont, palette, settings) {
     if (!items.length) {
       return;
     }
 
     const lineCount = countBulletLines(items);
-    const baseSize = getBulletFontSize(lineCount, box.hasMedia);
+    const baseSize = scaleContentFont(settings, getBulletFontSize(lineCount, box.hasMedia));
     const subSize = getSubBulletFontSize(baseSize);
     const lineHeight = Math.max(0.24, Math.min(0.42, box.h / Math.max(lineCount + 0.5, 1)));
     let cursorY = box.y;
@@ -958,7 +972,7 @@
         h: 0.42,
         margin: 0,
         fontFace: deckFont.pptBody || "Aptos",
-        fontSize: 16,
+        fontSize: scaleContentFont(state.settings, 16),
         color: palette.textMuted,
       });
     } else if (useSecondBulletSideLayout) {
@@ -969,7 +983,7 @@
         h: contentHeight,
         startAt: 1,
         hasMedia: false,
-      }, slide, deckFont, palette);
+      }, slide, deckFont, palette, state.settings);
       addBulletColumn(pptSlide, [bulletItems[1]], {
         x: 5.92,
         y: chrome.bodyTop - 0.02,
@@ -977,7 +991,7 @@
         h: contentHeight + 0.02,
         startAt: 2,
         hasMedia: false,
-      }, slide, deckFont, palette);
+      }, slide, deckFont, palette, state.settings);
     } else if (!hasMedia && splitBulletItems(bulletItems).length > 1) {
       const columns = splitBulletItems(bulletItems);
       const leftCount = columns[0].length;
@@ -988,7 +1002,7 @@
         h: contentHeight,
         startAt: 1,
         hasMedia: false,
-      }, slide, deckFont, palette);
+      }, slide, deckFont, palette, state.settings);
       addBulletColumn(pptSlide, columns[1], {
         x: 6.25,
         y: chrome.bodyTop,
@@ -996,7 +1010,7 @@
         h: contentHeight,
         startAt: leftCount + 1,
         hasMedia: false,
-      }, slide, deckFont, palette);
+      }, slide, deckFont, palette, state.settings);
     } else if (useCompactTopRightMediaLayout) {
       const columns = splitBulletItems(bulletItems);
       const leftCount = columns[0].length;
@@ -1007,7 +1021,7 @@
         h: contentHeight,
         startAt: 1,
         hasMedia: false,
-      }, slide, deckFont, palette);
+      }, slide, deckFont, palette, state.settings);
       addBulletColumn(pptSlide, columns[1], {
         x: 6.25,
         y: chrome.bodyTop,
@@ -1015,7 +1029,7 @@
         h: contentHeight,
         startAt: leftCount + 1,
         hasMedia: false,
-      }, slide, deckFont, palette);
+      }, slide, deckFont, palette, state.settings);
     } else {
       addBulletColumn(pptSlide, bulletItems, {
         x: 0.82,
@@ -1024,7 +1038,7 @@
         h: contentHeight,
         startAt: 1,
         hasMedia,
-      }, slide, deckFont, palette);
+      }, slide, deckFont, palette, state.settings);
     }
 
     if (hasMedia) {
@@ -1105,7 +1119,7 @@
       w: tableW,
       h: tableH,
       fontFace: deckFont.pptBody || "Aptos",
-      fontSize: getTableFontSize(rowCount, hasMedia),
+      fontSize: scaleContentFont(state.settings, getTableFontSize(rowCount, hasMedia)),
       color: palette.text,
       border: { type: "solid", pt: 1, color: palette.line },
       fill: stripHex(palette.surface),
@@ -1143,7 +1157,7 @@
     addFooter(pptSlide, slide, state, deckFont, palette);
   }
 
-  async function addFreeLinksBlock(pptSlide, slide, startY, deckFont, palette) {
+  async function addFreeLinksBlock(pptSlide, slide, startY, deckFont, palette, settings) {
     const freeLinks = Array.isArray(slide && slide.freeLinks) ? slide.freeLinks.filter((item) => item && item.url).slice(0, 12) : [];
     if (!freeLinks.length) {
       return startY;
@@ -1177,7 +1191,7 @@
         fit: "shrink",
         align: "center",
         fontFace: deckFont.pptBody || "Aptos",
-        fontSize: 9,
+        fontSize: scaleContentFont(settings, 9),
         bold: true,
         color: palette.accentStrong,
         hyperlink: { url: item.url },
@@ -1221,10 +1235,10 @@
         y: chrome.bodyTop,
         w: 11.1,
         h: 3.1,
-      }, deckFont, palette);
+      }, deckFont, palette, state.settings);
     }
 
-    cursorY = await addFreeLinksBlock(pptSlide, slide, cursorY + 0.06, deckFont, palette);
+    cursorY = await addFreeLinksBlock(pptSlide, slide, cursorY + 0.06, deckFont, palette, state.settings);
     await addFreeGallery(pptSlide, mediaItems, cursorY + 0.08, chrome.bodyBottom - (cursorY + 0.08), palette, deckFont);
     addFooter(pptSlide, slide, state, deckFont, palette);
   }

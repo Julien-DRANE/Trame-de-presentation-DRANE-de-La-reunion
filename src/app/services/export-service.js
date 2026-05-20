@@ -189,6 +189,7 @@
         --slide-frame-shadow: none;
         --slide-font-body: Aptos, "Segoe UI", "Trebuchet MS", sans-serif;
         --slide-font-heading: "Iowan Old Style", Georgia, serif;
+        --slide-content-font-scale: 1;
         position: relative;
         overflow: hidden;
         width: min(1280px, calc(100vw - 3rem));
@@ -396,7 +397,7 @@
         min-height: 1.95rem;
         padding: 0.35rem 0.72rem;
         border-radius: 999px;
-        font-size: 0.76rem;
+        font-size: calc(0.76rem * var(--slide-content-font-scale));
         font-weight: 800;
         letter-spacing: 0.14em;
         text-transform: uppercase;
@@ -461,6 +462,10 @@
         max-height: clamp(8.4rem, 19vh, 11.2rem);
       }
       .slide-main { min-width: 0; }
+      .deck-slide:not(.is-canvas-slide) .slide-main,
+      .deck-slide:not(.is-canvas-slide) .slide-footer {
+        font-size: calc(1rem * var(--slide-content-font-scale));
+      }
       .slide-body-canvas {
         display: block;
         height: 100%;
@@ -706,7 +711,7 @@
         max-width: 54ch;
         margin-top: 0;
         color: var(--slide-text-muted);
-        font-size: clamp(1.12rem, 1.7vw, 1.38rem);
+        font-size: calc(clamp(1.12rem, 1.7vw, 1.38rem) * var(--slide-content-font-scale));
         line-height: 1.46;
       }
       .slide-bullets {
@@ -722,7 +727,7 @@
         gap: 0.7rem;
         align-items: start;
         max-width: 48ch;
-        font-size: 1.12rem;
+        font-size: calc(1.12rem * var(--slide-content-font-scale));
         line-height: 1.56;
       }
       .slide-bullets li::before {
@@ -881,7 +886,7 @@
       .deck-slide.is-table-slide .slide-subtitle-text {
         max-width: 74ch;
         margin-bottom: 0.1rem;
-        font-size: clamp(0.98rem, 1.22vw, 1.12rem);
+        font-size: calc(clamp(0.98rem, 1.22vw, 1.12rem) * var(--slide-content-font-scale));
         line-height: 1.24;
       }
       .deck-slide.is-table-slide .slide-table {
@@ -902,7 +907,7 @@
       .deck-slide.is-table-slide .slide-table-cell {
         min-height: 0;
         padding: 0.84rem 0.96rem;
-        font-size: clamp(1.2rem, 1.84vw, 1.52rem);
+        font-size: calc(clamp(1.2rem, 1.84vw, 1.52rem) * var(--slide-content-font-scale));
         line-height: 1.2;
         display: flex;
         flex-direction: column;
@@ -910,22 +915,22 @@
       }
       .deck-slide.is-table-slide .slide-table.slide-table-dense-1 .slide-table-cell {
         padding: 0.74rem 0.86rem;
-        font-size: clamp(1.1rem, 1.66vw, 1.36rem);
+        font-size: calc(clamp(1.1rem, 1.66vw, 1.36rem) * var(--slide-content-font-scale));
         line-height: 1.17;
       }
       .deck-slide.is-table-slide .slide-table.slide-table-dense-2 .slide-table-cell {
         padding: 0.64rem 0.78rem;
-        font-size: clamp(1rem, 1.5vw, 1.24rem);
+        font-size: calc(clamp(1rem, 1.5vw, 1.24rem) * var(--slide-content-font-scale));
         line-height: 1.15;
       }
       .deck-slide.is-table-slide .slide-table.slide-table-dense-3 .slide-table-cell {
         padding: 0.58rem 0.72rem;
-        font-size: clamp(0.92rem, 1.36vw, 1.12rem);
+        font-size: calc(clamp(0.92rem, 1.36vw, 1.12rem) * var(--slide-content-font-scale));
         line-height: 1.12;
       }
       .deck-slide.is-table-slide .slide-table.slide-table-dense-4 .slide-table-cell {
         padding: 0.46rem 0.58rem;
-        font-size: clamp(0.84rem, 1.18vw, 1rem);
+        font-size: calc(clamp(0.84rem, 1.18vw, 1rem) * var(--slide-content-font-scale));
         line-height: 1.08;
       }
       .deck-slide.is-table-slide .slide-table.slide-table-dense-5 .slide-table-cell {
@@ -1269,7 +1274,7 @@
       .slide-visual-callout-text p {
         margin: 0;
         color: var(--slide-text-muted);
-        font-size: 0.94rem;
+        font-size: calc(0.94rem * var(--slide-content-font-scale));
         line-height: 1.34;
       }
       .slide-visual-text-card p + p,
@@ -1333,7 +1338,7 @@
         box-shadow: 0 14px 34px rgba(18,32,51,0.12);
       }
       .slide-visual-chart-title {
-        font-size: 0.8rem;
+        font-size: calc(0.8rem * var(--slide-content-font-scale));
         font-weight: 800;
         letter-spacing: 0.08em;
         text-transform: uppercase;
@@ -1385,18 +1390,18 @@
         text-align: center;
       }
       .slide-visual-chart-label {
-        font-size: 0.72rem;
+        font-size: calc(0.72rem * var(--slide-content-font-scale));
         color: var(--slide-text-muted);
       }
       .slide-visual-chart-value {
-        font-size: 0.92rem;
+        font-size: calc(0.92rem * var(--slide-content-font-scale));
         color: var(--slide-text);
       }
       .slide-visual-chart-grid.is-dense .slide-visual-chart-label {
-        font-size: 0.64rem;
+        font-size: calc(0.64rem * var(--slide-content-font-scale));
       }
       .slide-visual-chart-grid.is-dense .slide-visual-chart-value {
-        font-size: 0.82rem;
+        font-size: calc(0.82rem * var(--slide-content-font-scale));
       }
       .slide-media-slot {
         display: flex;
@@ -1659,7 +1664,7 @@
         grid-template-columns: auto minmax(0, 1fr);
         gap: 0.65rem;
         align-items: start;
-        font-size: 1.08rem;
+        font-size: calc(1.08rem * var(--slide-content-font-scale));
         line-height: 1.54;
       }
       .slide-side-bullets li::before {
@@ -2161,7 +2166,7 @@
         border-radius: 18px;
         background: var(--slide-surface);
         color: var(--slide-text-muted);
-        font-size: 1.08rem;
+        font-size: calc(1.08rem * var(--slide-content-font-scale));
         line-height: 1.58;
         box-shadow: var(--slide-frame-shadow);
       }
@@ -2188,7 +2193,7 @@
         overflow-wrap: anywhere;
       }
       .slide-signature {
-        font-size: 0.8rem;
+        font-size: calc(0.8rem * var(--slide-content-font-scale));
         font-weight: 800;
         letter-spacing: 0.14em;
         text-transform: uppercase;

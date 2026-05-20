@@ -10,6 +10,16 @@
   const fontOptions = ((ns.data && ns.data.fontOptions) || []).map((item) => item.id);
   const transitionOptions = ["fade", "slide", "zoom", "rise", "none"];
 
+  function normalizeContentFontScale(value, fallback) {
+    const parsed = Number(value);
+    const fallbackValue = Number.isFinite(Number(fallback)) ? Number(fallback) : 100;
+    if (!Number.isFinite(parsed)) {
+      return fallbackValue;
+    }
+    const stepped = Math.round(parsed / 5) * 5;
+    return Math.max(85, Math.min(140, stepped));
+  }
+
   function normalizeHexColor(value, fallback) {
     return /^#[0-9a-fA-F]{6}$/.test(value || "") ? value.toLowerCase() : (fallback || "#60b2e5");
   }
@@ -90,6 +100,10 @@
         theme: themeOptions.includes(input.settings && input.settings.theme) ? input.settings.theme : fallbackState.settings.theme,
         palette: paletteOptions.includes(input.settings && input.settings.palette) ? input.settings.palette : fallbackState.settings.palette,
         font: fontOptions.includes(input.settings && input.settings.font) ? input.settings.font : fallbackState.settings.font,
+        contentFontScale: normalizeContentFontScale(
+          input.settings && input.settings.contentFontScale,
+          fallbackState.settings.contentFontScale
+        ),
         transition: transitionOptions.includes(input.settings && input.settings.transition) ? input.settings.transition : fallbackState.settings.transition,
         frameShadow: Boolean(input.settings && input.settings.frameShadow),
       },

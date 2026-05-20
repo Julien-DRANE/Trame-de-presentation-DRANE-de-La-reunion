@@ -2,6 +2,14 @@
   const ns = (window.StudioSlides = window.StudioSlides || {});
   ns.ui = ns.ui || {};
 
+  function normalizeContentFontScale(value) {
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed)) {
+      return 100;
+    }
+    return Math.max(85, Math.min(140, Math.round(parsed / 5) * 5));
+  }
+
   function renderDashboard(payload) {
     const state = payload.state;
     const refs = payload.refs;
@@ -29,6 +37,8 @@
       .map((font) => `<option value="${ns.utils.escapeHtml(font.id)}">${ns.utils.escapeHtml(font.label)}</option>`)
       .join("");
     refs.deckFont.value = state.settings.font || "studio";
+    refs.deckContentFontScale.value = String(normalizeContentFontScale(state.settings.contentFontScale));
+    refs.deckContentFontScaleValue.textContent = `${refs.deckContentFontScale.value} %`;
     refs.deckTransition.value = state.settings.transition || "fade";
     refs.deckFrameShadow.checked = Boolean(state.settings.frameShadow);
     refs.slideCount.textContent = `${state.slides.length} slides`;

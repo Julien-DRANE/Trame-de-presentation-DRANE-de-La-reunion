@@ -78,6 +78,15 @@
     return getFontOption((settings && settings.font) || "studio");
   }
 
+  function getContentFontScale(settings) {
+    const raw = settings && settings.contentFontScale;
+    const parsed = Number(raw);
+    if (!Number.isFinite(parsed)) {
+      return 1;
+    }
+    return Math.max(0.85, Math.min(1.4, (Math.round(parsed / 5) * 5) / 100));
+  }
+
   function normalizeCanvasFontOptionId(fontId) {
     if (!fontId) {
       return "";
@@ -143,6 +152,7 @@
       `--slide-frame-shadow:${frameShadow}`,
       `--slide-font-body:${font.body}`,
       `--slide-font-heading:${font.heading}`,
+      `--slide-content-font-scale:${getContentFontScale(settings)}`,
     ].join(";");
   }
 

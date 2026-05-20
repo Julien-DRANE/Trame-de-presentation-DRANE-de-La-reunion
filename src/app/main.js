@@ -30,6 +30,8 @@
     deckTheme: document.querySelector("#deck-theme"),
     deckPalette: document.querySelector("#deck-palette"),
     deckFont: document.querySelector("#deck-font"),
+    deckContentFontScale: document.querySelector("#deck-content-font-scale"),
+    deckContentFontScaleValue: document.querySelector("#deck-content-font-scale-value"),
     deckTransition: document.querySelector("#deck-transition"),
     deckFrameShadow: document.querySelector("#deck-frame-shadow"),
     taxonomyCount: document.querySelector("#taxonomy-count"),
@@ -572,6 +574,14 @@
       return;
     }
     render();
+  }
+
+  function normalizeContentFontScale(value) {
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed)) {
+      return 100;
+    }
+    return Math.max(85, Math.min(140, Math.round(parsed / 5) * 5));
   }
 
   function refreshStageOnly() {
@@ -3040,6 +3050,11 @@
   refs.deckFooter.addEventListener("input", (event) => updateSettings("footer", event.target.value, 50, false));
   refs.deckPalette.addEventListener("change", (event) => updateSettings("palette", event.target.value, 24));
   refs.deckFont.addEventListener("change", (event) => updateSettings("font", event.target.value, 24));
+  refs.deckContentFontScale.addEventListener("input", (event) => {
+    pushUndoSnapshot();
+    state.settings.contentFontScale = normalizeContentFontScale(event.target.value);
+    render();
+  });
   refs.deckTransition.addEventListener("change", (event) => updateSettings("transition", event.target.value, 12));
   refs.deckTheme.addEventListener("change", (event) => updateSettings("theme", event.target.value, 12));
   refs.deckFrameShadow.addEventListener("change", (event) => {

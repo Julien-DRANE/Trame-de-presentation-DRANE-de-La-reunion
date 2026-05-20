@@ -22,6 +22,7 @@
   --slide-frame-shadow: none;
   --slide-font-body: "Aptos", "Segoe UI", "Trebuchet MS", sans-serif;
   --slide-font-heading: "Iowan Old Style", "Georgia", serif;
+  --slide-content-font-scale: 1;
   position: relative;
   overflow: hidden;
   aspect-ratio: 16 / 9;
@@ -163,7 +164,7 @@
   min-height: 1.95rem;
   padding: 0.35rem 0.72rem;
   border-radius: 999px;
-  font-size: 0.76rem;
+  font-size: calc(0.76rem * var(--slide-content-font-scale));
   font-weight: 800;
   letter-spacing: 0.14em;
   text-transform: uppercase;
@@ -191,7 +192,7 @@
 
 .slide-number-badge {
   color: var(--slide-text-soft);
-  font-size: 0.86rem;
+  font-size: calc(0.86rem * var(--slide-content-font-scale));
   font-weight: 800;
   letter-spacing: 0.14em;
   text-transform: uppercase;
@@ -245,6 +246,11 @@
 
 .slide-main {
   min-width: 0;
+}
+
+.deck-slide:not(.is-canvas-slide) .slide-main,
+.deck-slide:not(.is-canvas-slide) .slide-footer {
+  font-size: calc(1rem * var(--slide-content-font-scale));
 }
 
 .slide-body-canvas {
@@ -598,7 +604,7 @@
   max-width: 54ch;
   margin-top: 0;
   color: var(--slide-text-muted);
-  font-size: clamp(0.95rem, 1.4vw, 1.15rem);
+  font-size: calc(clamp(0.95rem, 1.4vw, 1.15rem) * var(--slide-content-font-scale));
   line-height: 1.42;
 }
 
@@ -616,6 +622,7 @@
   gap: 0.7rem;
   align-items: start;
   max-width: 62ch;
+  font-size: calc(1rem * var(--slide-content-font-scale));
   line-height: 1.45;
 }
 
@@ -772,7 +779,7 @@
 .deck-slide.is-table-slide .slide-subtitle-text {
   max-width: 74ch;
   margin-bottom: 0.1rem;
-  font-size: clamp(0.98rem, 1.22vw, 1.12rem);
+  font-size: calc(clamp(0.98rem, 1.22vw, 1.12rem) * var(--slide-content-font-scale));
   line-height: 1.24;
 }
 
@@ -796,7 +803,7 @@
 .deck-slide.is-table-slide .slide-table-cell {
   min-height: 0;
   padding: 0.84rem 0.96rem;
-  font-size: clamp(1.2rem, 1.84vw, 1.52rem);
+  font-size: calc(clamp(1.2rem, 1.84vw, 1.52rem) * var(--slide-content-font-scale));
   line-height: 1.2;
   display: flex;
   flex-direction: column;
@@ -805,49 +812,49 @@
 
 .deck-slide.is-table-slide .slide-table.slide-table-dense-1 .slide-table-cell {
   padding: 0.74rem 0.86rem;
-  font-size: clamp(1.1rem, 1.66vw, 1.36rem);
+  font-size: calc(clamp(1.1rem, 1.66vw, 1.36rem) * var(--slide-content-font-scale));
   line-height: 1.17;
 }
 
 .deck-slide.is-table-slide .slide-table.slide-table-dense-2 .slide-table-cell {
   padding: 0.64rem 0.78rem;
-  font-size: clamp(1rem, 1.5vw, 1.24rem);
+  font-size: calc(clamp(1rem, 1.5vw, 1.24rem) * var(--slide-content-font-scale));
   line-height: 1.15;
 }
 
 .deck-slide.is-table-slide .slide-table.slide-table-dense-3 .slide-table-cell {
   padding: 0.58rem 0.72rem;
-  font-size: clamp(0.92rem, 1.36vw, 1.12rem);
+  font-size: calc(clamp(0.92rem, 1.36vw, 1.12rem) * var(--slide-content-font-scale));
   line-height: 1.12;
 }
 
 .deck-slide.is-table-slide .slide-table.slide-table-dense-4 .slide-table-cell {
   padding: 0.46rem 0.58rem;
-  font-size: clamp(0.84rem, 1.18vw, 1rem);
+  font-size: calc(clamp(0.84rem, 1.18vw, 1rem) * var(--slide-content-font-scale));
   line-height: 1.08;
 }
 
 .deck-slide.is-table-slide .slide-table.slide-table-dense-5 .slide-table-cell {
   padding: 0.34rem 0.46rem;
-  font-size: clamp(0.76rem, 1.02vw, 0.9rem);
+  font-size: calc(clamp(0.76rem, 1.02vw, 0.9rem) * var(--slide-content-font-scale));
   line-height: 1;
 }
 
 .deck-slide.is-table-slide .slide-table[data-row-count="8"] .slide-table-cell {
   padding: 0.42rem 0.56rem;
-  font-size: clamp(0.84rem, 1.18vw, 1rem);
+  font-size: calc(clamp(0.84rem, 1.18vw, 1rem) * var(--slide-content-font-scale));
   line-height: 1.04;
 }
 
 .deck-slide.is-table-slide .slide-table.slide-table-dense-4[data-row-count="8"] .slide-table-cell {
   padding: 0.32rem 0.44rem;
-  font-size: clamp(0.74rem, 0.98vw, 0.88rem);
+  font-size: calc(clamp(0.74rem, 0.98vw, 0.88rem) * var(--slide-content-font-scale));
   line-height: 0.98;
 }
 
 .deck-slide.is-table-slide .slide-table.slide-table-dense-5[data-row-count="8"] .slide-table-cell {
   padding: 0.24rem 0.36rem;
-  font-size: clamp(0.68rem, 0.9vw, 0.8rem);
+  font-size: calc(clamp(0.68rem, 0.9vw, 0.8rem) * var(--slide-content-font-scale));
   line-height: 0.96;
 }
 
@@ -894,35 +901,35 @@
 .slide-table.slide-table-dense-1 .slide-table-cell {
   min-height: 2.7rem;
   padding: 0.58rem 0.72rem;
-  font-size: 0.94rem;
+  font-size: calc(0.94rem * var(--slide-content-font-scale));
   line-height: 1.34;
 }
 
 .slide-table.slide-table-dense-2 .slide-table-cell {
   min-height: 2.45rem;
   padding: 0.5rem 0.66rem;
-  font-size: 0.88rem;
+  font-size: calc(0.88rem * var(--slide-content-font-scale));
   line-height: 1.28;
 }
 
 .slide-table.slide-table-dense-3 .slide-table-cell {
   min-height: 2.2rem;
   padding: 0.42rem 0.58rem;
-  font-size: 0.82rem;
+  font-size: calc(0.82rem * var(--slide-content-font-scale));
   line-height: 1.22;
 }
 
 .slide-table.slide-table-dense-4 .slide-table-cell {
   min-height: 1.95rem;
   padding: 0.34rem 0.5rem;
-  font-size: 0.74rem;
+  font-size: calc(0.74rem * var(--slide-content-font-scale));
   line-height: 1.14;
 }
 
 .slide-table.slide-table-dense-5 .slide-table-cell {
   min-height: 1.72rem;
   padding: 0.26rem 0.4rem;
-  font-size: 0.66rem;
+  font-size: calc(0.66rem * var(--slide-content-font-scale));
   line-height: 1.06;
 }
 
@@ -963,7 +970,7 @@
   border-radius: 999px;
   background: var(--slide-accent-softer);
   color: var(--slide-accent-strong);
-  font-size: 0.92rem;
+  font-size: calc(0.92rem * var(--slide-content-font-scale));
   font-weight: 700;
   text-decoration: none;
 }
@@ -972,7 +979,7 @@
   min-height: 1.55rem;
   max-width: min(100%, 20rem);
   padding: 0.24rem 0.58rem;
-  font-size: 0.76rem;
+  font-size: calc(0.76rem * var(--slide-content-font-scale));
   line-height: 1.2;
   white-space: nowrap;
   overflow: hidden;
@@ -1227,7 +1234,7 @@
 .slide-visual-callout-text p {
   margin: 0;
   color: var(--slide-text-muted);
-  font-size: 0.94rem;
+  font-size: calc(0.94rem * var(--slide-content-font-scale));
   line-height: 1.34;
 }
 
@@ -1301,7 +1308,7 @@
 }
 
 .slide-visual-chart-title {
-  font-size: 0.8rem;
+  font-size: calc(0.8rem * var(--slide-content-font-scale));
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -1360,21 +1367,21 @@
 }
 
 .slide-visual-chart-label {
-  font-size: 0.72rem;
+  font-size: calc(0.72rem * var(--slide-content-font-scale));
   color: var(--slide-text-muted);
 }
 
 .slide-visual-chart-value {
-  font-size: 0.92rem;
+  font-size: calc(0.92rem * var(--slide-content-font-scale));
   color: var(--slide-text);
 }
 
 .slide-visual-chart-grid.is-dense .slide-visual-chart-label {
-  font-size: 0.64rem;
+  font-size: calc(0.64rem * var(--slide-content-font-scale));
 }
 
 .slide-visual-chart-grid.is-dense .slide-visual-chart-value {
-  font-size: 0.82rem;
+  font-size: calc(0.82rem * var(--slide-content-font-scale));
 }
 
 .slide-media-slot {
@@ -1751,6 +1758,7 @@
   gap: 0.65rem;
   align-items: start;
   max-width: none;
+  font-size: calc(1rem * var(--slide-content-font-scale));
   line-height: 1.45;
 }
 
@@ -1821,7 +1829,7 @@
 }
 
 .slide-signature {
-  font-size: 0.8rem;
+  font-size: calc(0.8rem * var(--slide-content-font-scale));
   font-weight: 800;
   letter-spacing: 0.14em;
   text-transform: uppercase;
