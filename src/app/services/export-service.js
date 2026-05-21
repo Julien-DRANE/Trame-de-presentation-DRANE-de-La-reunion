@@ -721,6 +721,10 @@
         padding: 0;
         list-style: none;
       }
+      .slide-main > .slide-headline:last-of-type + .slide-bullets,
+      .slide-main > .slide-headline:last-of-type + .slide-bullets-row {
+        margin-top: 2.62rem;
+      }
       .slide-bullets li {
         display: grid;
         grid-template-columns: auto minmax(0, 1fr);
@@ -1051,12 +1055,14 @@
       .slide-free-body p {
         margin: 0;
         color: var(--slide-text);
+        font-size: 1rem;
         line-height: 1.36;
       }
       .slide-free-body ul {
         margin: 0;
         padding-left: 1.45rem;
         color: var(--slide-text);
+        font-size: 1rem;
       }
       .slide-free-body li + li {
         margin-top: 0.2rem;
