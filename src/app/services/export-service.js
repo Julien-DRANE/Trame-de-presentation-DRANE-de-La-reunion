@@ -1107,11 +1107,11 @@
       }
       .slide-free-gallery-item {
         min-width: 0;
-        padding: 0.35rem;
-        border: 1px solid var(--slide-line);
-        border-radius: 16px;
-        background: var(--slide-surface-strong);
-        box-shadow: var(--slide-frame-shadow);
+        padding: 0;
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+        box-shadow: none;
       }
       .slide-free-gallery-item .slide-media-image,
       .slide-free-gallery-item .slide-media-video,
