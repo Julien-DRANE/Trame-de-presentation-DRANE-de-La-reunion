@@ -1125,7 +1125,7 @@
         max-height: 8.6rem;
         border-radius: 12px;
         background: transparent;
-        box-shadow: none;
+        box-shadow: var(--slide-frame-shadow);
       }
       .slide-free-gallery.is-side-column .slide-free-gallery-item .slide-media-image,
       .slide-free-gallery.is-side-column .slide-free-gallery-item .slide-media-video,
