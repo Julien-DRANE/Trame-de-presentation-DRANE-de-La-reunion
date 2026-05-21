@@ -1051,10 +1051,16 @@
 .slide-free-gallery-item .slide-media-image,
 .slide-free-gallery-item .slide-media-video,
 .slide-free-gallery-item .slide-media-print-card,
-.slide-free-gallery-item .slide-media-embed-wrap {
+.slide-free-gallery-item .slide-media-embed-wrap,
+.slide-free-gallery-item .slide-media-external-link {
+  display: inline-block;
+  width: auto;
+  max-width: 100%;
   margin: 0;
   max-height: 8.6rem;
   border-radius: 12px;
+  background: transparent;
+  box-shadow: none;
 }
 
 .slide-free-gallery.is-side-column .slide-free-gallery-item .slide-media-image,
@@ -1062,7 +1068,8 @@
 .slide-free-gallery.is-side-column .slide-free-gallery-item .slide-media-print-card,
 .slide-free-gallery.is-side-column .slide-free-gallery-item .slide-media-embed-wrap,
 .slide-free-gallery.is-side-column .slide-free-gallery-item .slide-media-external-link {
-  width: 100%;
+  width: auto;
+  max-width: 100%;
   max-height: clamp(5.8rem, 13vh, 8.4rem);
 }
 
