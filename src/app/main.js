@@ -1177,8 +1177,8 @@
       return normalized;
     }
 
-    const fallbackText = ns.utils.plainTextToRichHtml("Zone de texte", 600);
-    normalized.text = typeof input.text === "string" ? ns.utils.sanitizeRichText(input.text, 600) : fallbackText;
+    const fallbackText = ns.utils.plainTextToRichHtml("Zone de texte", 2000);
+    normalized.text = typeof input.text === "string" ? ns.utils.sanitizeRichText(input.text, 2000) : fallbackText;
     normalized.fontSize = clampCanvasMetric(input.fontSize, 28, 16, 72);
     normalized.fontOptionId = normalizeCanvasFontOptionId(input.fontOptionId);
     normalized.color = normalizeCanvasColor(input.color, "#1d1917");
@@ -1217,7 +1217,7 @@
         h: 18,
         revealOrder: 1,
         revealGroup: "",
-        text: ns.utils.plainTextToRichHtml("Nouvelle zone de texte", 600),
+        text: ns.utils.plainTextToRichHtml("Nouvelle zone de texte", 2000),
         fontSize: 28,
         fontOptionId: "",
         color: "#1d1917",
@@ -1689,7 +1689,7 @@
     if (!selectedElement || selectedElement.type !== "text") {
       return;
     }
-    const sanitized = ns.utils.sanitizeRichText(refs.canvasTextContent.innerHTML, 600);
+    const sanitized = ns.utils.sanitizeRichText(refs.canvasTextContent.innerHTML, 2000);
     if (assignToEditor) {
       refs.canvasTextContent.innerHTML = sanitized;
     }
@@ -1736,7 +1736,7 @@
     refs.canvasTextSizeValue.textContent = normalizedSize + " px";
     updateSelectedCanvasElement({
       fontSize: normalizedSize,
-      text: ns.utils.sanitizeRichText(refs.canvasTextContent.innerHTML, 600),
+      text: ns.utils.sanitizeRichText(refs.canvasTextContent.innerHTML, 2000),
     }, false);
   }
 
@@ -3220,7 +3220,7 @@
   });
   refs.canvasTextContent.addEventListener("input", () => {
     saveCanvasTextEditorSelection();
-    if (ns.utils.richTextLength(refs.canvasTextContent.innerHTML) > 600) {
+    if (ns.utils.richTextLength(refs.canvasTextContent.innerHTML) > 2000) {
       normalizeCanvasTextEditorMarkup(true);
       return;
     }

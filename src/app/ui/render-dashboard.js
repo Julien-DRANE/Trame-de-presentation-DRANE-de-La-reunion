@@ -174,7 +174,7 @@
       refs.canvasArrowControls.hidden = selectedCanvasElement.type !== "arrow";
       refs.canvasShapeControls.hidden = selectedCanvasElement.type !== "shape";
       if (selectedCanvasElement.type === "text") {
-        const sanitizedCanvasText = ns.utils.sanitizeRichText(selectedCanvasElement.text || "", 600);
+        const sanitizedCanvasText = ns.utils.sanitizeRichText(selectedCanvasElement.text || "", 2000);
         refs.canvasTextFont.innerHTML = [
           '<option value="">Typographie du document</option>',
           ...fontOptions.map((font) => `<option value="${ns.utils.escapeHtml(font.id)}">${ns.utils.escapeHtml(font.label)}</option>`),

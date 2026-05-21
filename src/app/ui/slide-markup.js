@@ -673,6 +673,12 @@
     const utils = ns.utils;
     const bodyMarkup = utils.sanitizeRichText(slide.freeBody || "", 3200);
     const freeLinks = Array.isArray(slide.freeLinks) ? slide.freeLinks : [];
+    const galleryIds = Array.isArray(slide.freeMediaIds) ? slide.freeMediaIds : [];
+    const textLength = utils.richTextLength(bodyMarkup);
+    const textBlockCount = (String(bodyMarkup).match(/<(?:p|li|ul|ol|br)\b/gi) || []).length;
+    const hasCompactTextBlock = textLength <= 420 && textBlockCount <= 9;
+    const hasVeryShortTextBlock = textLength <= 240 && textBlockCount <= 5;
+    const useSideGallery = galleryIds.length > 0 && galleryIds.length <= 2 && hasCompactTextBlock;
     const linksMarkup = freeLinks.length
       ? `
         <div class="slide-free-links">
@@ -685,10 +691,9 @@
         </div>
       `
       : "";
-    const galleryIds = Array.isArray(slide.freeMediaIds) ? slide.freeMediaIds : [];
     const galleryMarkup = galleryIds.length
       ? `
-        <div class="slide-free-gallery">
+        <div class="slide-free-gallery${useSideGallery ? " is-side-column" : ""}${galleryIds.length === 1 ? " is-single" : ""}">
           ${galleryIds
             .map((mediaId, index) => {
               const media = getResolvedMediaById(mediaId, options);
@@ -703,10 +708,14 @@
       : "";
 
     return `
-      <div class="slide-free-body">
-        ${bodyMarkup}
-        ${linksMarkup}
-        ${galleryMarkup}
+      <div class="slide-free-layout${useSideGallery ? " has-side-gallery" : ""}${!useSideGallery && hasVeryShortTextBlock && galleryMarkup ? " has-airy-gallery" : ""}">
+        <div class="slide-free-text-block">
+          <div class="slide-free-body">
+            ${bodyMarkup}
+          </div>
+          ${linksMarkup}
+        </div>
+        ${galleryMarkup ? `<aside class="slide-free-gallery-wrap${useSideGallery ? " is-side-column" : ""}${!useSideGallery && hasVeryShortTextBlock ? " has-breathing-space" : ""}">${galleryMarkup}</aside>` : ""}
       </div>
     `;
   }
@@ -1011,8 +1020,8 @@
       return normalized;
     }
 
-    const fallbackText = ns.utils.plainTextToRichHtml("Zone de texte", 600);
-    normalized.text = typeof input.text === "string" ? ns.utils.sanitizeRichText(input.text, 600) : fallbackText;
+    const fallbackText = ns.utils.plainTextToRichHtml("Zone de texte", 2000);
+    normalized.text = typeof input.text === "string" ? ns.utils.sanitizeRichText(input.text, 2000) : fallbackText;
     normalized.fontSize = clampCanvasMetric(input.fontSize, 28, 16, 72);
     normalized.fontOptionId = normalizeCanvasFontOptionId(input.fontOptionId);
     normalized.color = /^#[0-9a-fA-F]{6}$/.test(input.color || "") ? input.color : "#1d1917";
@@ -1032,7 +1041,7 @@
   }
 
   function createCanvasTextMarkup(value) {
-    return ns.utils.sanitizeRichText(value, 600);
+    return ns.utils.sanitizeRichText(value, 2000);
   }
 
   function createCanvasRevealStepMap(elements) {

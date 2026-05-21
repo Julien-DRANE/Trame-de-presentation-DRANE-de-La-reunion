@@ -1016,11 +1016,37 @@
         font-size: 0.66rem;
         line-height: 1.06;
       }
-      .slide-free-body {
+      .slide-free-layout {
         display: grid;
+        grid-template-columns: minmax(0, 1fr);
         gap: 0.72rem;
         max-width: 70rem;
         margin-top: 1.2rem;
+      }
+      .slide-free-layout.has-side-gallery {
+        grid-template-columns: minmax(0, 1fr) clamp(12rem, 29%, 15.8rem);
+        column-gap: clamp(1rem, 2vw, 1.45rem);
+        row-gap: 0.72rem;
+        align-items: start;
+      }
+      .slide-free-text-block {
+        display: grid;
+        gap: 0.72rem;
+        min-width: 0;
+      }
+      .slide-free-body {
+        display: grid;
+        gap: 0.72rem;
+        min-width: 0;
+      }
+      .slide-free-gallery-wrap {
+        min-width: 0;
+      }
+      .slide-free-gallery-wrap.has-breathing-space {
+        margin-top: clamp(0.7rem, 1.8vh, 1.2rem);
+      }
+      .slide-free-gallery-wrap.is-side-column {
+        align-self: start;
       }
       .slide-free-body p {
         margin: 0;
@@ -1072,6 +1098,13 @@
         gap: 0.7rem;
         align-items: start;
       }
+      .slide-free-gallery.is-side-column {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 0.82rem;
+      }
+      .slide-free-gallery.is-single {
+        grid-template-columns: minmax(0, 1fr);
+      }
       .slide-free-gallery-item {
         min-width: 0;
         padding: 0.35rem;
@@ -1087,6 +1120,14 @@
         margin: 0;
         max-height: 8.6rem;
         border-radius: 12px;
+      }
+      .slide-free-gallery.is-side-column .slide-free-gallery-item .slide-media-image,
+      .slide-free-gallery.is-side-column .slide-free-gallery-item .slide-media-video,
+      .slide-free-gallery.is-side-column .slide-free-gallery-item .slide-media-print-card,
+      .slide-free-gallery.is-side-column .slide-free-gallery-item .slide-media-embed-wrap,
+      .slide-free-gallery.is-side-column .slide-free-gallery-item .slide-media-external-link {
+        width: 100%;
+        max-height: clamp(5.8rem, 13vh, 8.4rem);
       }
       .slide-body-visual {
         grid-template-columns: minmax(0, 1fr);

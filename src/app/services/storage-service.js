@@ -301,7 +301,7 @@
     }
 
     return Object.assign(base, {
-      text: typeof input.text === "string" ? utils.sanitizeRichText(input.text, 600) : utils.plainTextToRichHtml("Zone de texte", 600),
+      text: typeof input.text === "string" ? utils.sanitizeRichText(input.text, 2000) : utils.plainTextToRichHtml("Zone de texte", 2000),
       fontSize: clampCanvasMetric(input.fontSize, 28, 16, 72),
       fontOptionId: fontOptions.includes(input.fontOptionId) ? input.fontOptionId : "",
       color: normalizeHexColor(input.color, "#1d1917"),
