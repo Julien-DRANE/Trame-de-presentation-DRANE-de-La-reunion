@@ -2910,15 +2910,14 @@
           closeTableLightbox();
           return;
         }
-        if (event.key === "ArrowRight" || event.key === "PageDown") showSlide(currentIndex + 1);
-        if (event.key === "ArrowLeft" || event.key === "PageUp") showSlide(currentIndex - 1);
-        if (event.key === " " || event.code === "Space") {
+        if (event.key === "ArrowRight" || event.key === "PageDown" || event.key === " " || event.code === "Space") {
           event.preventDefault();
           if (revealNextItemInCurrentSlide()) {
             return;
           }
           showSlide(currentIndex + 1);
         }
+        if (event.key === "ArrowLeft" || event.key === "PageUp") showSlide(currentIndex - 1);
       });
       showSlide(${initialSlideIndex});
     </script>
