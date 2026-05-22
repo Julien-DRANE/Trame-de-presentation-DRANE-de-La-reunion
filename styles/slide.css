@@ -975,6 +975,7 @@
 
 .slide-free-gallery-wrap.is-side-column {
   align-self: start;
+  justify-self: stretch;
 }
 
 .slide-free-body p {

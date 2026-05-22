@@ -450,21 +450,9 @@
       return mainWeight + childrenWeight;
     };
 
-    const estimateSingleColumnHeight = (items) => items.reduce((sum, item) => {
-      const bulletItem = item && typeof item === "object" ? item : { text: String(item || ""), children: [] };
-      const mainTextLength = String(bulletItem.text || "").replace(/\s+/g, " ").trim().length;
-      const mainLines = Math.max(1, Math.ceil(mainTextLength / 52));
-      const childrenHeight = (Array.isArray(bulletItem.children) ? bulletItem.children : []).reduce((childSum, child) => {
-        const childLength = String(child || "").replace(/\s+/g, " ").trim().length;
-        const childLines = Math.max(1, Math.ceil(childLength / 62));
-        return childSum + (childLines * 0.84);
-      }, 0);
-      return sum + (mainLines * 1.08) + childrenHeight + 0.22;
-    }, 0);
-
     const weights = bullets.map(getBulletWeight);
     const totalWeight = weights.reduce((sum, value) => sum + value, 0);
-    const singleColumnHeight = estimateSingleColumnHeight(bullets);
+    const singleColumnHeight = estimateBulletColumnHeight(bullets);
     const singleColumnFitsLeft = singleColumnHeight <= 8.9;
 
     if (bullets.length <= 3 && singleColumnFitsLeft) {
@@ -518,6 +506,20 @@
       return sum + 0.78 + Math.min(0.3, childLength / 360);
     }, 0);
     return mainWeight + childrenWeight;
+  }
+
+  function estimateBulletColumnHeight(items) {
+    return (Array.isArray(items) ? items : []).reduce((sum, item) => {
+      const bulletItem = item && typeof item === "object" ? item : { text: String(item || ""), children: [] };
+      const mainTextLength = String(bulletItem.text || "").replace(/\s+/g, " ").trim().length;
+      const mainLines = Math.max(1, Math.ceil(mainTextLength / 52));
+      const childrenHeight = (Array.isArray(bulletItem.children) ? bulletItem.children : []).reduce((childSum, child) => {
+        const childLength = String(child || "").replace(/\s+/g, " ").trim().length;
+        const childLines = Math.max(1, Math.ceil(childLength / 62));
+        return childSum + (childLines * 0.84);
+      }, 0);
+      return sum + (mainLines * 1.08) + childrenHeight + 0.22;
+    }, 0);
   }
 
   function shouldUseSecondBulletSideLayout(slide, bulletsInput, mediaCount) {
@@ -678,7 +680,11 @@
     const textBlockCount = (String(bodyMarkup).match(/<(?:p|li|ul|ol|br)\b/gi) || []).length;
     const hasCompactTextBlock = textLength <= 420 && textBlockCount <= 9;
     const hasVeryShortTextBlock = textLength <= 240 && textBlockCount <= 5;
-    const useSideGallery = galleryIds.length > 0 && galleryIds.length <= 2 && hasCompactTextBlock;
+    const hasSingleGalleryItem = galleryIds.length === 1;
+    const hasManageableSingleGalleryText = hasSingleGalleryItem && textLength <= 760 && textBlockCount <= 15;
+    const useSideGallery = galleryIds.length > 0
+      && galleryIds.length <= 2
+      && (hasCompactTextBlock || hasManageableSingleGalleryText);
     const linksMarkup = freeLinks.length
       ? `
         <div class="slide-free-links">
@@ -1199,6 +1205,8 @@
     const canKeepMediaWithExtendedBullets = Boolean(slideMedia) && allBullets.length > 3 && allBullets.length <= 6;
     const useSecondBulletSideLayout = shouldUseSecondBulletSideLayout(slide, allBullets, slideMediaItems.length);
     const useCompactBulletMediaLayout = shouldUseCompactBulletMediaLayout(slide, allBullets, slideMediaItems.length);
+    const totalBulletHeight = estimateBulletColumnHeight(allBullets);
+    const extraBulletColumnHeight = estimateBulletColumnHeight(extraBullets);
     const mainBulletsRevealCount = countBulletRevealSteps(mainBullets, {
       progressive: bulletsProgressive,
       progressiveChildren: bulletsSubProgressive,
@@ -1235,8 +1243,28 @@
       }
     );
     const compactClass = opts.compact ? " deck-slide-compact" : "";
-    const useFloatingTopRightMedia = extraBullets.length > 0 && slideMediaItems.length === 1 && !canKeepMediaWithExtendedBullets && !useSecondBulletSideLayout;
-    const moveMediaBelowPrimaryBullets = !useFloatingTopRightMedia && extraBullets.length > 0 && slideMediaItems.length > 0 && mainBulletsWeight <= extraBulletsWeight;
+    const useFloatingTopRightMedia = extraBullets.length > 0
+      && slideMediaItems.length === 1
+      && !canKeepMediaWithExtendedBullets
+      && !useSecondBulletSideLayout
+      && totalBulletHeight <= 11.4
+      && extraBulletColumnHeight <= 4.4;
+    const preferRightColumnMedia = !useFloatingTopRightMedia
+      && extraBullets.length > 0
+      && slideMediaItems.length > 0
+      && extraBulletColumnHeight <= (slideMediaItems.length > 1 ? 2.6 : 3.35);
+    const moveMediaBelowPrimaryBullets = !useFloatingTopRightMedia
+      && !preferRightColumnMedia
+      && extraBullets.length > 0
+      && slideMediaItems.length > 0
+      && mainBulletsWeight <= extraBulletsWeight;
+    const sideColumnLayoutOptions = {};
+    if (useCompactBulletMediaLayout) {
+      sideColumnLayoutOptions.compactMedia = true;
+    }
+    if (preferRightColumnMedia) {
+      sideColumnLayoutOptions.mediaFirst = true;
+    }
     const sideMarkup = extraBullets.length
       ? createBulletSideColumnMarkup(
           extraBullets,
@@ -1246,7 +1274,7 @@
           mainBulletsRevealCount + 1,
           bulletsProgressive,
           bulletsSubProgressive,
-          useCompactBulletMediaLayout ? { compactMedia: true } : undefined
+          sideColumnLayoutOptions
         )
       : createSlideMediaMarkup(slide, opts);
     const secondBulletSideMarkup = useSecondBulletSideLayout
