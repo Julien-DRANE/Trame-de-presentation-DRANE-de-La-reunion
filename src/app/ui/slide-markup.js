@@ -678,13 +678,56 @@
     const galleryIds = Array.isArray(slide.freeMediaIds) ? slide.freeMediaIds : [];
     const textLength = utils.richTextLength(bodyMarkup);
     const textBlockCount = (String(bodyMarkup).match(/<(?:p|li|ul|ol|br)\b/gi) || []).length;
+    const paragraphCount = (String(bodyMarkup).match(/<(?:p|div)\b/gi) || []).length;
+    const listItemCount = (String(bodyMarkup).match(/<li\b/gi) || []).length;
+    const listTextLength = String(bodyMarkup)
+      .replace(/<\/li>/gi, "\n")
+      .replace(/<li\b[^>]*>/gi, "")
+      .replace(/<[^>]*>/g, " ")
+      .split("\n")
+      .map((item) => item.replace(/\s+/g, " ").trim())
+      .filter(Boolean)
+      .slice(0, listItemCount)
+      .reduce((sum, item) => sum + item.length, 0);
+    const plainTextLength = String(bodyMarkup)
+      .replace(/<[^>]*>/g, " ")
+      .replace(/\s+/g, " ")
+      .trim()
+      .length;
+    const estimatedTextLines = Math.max(1, Math.ceil(plainTextLength / 72));
+    const averageListItemLength = listItemCount ? (listTextLength / listItemCount) : 0;
+    const estimatedTextHeight = listItemCount >= 5
+      ? (Math.max(1, paragraphCount) * 1.18) + (listItemCount * 0.31) + (Math.max(0, estimatedTextLines - listItemCount) * 0.22)
+      : (estimatedTextLines * 0.92) + (textBlockCount * 0.42);
     const hasCompactTextBlock = textLength <= 420 && textBlockCount <= 9;
     const hasVeryShortTextBlock = textLength <= 240 && textBlockCount <= 5;
     const hasSingleGalleryItem = galleryIds.length === 1;
+    const hasExtremeSingleGalleryText = hasSingleGalleryItem
+      && (
+        textLength > 3000
+        || textBlockCount > 42
+        || estimatedTextHeight > 24
+      );
     const hasManageableSingleGalleryText = hasSingleGalleryItem && textLength <= 760 && textBlockCount <= 15;
+    const hasRoomySingleGallerySpace = hasSingleGalleryItem
+      && estimatedTextHeight <= 12.8
+      && textBlockCount <= 18
+      && textLength <= 1250;
+    const hasListFriendlySingleGallerySpace = hasSingleGalleryItem
+      && listItemCount >= 5
+      && averageListItemLength <= 62
+      && estimatedTextHeight <= 18.6
+      && textBlockCount <= 34
+      && textLength <= 2600;
     const useSideGallery = galleryIds.length > 0
       && galleryIds.length <= 2
-      && (hasCompactTextBlock || hasManageableSingleGalleryText);
+      && (
+        (hasSingleGalleryItem && !hasExtremeSingleGalleryText)
+        || hasCompactTextBlock
+        || hasManageableSingleGalleryText
+        || hasRoomySingleGallerySpace
+        || hasListFriendlySingleGallerySpace
+      );
     const linksMarkup = freeLinks.length
       ? `
         <div class="slide-free-links">
@@ -714,7 +757,7 @@
       : "";
 
     return `
-      <div class="slide-free-layout${useSideGallery ? " has-side-gallery" : ""}${!useSideGallery && hasVeryShortTextBlock && galleryMarkup ? " has-airy-gallery" : ""}">
+      <div class="slide-free-layout${useSideGallery ? " has-side-gallery" : ""}${useSideGallery && (hasRoomySingleGallerySpace || hasListFriendlySingleGallerySpace) ? " has-roomy-side-gallery" : ""}${!useSideGallery && hasVeryShortTextBlock && galleryMarkup ? " has-airy-gallery" : ""}">
         <div class="slide-free-text-block">
           <div class="slide-free-body">
             ${bodyMarkup}

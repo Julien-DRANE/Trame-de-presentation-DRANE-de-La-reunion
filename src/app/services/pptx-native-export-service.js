@@ -1270,19 +1270,60 @@
     const chrome = await addSlideChrome(pptSlide, slide, state, assets, deckFont, palette);
     const paragraphs = parseRichTextParagraphs(slide.freeBody || "");
     const mediaItems = getResolvedFreeMedia(slide, state, assets);
+    const bodyMarkup = String(slide.freeBody || "");
+    const textLength = ns.utils.richTextLength(bodyMarkup);
+    const textBlockCount = (bodyMarkup.match(/<(?:p|li|ul|ol|br)\b/gi) || []).length;
+    const paragraphCount = (bodyMarkup.match(/<(?:p|div)\b/gi) || []).length;
+    const listItemCount = (bodyMarkup.match(/<li\b/gi) || []).length;
+    const listTextLength = bodyMarkup
+      .replace(/<\/li>/gi, "\n")
+      .replace(/<li\b[^>]*>/gi, "")
+      .replace(/<[^>]*>/g, " ")
+      .split("\n")
+      .map((item) => item.replace(/\s+/g, " ").trim())
+      .filter(Boolean)
+      .slice(0, listItemCount)
+      .reduce((sum, item) => sum + item.length, 0);
+    const plainTextLength = bodyMarkup
+      .replace(/<[^>]*>/g, " ")
+      .replace(/\s+/g, " ")
+      .trim()
+      .length;
+    const estimatedTextLines = Math.max(1, Math.ceil(plainTextLength / 72));
+    const averageListItemLength = listItemCount ? (listTextLength / listItemCount) : 0;
+    const estimatedTextHeight = listItemCount >= 5
+      ? (Math.max(1, paragraphCount) * 1.18) + (listItemCount * 0.31) + (Math.max(0, estimatedTextLines - listItemCount) * 0.22)
+      : (estimatedTextLines * 0.92) + (textBlockCount * 0.42);
+    const hasExtremeSingleGalleryText = mediaItems.length === 1
+      && (
+        textLength > 3000
+        || textBlockCount > 42
+        || estimatedTextHeight > 24
+      );
+    const useSideGallery = mediaItems.length === 1
+      && !hasExtremeSingleGalleryText;
     let cursorY = chrome.bodyTop;
 
     if (paragraphs.length) {
       cursorY = addRichParagraphs(pptSlide, paragraphs, {
         x: 0.82,
         y: chrome.bodyTop,
-        w: 11.1,
+        w: useSideGallery ? 7.55 : 11.1,
         h: 3.1,
       }, deckFont, palette, state.settings);
     }
 
     cursorY = await addFreeLinksBlock(pptSlide, slide, cursorY + 0.06, deckFont, palette, state.settings);
-    await addFreeGallery(pptSlide, mediaItems, cursorY + 0.08, chrome.bodyBottom - (cursorY + 0.08), palette, deckFont);
+    if (useSideGallery) {
+      await addMediaFrame(pptSlide, mediaItems[0], {
+        x: 8.45,
+        y: chrome.bodyTop + 0.08,
+        w: 3.72,
+        h: Math.min(3.1, Math.max(2.2, chrome.bodyBottom - chrome.bodyTop - 0.42)),
+      }, palette, deckFont);
+    } else {
+      await addFreeGallery(pptSlide, mediaItems, cursorY + 0.08, chrome.bodyBottom - (cursorY + 0.08), palette, deckFont);
+    }
     addFooter(pptSlide, slide, state, deckFont, palette);
   }
 
