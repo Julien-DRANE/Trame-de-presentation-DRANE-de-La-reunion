@@ -100,6 +100,10 @@
       })
       .join("");
     const initialSlideIndex = Math.max(0, state.slides.findIndex((slide) => slide.id === startSlideId));
+    const isPdfMode = Boolean(opts.pdfMode);
+    const bodyAttributes = isPdfMode
+      ? ' class="pdf-export"'
+      : ` data-transition="${ns.utils.escapeHtml(state.settings.transition || "fade")}"`;
 
     return `<!doctype html>
 <html lang="fr">
@@ -163,6 +167,17 @@
         min-height: calc(100vh - 6rem);
         align-items: center;
         justify-content: center;
+      }
+      body.pdf-export {
+        background: #ffffff;
+      }
+      body.pdf-export .deck-shell {
+        min-height: auto;
+        padding: 0;
+      }
+      body.pdf-export .slide-screen {
+        display: flex;
+        min-height: auto;
       }
       .slide-screen.is-active { display: flex; }
       .deck-slide {
@@ -2353,20 +2368,14 @@
           display: flex !important;
           width: 297mm;
           height: 210mm;
-          min-height: auto;
-          min-width: auto;
+          min-width: 297mm;
+          min-height: 210mm;
           margin: 0;
-          break-after: page;
-          page-break-after: always;
-          break-inside: avoid-page;
-          page-break-inside: avoid;
           align-items: center;
           justify-content: center;
+          break-inside: avoid-page;
+          page-break-inside: avoid;
           overflow: hidden;
-        }
-        .slide-screen:last-of-type {
-          break-after: auto;
-          page-break-after: auto;
         }
         .deck-slide {
           width: 285mm;
@@ -2375,6 +2384,7 @@
           max-height: 160.3125mm;
           border-radius: 0;
           box-shadow: none;
+          margin: 0;
         }
       }
       @media (max-width: 960px) {
@@ -2430,9 +2440,9 @@
       }
     </style>
   </head>
-  <body data-transition="${ns.utils.escapeHtml(state.settings.transition || "fade")}">
+  <body${bodyAttributes}>
     <div class="deck-shell">
-      <header class="deck-topbar">
+      ${isPdfMode ? "" : `<header class="deck-topbar">
         <div class="deck-meta">
           <strong>${ns.utils.escapeHtml(state.settings.title)}</strong>
           <span>${ns.utils.escapeHtml(state.settings.subtitle)}</span>
@@ -2443,10 +2453,10 @@
           <button type="button" id="fullscreen-deck">Plein écran</button>
           <button type="button" id="print-deck">Imprimer</button>
         </div>
-      </header>
+      </header>`}
       <main>
         ${slidesMarkup}
-        <div class="deck-progress" id="deck-progress" aria-label="Progression de la présentation">
+        ${isPdfMode ? "" : `<div class="deck-progress" id="deck-progress" aria-label="Progression de la présentation">
           ${progressMarkup}
         </div>
         <div class="image-lightbox" id="image-lightbox" aria-hidden="true">
@@ -2466,10 +2476,10 @@
             <button class="table-lightbox-close" type="button" id="table-lightbox-close" aria-label="Fermer le tableau">×</button>
             <div class="table-lightbox-content" id="table-lightbox-content"></div>
           </div>
-        </div>
+        </div>`}
       </main>
     </div>
-    <script>
+    ${isPdfMode ? "" : `<script>
       const screens = Array.from(document.querySelectorAll(".slide-screen"));
       const prevButton = document.querySelector("#prev-slide");
       const nextButton = document.querySelector("#next-slide");
@@ -3031,7 +3041,7 @@
         if (event.key === "ArrowLeft" || event.key === "PageUp") showSlide(currentIndex - 1);
       });
       showSlide(${initialSlideIndex});
-    </script>
+    </script>`}
   </body>
 </html>`;
   }
