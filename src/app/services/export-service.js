@@ -1056,6 +1056,10 @@
         row-gap: 0.72rem;
         align-items: start;
       }
+      .slide-free-layout.has-side-gallery.has-roomy-side-gallery {
+        grid-template-columns: minmax(0, 0.98fr) clamp(15rem, 34%, 19.8rem);
+        column-gap: clamp(1.35rem, 2.7vw, 2rem);
+      }
       .slide-free-text-block {
         display: grid;
         gap: 0.72rem;
@@ -1164,6 +1168,14 @@
         width: auto;
         max-width: 100%;
         max-height: clamp(5.8rem, 13vh, 8.4rem);
+      }
+      .slide-free-layout.has-side-gallery.has-roomy-side-gallery .slide-free-gallery.is-side-column .slide-free-gallery-item .slide-media-image,
+      .slide-free-layout.has-side-gallery.has-roomy-side-gallery .slide-free-gallery.is-side-column .slide-free-gallery-item .slide-media-video,
+      .slide-free-layout.has-side-gallery.has-roomy-side-gallery .slide-free-gallery.is-side-column .slide-free-gallery-item .slide-media-print-card,
+      .slide-free-layout.has-side-gallery.has-roomy-side-gallery .slide-free-gallery.is-side-column .slide-free-gallery-item .slide-media-embed-wrap,
+      .slide-free-layout.has-side-gallery.has-roomy-side-gallery .slide-free-gallery.is-side-column .slide-free-gallery-item .slide-media-external-link {
+        max-width: min(100%, 19rem);
+        max-height: clamp(8.4rem, 19vh, 12.2rem);
       }
       .slide-body-visual {
         grid-template-columns: minmax(0, 1fr);
@@ -2321,8 +2333,20 @@
       }
       @media print {
         @page { size: A4 landscape; margin: 0; }
-        html, body { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+        html, body {
+          margin: 0;
+          print-color-adjust: exact;
+          -webkit-print-color-adjust: exact;
+        }
         body { background: #ffffff; }
+        .deck-shell {
+          min-height: auto;
+          padding: 0;
+        }
+        main {
+          margin: 0;
+          padding: 0;
+        }
         .deck-topbar { display: none; }
         .deck-progress { display: none; }
         .slide-screen {
@@ -2331,10 +2355,18 @@
           height: 210mm;
           min-height: auto;
           min-width: auto;
+          margin: 0;
+          break-after: page;
           page-break-after: always;
+          break-inside: avoid-page;
+          page-break-inside: avoid;
           align-items: center;
           justify-content: center;
           overflow: hidden;
+        }
+        .slide-screen:last-of-type {
+          break-after: auto;
+          page-break-after: auto;
         }
         .deck-slide {
           width: 285mm;
