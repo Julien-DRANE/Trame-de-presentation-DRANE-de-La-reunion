@@ -358,17 +358,23 @@
         flex-direction: column;
         height: 100%;
         padding-top: clamp(2.15rem, 4.1vw, 3.15rem);
-        padding-right: clamp(3.6rem, 7vw, 5.2rem);
+        padding-right: clamp(2.1rem, 4.8vw, 3.35rem);
       }
       .slide-floating-top-right-media {
         position: absolute;
         top: clamp(4.9rem, 10.4vw, 6.1rem);
-        right: clamp(3.1rem, 6.2vw, 4.45rem);
+        right: clamp(4rem, 7.4vw, 5.8rem);
         z-index: 3;
         display: flex;
         justify-content: flex-end;
         width: min(100%, 16rem);
         pointer-events: auto;
+      }
+      .slide-floating-top-right-media.is-balanced {
+        top: clamp(7.2rem, 16vh, 9.8rem);
+        right: clamp(4.8rem, 8.2vw, 7rem);
+        width: min(100%, 18.6rem);
+        justify-content: center;
       }
       .slide-floating-top-right-media .slide-media-image,
       .slide-floating-top-right-media .slide-media-video,
@@ -378,6 +384,14 @@
         width: auto;
         max-width: min(100%, 15.5rem);
         max-height: clamp(7rem, 15vh, 8.8rem);
+      }
+      .slide-floating-top-right-media.is-balanced .slide-media-image,
+      .slide-floating-top-right-media.is-balanced .slide-media-video,
+      .slide-floating-top-right-media.is-balanced .slide-media-print-card,
+      .slide-floating-top-right-media.is-balanced .slide-media-embed-wrap,
+      .slide-floating-top-right-media.is-balanced .slide-media-external-link {
+        max-width: min(100%, 18.2rem);
+        max-height: clamp(9.2rem, 21vh, 12.6rem);
       }
       .deck-slide.is-canvas-slide .slide-content {
         padding-top: clamp(1.45rem, 2.8vw, 2.15rem);
@@ -429,13 +443,13 @@
       .slide-headline {
         margin-top: calc(0.88rem + 1cm);
         margin-bottom: 0.22rem;
-        max-width: min(66%, 24ch);
+        max-width: min(86%, 38ch);
         font-family: var(--slide-font-heading);
         font-size: clamp(1.56rem, 2.82vw, 2.56rem);
         line-height: 0.98;
       }
       .slide-body-no-media .slide-headline {
-        max-width: 66%;
+        max-width: min(92%, 40ch);
       }
       .slide-body {
         display: grid;
@@ -703,6 +717,15 @@
       .slide-bullets-row-extra {
         grid-template-columns: minmax(0, 1fr) minmax(0, 1.24fr);
         gap: clamp(1.2rem, 2.4vw, 1.8rem);
+      }
+      .slide-bullets-row-inline-media {
+        grid-template-columns: minmax(0, 1fr) clamp(18.2rem, 38%, 25.8rem);
+        gap: clamp(1.2rem, 2.5vw, 2rem);
+        align-items: center;
+      }
+      .slide-bullets-row-inline-media.is-roomy-inline-media {
+        grid-template-columns: minmax(0, 0.94fr) clamp(20.6rem, 43%, 28.2rem);
+        gap: clamp(1.45rem, 3vw, 2.55rem);
       }
       .slide-bullets-row-second-heavy {
         align-items: start;
@@ -1480,6 +1503,16 @@
         box-shadow: none;
         overflow: visible;
       }
+      .slide-inline-bullet-media-slot {
+        align-self: center;
+        justify-self: start;
+        min-height: clamp(11rem, 26vh, 14.8rem);
+        margin-top: 0;
+        margin-left: 0;
+      }
+      .slide-inline-bullet-media-slot.is-roomy-inline-media {
+        min-height: clamp(12rem, 28vh, 16rem);
+      }
       .slide-media-slot:not(.has-media-stack):has(> .slide-media-image),
       .slide-media-slot:not(.has-media-stack):has(> .slide-media-external-link) {
         width: fit-content;
@@ -1492,6 +1525,23 @@
       .slide-media-slot:not(.has-media-stack):has(> .slide-media-external-link) > .slide-media-external-link > .slide-media-image {
         width: auto;
         max-width: min(100%, 26rem);
+      }
+      .slide-inline-bullet-media-slot > .slide-media-image,
+      .slide-inline-bullet-media-slot > .slide-media-video,
+      .slide-inline-bullet-media-slot > .slide-media-print-card,
+      .slide-inline-bullet-media-slot > .slide-media-embed-wrap,
+      .slide-inline-bullet-media-slot > .slide-media-external-link {
+        width: auto;
+        max-width: min(100%, 23rem);
+        max-height: clamp(11rem, 25vh, 14.4rem);
+      }
+      .slide-inline-bullet-media-slot.is-roomy-inline-media > .slide-media-image,
+      .slide-inline-bullet-media-slot.is-roomy-inline-media > .slide-media-video,
+      .slide-inline-bullet-media-slot.is-roomy-inline-media > .slide-media-print-card,
+      .slide-inline-bullet-media-slot.is-roomy-inline-media > .slide-media-embed-wrap,
+      .slide-inline-bullet-media-slot.is-roomy-inline-media > .slide-media-external-link {
+        max-width: min(100%, 25.6rem);
+        max-height: clamp(12.4rem, 28vh, 16rem);
       }
       .slide-body.has-media-stack-layout > .slide-media-slot.has-media-stack {
         min-height: clamp(11.4rem, 28vh, 15.9rem);
@@ -1643,6 +1693,12 @@
       .slide-side-column.is-media-first {
         align-content: start;
       }
+      .slide-side-column.is-media-first.is-media-centered .slide-side-column-media {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: clamp(10.6rem, 24vh, 14.2rem);
+      }
       .slide-primary-column {
         display: grid;
         gap: 0.9rem;
@@ -1691,6 +1747,15 @@
       .slide-side-column-media .slide-media-embed-wrap,
       .slide-side-column-media .slide-media-external-link {
         max-height: clamp(9.2rem, 21vh, 12.4rem);
+      }
+      .slide-side-column.is-media-first.is-media-centered .slide-side-column-media .slide-media-image,
+      .slide-side-column.is-media-first.is-media-centered .slide-side-column-media .slide-media-video,
+      .slide-side-column.is-media-first.is-media-centered .slide-side-column-media .slide-media-print-card,
+      .slide-side-column.is-media-first.is-media-centered .slide-side-column-media .slide-media-embed-wrap,
+      .slide-side-column.is-media-first.is-media-centered .slide-side-column-media .slide-media-external-link {
+        width: auto;
+        max-width: min(100%, 17.8rem);
+        max-height: clamp(10.8rem, 24vh, 14rem);
       }
       .slide-side-column.has-compact-media .slide-side-column-media {
         display: flex;
@@ -2212,10 +2277,11 @@
         gap: 1rem;
         margin-top: auto;
         padding-top: 1rem;
+        padding-right: clamp(5.4rem, 9vw, 7.8rem);
       }
       .slide-note {
         flex: 1 1 auto;
-        max-width: none;
+        max-width: min(100%, calc(100% - clamp(0.4rem, 1vw, 0.9rem)));
         padding: 0.75rem 0.95rem;
         border-radius: 18px;
         background: var(--slide-surface);

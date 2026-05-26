@@ -741,7 +741,7 @@
     const mediaMarkup = createSlideMediaMarkup(slide, options);
 
     if (sideBulletsMarkup && mediaMarkup) {
-      const sideColumnClass = `slide-side-column${layout.mediaFirst ? " is-media-first" : ""}${layout.compactMedia ? " has-compact-media" : ""}`;
+      const sideColumnClass = `slide-side-column${layout.mediaFirst ? " is-media-first" : ""}${layout.centerMedia ? " is-media-centered" : ""}${layout.compactMedia ? " has-compact-media" : ""}`;
       return `
         <div class="${sideColumnClass}">
           ${layout.mediaFirst ? `<div class="slide-side-column-media">${mediaMarkup}</div><div class="slide-side-column-bullets">${sideBulletsMarkup}</div>` : `<div class="slide-side-column-bullets">${sideBulletsMarkup}</div><div class="slide-side-column-media">${mediaMarkup}</div>`}
@@ -1189,6 +1189,10 @@
     const extraBullets = bulletColumns.extraBullets;
     const mainBulletsWeight = Number(bulletColumns.mainWeight) || 0;
     const extraBulletsWeight = Number(bulletColumns.extraWeight) || 0;
+    const totalSubBulletCount = allBullets.reduce((sum, item) => {
+      const bulletItem = item && typeof item === "object" ? item : { text: String(item || ""), children: [] };
+      return sum + (Array.isArray(bulletItem.children) ? bulletItem.children.length : 0);
+    }, 0);
     const bulletsNumbered = Boolean(slide.bulletsNumbered);
     const bulletsProgressive = Boolean(slide.bulletsProgressive) && !opts.compact && !isFreeMode && !isTableMode && !isVisualMode && !isCanvasMode;
     const bulletsSubProgressive = bulletsProgressive && Boolean(slide.bulletsSubProgressive);
@@ -1243,16 +1247,32 @@
       }
     );
     const compactClass = opts.compact ? " deck-slide-compact" : "";
-    const useFloatingTopRightMedia = extraBullets.length > 0
+    const hasDenseBulletContent = allBullets.length >= 4
+      || totalSubBulletCount >= 3
+      || totalBulletHeight >= 6.8;
+    const useFloatingTopRightMedia = hasDenseBulletContent
       && slideMediaItems.length === 1
       && !canKeepMediaWithExtendedBullets
       && !useSecondBulletSideLayout
-      && totalBulletHeight <= 11.4
-      && extraBulletColumnHeight <= 4.4;
+      && totalBulletHeight <= 12.6
+      && (extraBullets.length === 0 || extraBulletColumnHeight <= 5.1);
+    const useBalancedFloatingTopRightMedia = useFloatingTopRightMedia
+      && slideMediaItems.length === 1
+      && totalBulletHeight <= 9.8;
+    const useInlineBulletMediaLayout = !useFloatingTopRightMedia
+      && !extraBullets.length
+      && !canKeepMediaWithExtendedBullets
+      && !useSecondBulletSideLayout
+      && slideMediaItems.length === 1;
+    const useRoomyInlineBulletMediaLayout = useInlineBulletMediaLayout
+      && totalBulletHeight <= 4.9
+      && totalSubBulletCount <= 2
+      && String(slide.title || "").trim().length <= 92
+      && String(slide.subtitle || "").trim().length <= 72;
     const preferRightColumnMedia = !useFloatingTopRightMedia
       && extraBullets.length > 0
       && slideMediaItems.length > 0
-      && extraBulletColumnHeight <= (slideMediaItems.length > 1 ? 2.6 : 3.35);
+      && extraBulletColumnHeight <= (slideMediaItems.length > 1 ? 3.1 : 4.35);
     const moveMediaBelowPrimaryBullets = !useFloatingTopRightMedia
       && !preferRightColumnMedia
       && extraBullets.length > 0
@@ -1264,6 +1284,7 @@
     }
     if (preferRightColumnMedia) {
       sideColumnLayoutOptions.mediaFirst = true;
+      sideColumnLayoutOptions.centerMedia = slideMediaItems.length === 1;
     }
     const sideMarkup = extraBullets.length
       ? createBulletSideColumnMarkup(
@@ -1299,7 +1320,7 @@
     let footerNoteMarkup = note;
     const mediaMarkup = createSlideMediaMarkup(slide, opts);
     const floatingTopRightMediaMarkup = useFloatingTopRightMedia
-      ? `<aside class="slide-floating-top-right-media">${mediaMarkup}</aside>`
+      ? `<aside class="slide-floating-top-right-media${useBalancedFloatingTopRightMedia ? " is-balanced" : ""}">${mediaMarkup}</aside>`
       : "";
 
     if (isFreeMode) {
@@ -1339,6 +1360,13 @@
           <aside class="${sideSlotClass}">${sideMarkup}</aside>
         </div>
       `;
+    } else if (useInlineBulletMediaLayout) {
+      contentMarkup = `
+        <div class="slide-bullets-row slide-bullets-row-inline-media${useRoomyInlineBulletMediaLayout ? " is-roomy-inline-media" : ""}">
+          ${bulletMarkup}
+          <aside class="slide-media-slot slide-inline-bullet-media-slot is-media-bare${useRoomyInlineBulletMediaLayout ? " is-roomy-inline-media" : ""}">${mediaMarkup}</aside>
+        </div>
+      `;
     } else {
       contentMarkup = bulletMarkup;
     }
@@ -1360,13 +1388,13 @@
         <div class="slide-content">
           <div class="slide-topline"></div>
           ${floatingTopRightMediaMarkup}
-          <div class="${isCanvasMode ? "slide-body slide-body-no-media slide-body-canvas" : isVisualMode ? "slide-body slide-body-no-media slide-body-visual" : slideMedia && (!extraBullets.length || isTableMode || canKeepMediaWithExtendedBullets) && !isFreeMode ? `slide-body${stackedMediaLayoutClass}${compactBulletMediaClass}` : "slide-body slide-body-no-media"}">
+          <div class="${isCanvasMode ? "slide-body slide-body-no-media slide-body-canvas" : isVisualMode ? "slide-body slide-body-no-media slide-body-visual" : slideMedia && (!extraBullets.length || isTableMode || canKeepMediaWithExtendedBullets) && !isFreeMode && !useInlineBulletMediaLayout ? `slide-body${stackedMediaLayoutClass}${compactBulletMediaClass}` : "slide-body slide-body-no-media"}">
             <div class="slide-main">
               ${headline}
               ${subtitle}
               ${contentMarkup}
             </div>
-            ${slideMediaItems.length && (!extraBullets.length || canKeepMediaWithExtendedBullets) && !isFreeMode && !isVisualMode && !isTableMode && !useFloatingTopRightMedia ? `<aside class="slide-media-slot is-media-bare${slideMediaItems.length > 1 ? " has-media-stack" : ""}">${mediaMarkup}</aside>` : ""}
+            ${slideMediaItems.length && (!extraBullets.length || canKeepMediaWithExtendedBullets) && !isFreeMode && !isVisualMode && !isTableMode && !useFloatingTopRightMedia && !useInlineBulletMediaLayout ? `<aside class="slide-media-slot is-media-bare${slideMediaItems.length > 1 ? " has-media-stack" : ""}">${mediaMarkup}</aside>` : ""}
           </div>
           <div class="slide-footer">
             ${footerNoteMarkup}
