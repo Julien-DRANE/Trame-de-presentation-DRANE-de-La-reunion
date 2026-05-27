@@ -1531,14 +1531,16 @@
         overflow: visible;
       }
       .slide-inline-bullet-media-slot {
-        align-self: center;
-        justify-self: start;
+        align-self: end;
+        justify-self: end;
         min-height: clamp(11rem, 26vh, 14.8rem);
-        margin-top: 0;
-        margin-left: 0;
+        margin-top: clamp(0.45rem, 1.2vh, 0.95rem);
+        margin-left: clamp(0.45rem, 1vw, 0.85rem);
       }
       .slide-inline-bullet-media-slot.is-roomy-inline-media {
         min-height: clamp(12rem, 28vh, 16rem);
+        margin-top: clamp(0.6rem, 1.5vh, 1.15rem);
+        margin-left: clamp(0.55rem, 1.15vw, 1rem);
       }
       .slide-media-slot:not(.has-media-stack):has(> .slide-media-image),
       .slide-media-slot:not(.has-media-stack):has(> .slide-media-external-link) {
@@ -1705,12 +1707,35 @@
         margin-top: 0.9rem;
       }
       .slide-side-bullets-slot.is-numbered-layout {
+        position: relative;
         transform: none;
         width: 100%;
         max-width: 100%;
         box-sizing: border-box;
         padding-left: 1.42rem;
         padding-right: 0;
+        padding-bottom: clamp(9.5rem, 20vh, 12rem);
+      }
+      .slide-side-bullets-slot.is-numbered-layout .slide-side-column-media {
+        position: absolute;
+        right: -0.2rem;
+        bottom: 0.1rem;
+        display: flex;
+        justify-content: flex-end;
+        width: auto;
+        max-width: min(100%, 20rem);
+        padding-left: 0;
+        padding-right: 0;
+      }
+      .slide-side-bullets-slot.is-numbered-layout .slide-side-column-media .slide-media-image,
+      .slide-side-bullets-slot.is-numbered-layout .slide-side-column-media .slide-media-video,
+      .slide-side-bullets-slot.is-numbered-layout .slide-side-column-media .slide-media-print-card,
+      .slide-side-bullets-slot.is-numbered-layout .slide-side-column-media .slide-media-embed-wrap,
+      .slide-side-bullets-slot.is-numbered-layout .slide-side-column-media .slide-media-external-link {
+        width: auto;
+        margin-left: auto;
+        max-width: min(100%, 19.2rem);
+        max-height: clamp(8.4rem, 18vh, 10.4rem);
       }
       .slide-side-column {
         display: grid;
