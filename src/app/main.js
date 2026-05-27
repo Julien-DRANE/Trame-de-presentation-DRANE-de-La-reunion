@@ -17,6 +17,8 @@
     deleteSlideInline: document.querySelector("#delete-slide-inline"),
     openPresentation: document.querySelector("#open-presentation"),
     openPresentationActive: document.querySelector("#open-presentation-active"),
+    openPresenter: document.querySelector("#open-presenter"),
+    openPresenterActive: document.querySelector("#open-presenter-active"),
     exportPdf: document.querySelector("#export-pdf"),
     exportPptx: document.querySelector("#export-pptx"),
     exportHtml: document.querySelector("#export-html"),
@@ -178,10 +180,13 @@
     visualChartBars: document.querySelector("#visual-chart-bars"),
     visualChartAddColumn: document.querySelector("#visual-chart-add-column"),
     visualChartRemoveColumn: document.querySelector("#visual-chart-remove-column"),
+    slidePresenterNotesEditor: document.querySelector("#slide-presenter-notes-editor"),
     slideNote: document.querySelector("#slide-note"),
+    slidePresenterNotes: document.querySelector("#slide-presenter-notes"),
     titleMeta: document.querySelector("#title-meta"),
     subtitleMeta: document.querySelector("#subtitle-meta"),
     noteMeta: document.querySelector("#note-meta"),
+    presenterNotesMeta: document.querySelector("#presenter-notes-meta"),
     objectiveMeta: document.querySelector("#objective-meta"),
     evidenceMeta: document.querySelector("#evidence-meta"),
   };
@@ -217,7 +222,14 @@
   let isCanvasPreviewFullscreen = false;
   let activeUndoEditKey = "";
   const defaultPptxButtonLabel = refs.exportPptx ? refs.exportPptx.textContent : "Exporter PPTX";
+  const urlSearchParams = new URLSearchParams(window.location.search);
+  const isPresenterMode = urlSearchParams.get("presenter") === "1";
   const isPresentationMode = new URLSearchParams(window.location.search).get("present") === "1";
+
+  if (isPresenterMode) {
+    ns.services.presenter.renderPresenterDocument(state);
+    return;
+  }
 
   if (isPresentationMode) {
     ns.services.exporter.renderPresentationDocument(state);
@@ -557,6 +569,7 @@
     refs.titleMeta.textContent = `${selectedSlide.title.length}/72 caractères`;
     refs.subtitleMeta.textContent = `${selectedSlide.subtitle.length}/170 caractères`;
     refs.noteMeta.textContent = `${selectedSlide.note.length}/180 caractères`;
+    refs.presenterNotesMeta.textContent = `${(selectedSlide.presenterNotes || "").length}/2000 caractères`;
     refs.objectiveMeta.textContent = `${selectedSlide.objective.length}/180 caractères`;
     refs.evidenceMeta.textContent = `${selectedSlide.evidence.length}/120 caractères`;
     refs.freeBodyMeta.textContent = `${ns.utils.richTextLength(selectedSlide.freeBody || "")}/3200 caractères`;
@@ -3568,6 +3581,7 @@
     removeSelectedVisualChartBar(count - 1);
   });
   refs.slideNote.addEventListener("input", (event) => updateSelectedSlide({ note: ns.utils.clampText(event.target.value, 180) }, false));
+  refs.slidePresenterNotes.addEventListener("input", (event) => updateSelectedSlide({ presenterNotes: ns.utils.clampText(event.target.value, 2000) }, false));
   refs.extraBulletsList.addEventListener("input", (event) => {
     const input = event.target.closest("[data-extra-bullet-index]");
     if (!input) {
@@ -3740,14 +3754,32 @@
     persistStateNow();
     const presentationUrl = new URL(window.location.href);
     presentationUrl.searchParams.set("present", "1");
+    presentationUrl.searchParams.delete("presenter");
     window.open(presentationUrl.toString(), "_blank", "noopener");
   });
   refs.openPresentationActive.addEventListener("click", () => {
     persistStateNow();
     const presentationUrl = new URL(window.location.href);
     presentationUrl.searchParams.set("present", "1");
+    presentationUrl.searchParams.delete("presenter");
     presentationUrl.searchParams.set("start", state.selectedSlideId || "");
     window.open(presentationUrl.toString(), "_blank", "noopener");
+  });
+  refs.openPresenter.addEventListener("click", () => {
+    persistStateNow();
+    const presenterUrl = new URL(window.location.href);
+    presenterUrl.searchParams.set("presenter", "1");
+    presenterUrl.searchParams.delete("present");
+    presenterUrl.searchParams.delete("start");
+    window.open(presenterUrl.toString(), "_blank", "noopener");
+  });
+  refs.openPresenterActive.addEventListener("click", () => {
+    persistStateNow();
+    const presenterUrl = new URL(window.location.href);
+    presenterUrl.searchParams.set("presenter", "1");
+    presenterUrl.searchParams.delete("present");
+    presenterUrl.searchParams.set("start", state.selectedSlideId || "");
+    window.open(presenterUrl.toString(), "_blank", "noopener");
   });
 
   window.addEventListener("beforeunload", persistStateNow);

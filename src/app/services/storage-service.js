@@ -174,6 +174,7 @@
       subtitle: utils.clampText(slide.subtitle, 170),
       bullets: bullets.map((item) => utils.clampText(item, 220)),
       note: utils.clampText(slide.note, 180),
+      presenterNotes: utils.clampText(slide.presenterNotes, 2000),
     };
   }
 

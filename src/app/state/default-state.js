@@ -81,6 +81,7 @@
       subtitle: level.defaultSubtitle,
       bullets: level.defaultBullets.slice(0, 3),
       note: level.defaultNote,
+      presenterNotes: "",
     };
   }
 
@@ -127,6 +128,7 @@
       subtitle: "Gardez un message principal net, lisible et directement exploitable.",
       bullets: ["Premier point", "Deuxieme point", "Troisieme point"],
       note: "Une note breve suffit pour fermer la slide.",
+      presenterNotes: "",
     };
   }
 

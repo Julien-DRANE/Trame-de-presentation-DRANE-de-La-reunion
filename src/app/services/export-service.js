@@ -2523,6 +2523,80 @@
       const progressSteps = Array.from(document.querySelectorAll("[data-progress-index]"));
       let currentIndex = 0;
       let isTransitioning = false;
+      let activeProjectorMedia = { kind: "", index: -1 };
+      let pendingRemoteDeckState = null;
+      const presentationSearchParams = new URLSearchParams(window.location.search);
+      const syncSessionId = presentationSearchParams.get("session") || "";
+      const syncClientId = "present-view-" + Math.random().toString(36).slice(2);
+      const syncBridge = syncSessionId ? createSyncBridge(syncSessionId) : null;
+
+      function createSyncBridge(sessionId) {
+        const bridgeName = "studio-slides-presenter-" + sessionId;
+        const listeners = [];
+        let channel = null;
+
+        function notify(payload) {
+          listeners.slice().forEach((listener) => listener(payload || {}));
+        }
+
+        if (window.BroadcastChannel) {
+          try {
+            channel = new BroadcastChannel(bridgeName);
+            channel.addEventListener("message", (event) => notify(event.data));
+          } catch (error) {
+            channel = null;
+          }
+        }
+
+        if (!channel) {
+          window.addEventListener("storage", (event) => {
+            if (event.key !== bridgeName || !event.newValue) {
+              return;
+            }
+            try {
+              notify(JSON.parse(event.newValue));
+            } catch (error) {
+              return;
+            }
+          });
+        }
+
+        return {
+          post(payload) {
+            if (!payload || typeof payload !== "object") {
+              return;
+            }
+            const envelope = Object.assign({
+              sentAt: Date.now(),
+              nonce: Math.random().toString(36).slice(2),
+            }, payload);
+            if (channel) {
+              channel.postMessage(envelope);
+              return;
+            }
+            try {
+              localStorage.setItem(bridgeName, JSON.stringify(envelope));
+              localStorage.removeItem(bridgeName);
+            } catch (error) {
+              return;
+            }
+          },
+          subscribe(listener) {
+            listeners.push(listener);
+            return () => {
+              const index = listeners.indexOf(listener);
+              if (index >= 0) {
+                listeners.splice(index, 1);
+              }
+            };
+          },
+          close() {
+            if (channel) {
+              channel.close();
+            }
+          },
+        };
+      }
 
       function getTransitionName() {
         return document.body.getAttribute("data-transition") || "fade";
@@ -2578,6 +2652,75 @@
           item.classList.remove("presentation-reveal-visible");
         });
       }
+
+      function applyRevealState(screen, revealStep) {
+        if (!screen) {
+          return;
+        }
+        const slide = screen.querySelector(".deck-slide");
+        if (!slide || slide.getAttribute("data-progressive-content") !== "true") {
+          return;
+        }
+        const safeRevealStep = Math.max(0, Number(revealStep) || 0);
+        Array.from(screen.querySelectorAll("[data-reveal-step]")).forEach((item) => {
+          const step = Number(item.getAttribute("data-reveal-step")) || 0;
+          if (step > 0 && step <= safeRevealStep) {
+            item.classList.remove("presentation-reveal-hidden");
+            item.classList.add("presentation-reveal-visible");
+            return;
+          }
+          item.classList.add("presentation-reveal-hidden");
+          item.classList.remove("presentation-reveal-visible");
+        });
+      }
+
+      function getCurrentRevealStep() {
+        const screen = getActiveScreen();
+        if (!screen) {
+          return 0;
+        }
+        return Array.from(screen.querySelectorAll("[data-reveal-step].presentation-reveal-visible"))
+          .map((item) => Number(item.getAttribute("data-reveal-step")) || 0)
+          .reduce((max, step) => Math.max(max, step), 0);
+      }
+
+      function broadcastDeckState() {
+        if (!syncBridge) {
+          return;
+        }
+        syncBridge.post({
+          type: "deck-state",
+          origin: syncClientId,
+          currentIndex,
+          revealStep: getCurrentRevealStep(),
+        });
+      }
+
+      function broadcastProjectorReady() {
+        if (!syncBridge) {
+          return;
+        }
+        syncBridge.post({ type: "projector-ready", origin: syncClientId });
+      }
+
+      function broadcastProjectorMediaState() {
+        if (!syncBridge) {
+          return;
+        }
+        syncBridge.post({
+          type: "projector-media-state",
+          origin: syncClientId,
+          isOpen: Boolean(activeProjectorMedia.kind),
+          mediaKind: activeProjectorMedia.kind || "",
+          mediaIndex: Number.isInteger(activeProjectorMedia.index) ? activeProjectorMedia.index : -1,
+        });
+      }
+
+      function resetProjectorMediaState() {
+        activeProjectorMedia = { kind: "", index: -1 };
+        broadcastProjectorMediaState();
+      }
+
       function revealNextItemInCurrentSlide() {
         const screen = getActiveScreen();
         if (!screen) {
@@ -2599,6 +2742,7 @@
             item.classList.remove("presentation-reveal-hidden");
             item.classList.add("presentation-reveal-visible");
           });
+        broadcastDeckState();
         return true;
       }
 
@@ -2624,7 +2768,8 @@
         });
       }
 
-      function showSlide(nextIndex) {
+      function showSlide(nextIndex, options) {
+        const opts = options || {};
         if (isTransitioning || screens.length === 0) {
           return;
         }
@@ -2636,6 +2781,7 @@
         const transitionName = getTransitionName();
         const outgoingScreen = getActiveScreen();
         const incomingScreen = screens[normalizedIndex];
+        closeAllProjectorMedia();
 
         if (!outgoingScreen || transitionName === "none") {
           currentIndex = normalizedIndex;
@@ -2643,8 +2789,17 @@
             screen.classList.toggle("is-active", index === currentIndex);
           });
           resetSlideReveals(getActiveScreen());
+          applyRevealState(getActiveScreen(), opts.revealStep);
           syncProgress();
           updateFullscreenScale();
+          if (!opts.silent) {
+            broadcastDeckState();
+          }
+          if (pendingRemoteDeckState) {
+            const queuedState = pendingRemoteDeckState;
+            pendingRemoteDeckState = null;
+            showSlide(queuedState.index, { silent: true, revealStep: queuedState.revealStep });
+          }
           return;
         }
 
@@ -2663,6 +2818,7 @@
           currentIndex = normalizedIndex;
           incomingScreen.classList.add("is-active");
           resetSlideReveals(incomingScreen);
+          applyRevealState(incomingScreen, opts.revealStep);
           syncProgress();
           clearTransitionClasses(incomingSlide);
           incomingSlide.classList.add("is-transitioning", "transition-" + transitionName + "-in", "direction-" + direction);
@@ -2671,6 +2827,14 @@
           setTimeout(() => {
             clearTransitionClasses(incomingSlide);
             isTransitioning = false;
+            if (!opts.silent) {
+              broadcastDeckState();
+            }
+            if (pendingRemoteDeckState) {
+              const queuedState = pendingRemoteDeckState;
+              pendingRemoteDeckState = null;
+              showSlide(queuedState.index, { silent: true, revealStep: queuedState.revealStep });
+            }
           }, 320);
         }, 240);
       }
@@ -2689,6 +2853,9 @@
       function closeImageLightbox() {
         lightbox.classList.remove("is-open");
         lightbox.setAttribute("aria-hidden", "true");
+        if (activeProjectorMedia.kind === "image") {
+          resetProjectorMediaState();
+        }
         setTimeout(() => {
           if (!lightbox.classList.contains("is-open")) {
             lightboxImage.removeAttribute("src");
@@ -2883,6 +3050,9 @@
         chartLightbox.classList.remove("is-open");
         chartLightbox.setAttribute("aria-hidden", "true");
         chartLightboxContent.innerHTML = "";
+        if (activeProjectorMedia.kind === "chart") {
+          resetProjectorMediaState();
+        }
       }
 
       function applySlidePaletteVarsToNode(sourceNode, targetNode) {
@@ -2950,6 +3120,104 @@
         tableLightbox.classList.remove("is-open");
         tableLightbox.setAttribute("aria-hidden", "true");
         tableLightboxContent.innerHTML = "";
+        if (activeProjectorMedia.kind === "table") {
+          resetProjectorMediaState();
+        }
+      }
+
+      function closeAllProjectorMedia() {
+        if (lightbox.classList.contains("is-open")) {
+          closeImageLightbox();
+        }
+        if (chartLightbox.classList.contains("is-open")) {
+          closeChartLightbox();
+        }
+        if (tableLightbox.classList.contains("is-open")) {
+          closeTableLightbox();
+        }
+      }
+
+      function getProjectorMediaTargets(kind) {
+        const screen = getActiveScreen();
+        if (!screen) {
+          return [];
+        }
+        if (kind === "image") {
+          return Array.from(screen.querySelectorAll(".slide-media-image"));
+        }
+        if (kind === "table") {
+          return Array.from(screen.querySelectorAll(".slide-table[data-table-lightbox='true']"));
+        }
+        if (kind === "chart") {
+          return Array.from(screen.querySelectorAll(".slide-visual-chart-card"));
+        }
+        return [];
+      }
+
+      function getProjectorMediaIndex(kind, target) {
+        return getProjectorMediaTargets(kind).indexOf(target);
+      }
+
+      function toggleProjectorMedia(kind, index) {
+        const mediaIndex = Number(index);
+        if (!kind || mediaIndex < 0) {
+          return;
+        }
+        const targets = getProjectorMediaTargets(kind);
+        const target = targets[mediaIndex];
+        if (!target) {
+          return;
+        }
+        if (activeProjectorMedia.kind === kind && activeProjectorMedia.index === mediaIndex) {
+          closeAllProjectorMedia();
+          resetProjectorMediaState();
+          return;
+        }
+        closeAllProjectorMedia();
+        if (kind === "image") {
+          openImageLightbox(target);
+        } else if (kind === "table") {
+          openTableLightbox(target);
+        } else if (kind === "chart") {
+          openChartLightbox(target);
+        }
+        activeProjectorMedia = { kind, index: mediaIndex };
+        broadcastProjectorMediaState();
+      }
+
+      if (syncBridge) {
+        syncBridge.subscribe((payload) => {
+          if (!payload || payload.origin === syncClientId) {
+            return;
+          }
+          if (payload.type === "projector-media-toggle") {
+            if (Number(payload.currentIndex) !== currentIndex) {
+              return;
+            }
+            toggleProjectorMedia(payload.mediaKind, payload.mediaIndex);
+            return;
+          }
+          if (payload.type !== "deck-state") {
+            return;
+          }
+          const targetIndex = Number(payload.currentIndex);
+          const targetRevealStep = Number(payload.revealStep) || 0;
+          if (isTransitioning) {
+            pendingRemoteDeckState = {
+              index: targetIndex,
+              revealStep: targetRevealStep,
+            };
+            return;
+          }
+          const hasActiveScreen = screens.some((screen) => screen.classList.contains("is-active"));
+          if (targetIndex !== currentIndex || !hasActiveScreen) {
+            showSlide(targetIndex, { silent: true, revealStep: targetRevealStep });
+            return;
+          }
+          applyRevealState(getActiveScreen(), targetRevealStep);
+          syncProgress();
+          updateFullscreenScale();
+        });
       }
 
       prevButton.addEventListener("click", () => showSlide(currentIndex - 1));
@@ -2976,16 +3244,22 @@
         const slideImage = event.target.closest(".slide-media-image");
         if (slideImage && !event.target.closest(".slide-media-print-card")) {
           openImageLightbox(slideImage);
+          activeProjectorMedia = { kind: "image", index: getProjectorMediaIndex("image", slideImage) };
+          broadcastProjectorMediaState();
           return;
         }
         const slideTable = event.target.closest(".slide-table[data-table-lightbox='true']");
         if (slideTable) {
           openTableLightbox(slideTable);
+          activeProjectorMedia = { kind: "table", index: getProjectorMediaIndex("table", slideTable) };
+          broadcastProjectorMediaState();
           return;
         }
         const chartCard = event.target.closest(".slide-visual-chart-card");
         if (chartCard) {
           openChartLightbox(chartCard);
+          activeProjectorMedia = { kind: "chart", index: getProjectorMediaIndex("chart", chartCard) };
+          broadcastProjectorMediaState();
           return;
         }
         if (
@@ -3065,7 +3339,19 @@
         }
         if (event.key === "ArrowLeft" || event.key === "PageUp") showSlide(currentIndex - 1);
       });
-      showSlide(${initialSlideIndex});
+      if (syncBridge) {
+        broadcastProjectorReady();
+        window.setInterval(broadcastProjectorReady, 2200);
+        window.addEventListener("focus", broadcastProjectorReady);
+        window.addEventListener("pageshow", broadcastProjectorReady);
+        document.addEventListener("visibilitychange", () => {
+          if (document.visibilityState === "visible") {
+            broadcastProjectorReady();
+          }
+        });
+        window.addEventListener("beforeunload", () => syncBridge.close());
+      }
+      showSlide(${initialSlideIndex}, { silent: Boolean(syncBridge) });
     </script>`}
   </body>
 </html>`;

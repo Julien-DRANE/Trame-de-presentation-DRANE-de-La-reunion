@@ -249,6 +249,7 @@
       refs.canvasShapeColor.value = "#0a66ff";
     }
     refs.slideNote.value = selectedSlide.note;
+    refs.slidePresenterNotes.value = selectedSlide.presenterNotes || "";
     const isTableMode = (selectedSlide.contentType || "bullets") === "table";
     const isFreeMode = (selectedSlide.contentType || "bullets") === "free";
     const isVisualMode = (selectedSlide.contentType || "bullets") === "visual";
@@ -259,6 +260,7 @@
     refs.slideVisualEditor.hidden = !isVisualMode;
     refs.slideCanvasEditor.hidden = !isCanvasMode;
     refs.slideNoteEditor.hidden = false;
+    refs.slidePresenterNotesEditor.hidden = false;
     refs.slideBulletsEditor.classList.toggle("is-collapsed", isTableMode || isFreeMode || isVisualMode || isCanvasMode);
     refs.slideTableEditor.classList.toggle("is-collapsed", !isTableMode);
     refs.slideFreeEditor.classList.toggle("is-collapsed", !isFreeMode);
@@ -278,6 +280,7 @@
     refs.titleMeta.textContent = `${selectedSlide.title.length}/72 caractères`;
     refs.subtitleMeta.textContent = `${selectedSlide.subtitle.length}/170 caractères`;
     refs.noteMeta.textContent = `${selectedSlide.note.length}/180 caractères`;
+    refs.presenterNotesMeta.textContent = `${(selectedSlide.presenterNotes || "").length}/2000 caractères`;
     refs.freeBodyMeta.textContent = `${ns.utils.richTextLength(selectedSlide.freeBody || "")}/3200 caractères`;
     refs.visualBodyMeta.textContent = `${(visualData.body || "").length}/320 caractères`;
     refs.visualCalloutMeta.textContent = `${(visualData.callout || "").length}/180 caractères`;
