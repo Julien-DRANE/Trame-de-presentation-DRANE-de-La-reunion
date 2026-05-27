@@ -1988,6 +1988,12 @@
         border-radius: 20px;
         box-shadow: 0 28px 70px rgba(0,0,0,0.35);
         background: #ffffff;
+        transform: scale(1);
+        transform-origin: center center;
+        transition: transform 220ms ease;
+      }
+      .image-lightbox-image.is-zoomed {
+        transform: scale(1.22);
       }
       body.deck-is-fullscreen .image-lightbox-image {
         max-height: 99vh;
@@ -2524,6 +2530,7 @@
       let currentIndex = 0;
       let isTransitioning = false;
       let activeProjectorMedia = { kind: "", index: -1 };
+      let imageLightboxZoomActive = false;
       let pendingRemoteDeckState = null;
       const presentationSearchParams = new URLSearchParams(window.location.search);
       const syncSessionId = presentationSearchParams.get("session") || "";
@@ -2713,12 +2720,22 @@
           isOpen: Boolean(activeProjectorMedia.kind),
           mediaKind: activeProjectorMedia.kind || "",
           mediaIndex: Number.isInteger(activeProjectorMedia.index) ? activeProjectorMedia.index : -1,
+          imageZoomActive: Boolean(imageLightboxZoomActive && activeProjectorMedia.kind === "image"),
         });
       }
 
       function resetProjectorMediaState() {
         activeProjectorMedia = { kind: "", index: -1 };
+        imageLightboxZoomActive = false;
         broadcastProjectorMediaState();
+      }
+
+      function setImageLightboxZoom(active) {
+        imageLightboxZoomActive = Boolean(active);
+        lightboxImage.classList.toggle("is-zoomed", imageLightboxZoomActive);
+        if (activeProjectorMedia.kind === "image") {
+          broadcastProjectorMediaState();
+        }
       }
 
       function revealNextItemInCurrentSlide() {
@@ -2846,6 +2863,7 @@
         }
         lightboxImage.src = src;
         lightboxImage.alt = image.getAttribute("alt") || "";
+        setImageLightboxZoom(false);
         lightbox.classList.add("is-open");
         lightbox.setAttribute("aria-hidden", "false");
       }
@@ -2856,6 +2874,7 @@
         if (activeProjectorMedia.kind === "image") {
           resetProjectorMediaState();
         }
+        setImageLightboxZoom(false);
         setTimeout(() => {
           if (!lightbox.classList.contains("is-open")) {
             lightboxImage.removeAttribute("src");
@@ -3185,6 +3204,17 @@
         broadcastProjectorMediaState();
       }
 
+      function applyProjectorImageZoom(mode) {
+        if (!lightbox.classList.contains("is-open") || activeProjectorMedia.kind !== "image") {
+          return;
+        }
+        if (mode === "in") {
+          setImageLightboxZoom(true);
+          return;
+        }
+        setImageLightboxZoom(false);
+      }
+
       if (syncBridge) {
         syncBridge.subscribe((payload) => {
           if (!payload || payload.origin === syncClientId) {
@@ -3195,6 +3225,13 @@
               return;
             }
             toggleProjectorMedia(payload.mediaKind, payload.mediaIndex);
+            return;
+          }
+          if (payload.type === "projector-image-zoom") {
+            if (Number(payload.currentIndex) !== currentIndex) {
+              return;
+            }
+            applyProjectorImageZoom(payload.mode);
             return;
           }
           if (payload.type !== "deck-state") {

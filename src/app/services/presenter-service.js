@@ -153,6 +153,11 @@
         gap: 0.65rem;
         justify-content: flex-end;
       }
+      .presenter-toolbar-group {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
       .presenter-layout {
         display: grid;
         grid-template-columns: minmax(0, 1.78fr) minmax(300px, 0.82fr);
@@ -599,6 +604,14 @@
           inset 0 -0.12rem 0 rgba(82, 166, 104, 0.12),
           0 0.35rem 1rem rgba(82, 166, 104, 0.10);
       }
+      #presenter-image-zoom-in[aria-pressed="true"] .presenter-keycap {
+        border-color: rgba(231, 188, 71, 0.38);
+        background: linear-gradient(180deg, rgba(255, 248, 220, 0.98), rgba(255, 240, 185, 0.94));
+        color: #9e6b05;
+        box-shadow:
+          inset 0 -0.12rem 0 rgba(231, 188, 71, 0.14),
+          0 0.35rem 1rem rgba(231, 188, 71, 0.12);
+      }
       .presenter-keycap-hint {
         font-size: 0.65rem;
         font-weight: 700;
@@ -627,6 +640,23 @@
         box-shadow:
           inset 0 -0.12rem 0 rgba(126, 214, 148, 0.12),
           0 0.35rem 1rem rgba(126, 214, 148, 0.10);
+      }
+      body.theme-night #presenter-image-zoom-in[aria-pressed="true"] .presenter-keycap {
+        border-color: rgba(241, 211, 116, 0.4);
+        background: linear-gradient(180deg, rgba(58, 48, 12, 0.94), rgba(42, 34, 9, 0.94));
+        color: #ffe8a6;
+        box-shadow:
+          inset 0 -0.12rem 0 rgba(241, 211, 116, 0.14),
+          0 0.35rem 1rem rgba(241, 211, 116, 0.10);
+      }
+      .presenter-image-zoom-controls[hidden] {
+        display: none;
+      }
+      .presenter-reset-button {
+        min-height: 2.2rem;
+        padding-inline: 0.8rem;
+        font-size: 0.8rem;
+        font-weight: 700;
       }
       body.theme-night .presenter-keycap-hint {
         color: var(--presenter-muted);
@@ -703,6 +733,25 @@
           >
             <span class="presenter-keycap" aria-hidden="true">P</span>
           </button>
+          <div id="presenter-image-zoom-controls" class="presenter-toolbar-group presenter-image-zoom-controls" hidden>
+            <button
+              id="presenter-image-zoom-in"
+              class="button button-soft presenter-mini-button presenter-toolbar-action"
+              type="button"
+              aria-pressed="false"
+              aria-label="Activer le zoom image projetée"
+              title="Zoom image projetée (touche +)"
+            >
+              <span class="presenter-keycap" aria-hidden="true">+</span>
+            </button>
+            <button
+              id="presenter-image-zoom-reset"
+              class="button button-soft presenter-reset-button presenter-toolbar-action"
+              type="button"
+              aria-label="Réinitialiser le zoom image projetée"
+              title="Réinitialiser le zoom image projetée (touche -)"
+            >Reset</button>
+          </div>
           <button
             id="presenter-toolbar-prev"
             class="button button-soft presenter-mini-button presenter-toolbar-action"
@@ -801,6 +850,7 @@
       <div id="presenter-render-host" style="position:fixed;left:-10000px;top:0;width:1280px;height:720px;pointer-events:none;opacity:0;overflow:hidden;" aria-hidden="true">
         <div id="presenter-buffer-current"></div>
         <div id="presenter-buffer-next"></div>
+        <div id="presenter-buffer-cache"></div>
       </div>
     </div>
 
@@ -815,6 +865,7 @@
       const renderHost = document.querySelector("#presenter-render-host");
       const currentBuffer = document.querySelector("#presenter-buffer-current");
       const nextBuffer = document.querySelector("#presenter-buffer-next");
+      const cacheBuffer = document.querySelector("#presenter-buffer-cache");
       const notesBody = document.querySelector("#presenter-notes-body");
       const currentTitle = document.querySelector("#presenter-current-title");
       const currentMeta = document.querySelector("#presenter-current-meta");
@@ -825,6 +876,9 @@
       const themeLabel = document.querySelector("#presenter-theme-label");
       const swapStagesButton = document.querySelector("#presenter-swap-stages");
       const projectorFocusButton = document.querySelector("#presenter-projector-focus-toggle");
+      const imageZoomControls = document.querySelector("#presenter-image-zoom-controls");
+      const imageZoomInButton = document.querySelector("#presenter-image-zoom-in");
+      const imageZoomResetButton = document.querySelector("#presenter-image-zoom-reset");
       const toolbarPrevButton = document.querySelector("#presenter-toolbar-prev");
       const toolbarNextButton = document.querySelector("#presenter-toolbar-next");
       const fullscreenToggle = document.querySelector("#presenter-fullscreen-toggle");
@@ -841,12 +895,15 @@
       let projectorConnected = false;
       let projectorBlocked = false;
       let lastProjectorContactAt = 0;
-      let projectorMediaState = { isOpen: false, kind: "", index: -1 };
+      let projectorMediaState = { isOpen: false, kind: "", index: -1, imageZoomActive: false };
       let currentRenderToken = 0;
       let isNightTheme = false;
       let areStagesSwapped = false;
       let isProjectorFocusMode = false;
       let lastPublishedStateSignature = "";
+      let previewWarmRequestId = 0;
+      let previewWarmQueue = Promise.resolve();
+      const previewCache = new Map();
       const presenterThemeStorageKey = "studio-presenter-theme-v1";
       const presenterStagesLayoutStorageKey = "studio-presenter-stages-layout-v1";
       const presenterProjectorFocusStorageKey = "studio-presenter-projector-focus-v1";
@@ -1048,6 +1105,10 @@
         return mountNode.querySelector(".deck-slide");
       }
 
+      function getPreviewCacheKey(index, revealStep) {
+        return String(normalizeIndex(index)) + ":" + String(Math.max(0, Number(revealStep) || 0));
+      }
+
       function waitForFrame() {
         return new Promise((resolve) => window.requestAnimationFrame(() => resolve()));
       }
@@ -1170,6 +1231,20 @@
         );
       }
 
+      function buildPreviewAssetFromCache(asset, options) {
+        const opts = options || {};
+        if (!asset || !asset.dataUrl) {
+          return "";
+        }
+        return buildPreviewMarkup(
+          asset.dataUrl,
+          Array.isArray(asset.descriptors) ? asset.descriptors : [],
+          Boolean(opts.interactive),
+          Number(asset.ratio) || (16 / 9),
+          opts.occupancy
+        );
+      }
+
       function shouldAnimatePreviewSwap() {
         return !(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
       }
@@ -1210,26 +1285,95 @@
         fitStagePreview(nextStage);
       }
 
-      async function renderPreviewIntoStage(stageNode, slideNode, options) {
-        const opts = options || {};
-        if (!stageNode || !slideNode || typeof window.html2canvas !== "function") {
-          return [];
+      async function createPreviewAsset(slideNode) {
+        if (!slideNode || typeof window.html2canvas !== "function") {
+          return null;
         }
         await waitForSlideLayout(slideNode);
-        const descriptors = opts.interactive ? collectInteractiveDescriptors(slideNode) : [];
+        const descriptors = collectInteractiveDescriptors(slideNode);
         const canvas = await window.html2canvas(slideNode, {
           backgroundColor: null,
           scale: 1,
           useCORS: true,
           logging: false,
         });
-        const markup = buildPreviewMarkup(
-          canvas.toDataURL("image/png"),
+        return {
+          dataUrl: canvas.toDataURL("image/png"),
           descriptors,
-          Boolean(opts.interactive),
-          16 / 9,
-          opts.occupancy
-        );
+          ratio: 16 / 9,
+        };
+      }
+
+      async function getOrCreatePreviewAsset(index, revealStep, mountNode, existingSlideNode) {
+        const key = getPreviewCacheKey(index, revealStep);
+        if (previewCache.has(key)) {
+          return previewCache.get(key);
+        }
+        const slideNode = existingSlideNode || mountSlide(index, mountNode || cacheBuffer);
+        if (!slideNode) {
+          return null;
+        }
+        resetRevealState(slideNode);
+        applyRevealState(slideNode, revealStep);
+        const asset = await createPreviewAsset(slideNode);
+        if (asset) {
+          previewCache.set(key, asset);
+        }
+        return asset;
+      }
+
+      function getDesiredPreviewCacheKeys(centerIndex, revealStep) {
+        const desiredKeys = new Set();
+        const seen = new Set();
+        for (let offset = -2; offset <= 2; offset += 1) {
+          const index = normalizeIndex(centerIndex + offset);
+          const key = getPreviewCacheKey(index, index === centerIndex ? revealStep : 0);
+          if (seen.has(key)) {
+            continue;
+          }
+          seen.add(key);
+          desiredKeys.add(key);
+        }
+        return desiredKeys;
+      }
+
+      function prunePreviewCache(centerIndex, revealStep) {
+        const desiredKeys = getDesiredPreviewCacheKeys(centerIndex, revealStep);
+        Array.from(previewCache.keys()).forEach((key) => {
+          if (!desiredKeys.has(key)) {
+            previewCache.delete(key);
+          }
+        });
+        return desiredKeys;
+      }
+
+      function schedulePreviewCacheWarm(centerIndex, revealStep) {
+        const requestId = ++previewWarmRequestId;
+        previewWarmQueue = previewWarmQueue
+          .then(async () => {
+            const desiredKeys = prunePreviewCache(centerIndex, revealStep);
+            for (let offset = -2; offset <= 2; offset += 1) {
+              if (requestId !== previewWarmRequestId) {
+                return;
+              }
+              const index = normalizeIndex(centerIndex + offset);
+              const targetRevealStep = index === centerIndex ? revealStep : 0;
+              const key = getPreviewCacheKey(index, targetRevealStep);
+              if (!desiredKeys.has(key) || previewCache.has(key)) {
+                continue;
+              }
+              await getOrCreatePreviewAsset(index, targetRevealStep, cacheBuffer, null);
+            }
+          })
+          .catch(() => undefined);
+      }
+
+      async function renderPreviewIntoStage(stageNode, asset, options) {
+        const opts = options || {};
+        if (!stageNode || !asset) {
+          return;
+        }
+        const markup = buildPreviewAssetFromCache(asset, opts);
         const currentLayer = stageNode.querySelector(".presenter-stage-layer.is-visible");
         const nextLayer = document.createElement("div");
         nextLayer.className = "presenter-stage-layer";
@@ -1244,7 +1388,7 @@
             }
           });
           nextLayer.classList.add("is-visible");
-          return descriptors;
+          return;
         }
         window.requestAnimationFrame(() => {
           nextLayer.classList.add("is-visible");
@@ -1255,7 +1399,6 @@
             currentLayer.remove();
           }
         }, 340);
-        return descriptors;
       }
 
       function syncCarousel() {
@@ -1287,6 +1430,13 @@
       function syncProjectorSignal() {
         projectorSignal.classList.toggle("is-active", Boolean(projectorMediaState.isOpen));
         projectorSignal.textContent = getProjectorSignalLabel(projectorMediaState.kind);
+      }
+
+      function syncProjectorZoomUi() {
+        const imageActive = Boolean(projectorMediaState.isOpen) && projectorMediaState.kind === "image";
+        imageZoomControls.hidden = !imageActive;
+        imageZoomInButton.setAttribute("aria-pressed", imageActive && projectorMediaState.imageZoomActive ? "true" : "false");
+        imageZoomResetButton.disabled = !imageActive;
       }
 
       function syncProjectorHighlight() {
@@ -1325,9 +1475,10 @@
           projectorMediaState.kind === descriptor.kind &&
           projectorMediaState.index === descriptor.index;
         projectorMediaState = willClose
-          ? { isOpen: false, kind: "", index: -1 }
-          : { isOpen: true, kind: descriptor.kind, index: descriptor.index };
+          ? { isOpen: false, kind: "", index: -1, imageZoomActive: false }
+          : { isOpen: true, kind: descriptor.kind, index: descriptor.index, imageZoomActive: false };
         syncProjectorSignal();
+        syncProjectorZoomUi();
         syncProjectorHighlight();
         syncBridge.post({
           type: "projector-media-toggle",
@@ -1335,6 +1486,23 @@
           currentIndex,
           mediaKind: descriptor.kind,
           mediaIndex: descriptor.index,
+        });
+      }
+
+      function sendProjectorImageZoom(mode) {
+        if (!projectorMediaState.isOpen || projectorMediaState.kind !== "image") {
+          return;
+        }
+        projectorMediaState = Object.assign({}, projectorMediaState, {
+          imageZoomActive: mode === "in",
+        });
+        syncProjectorZoomUi();
+        syncProjectorHighlight();
+        syncBridge.post({
+          type: "projector-image-zoom",
+          origin: presenterControllerId,
+          currentIndex,
+          mode,
         });
       }
 
@@ -1453,15 +1621,20 @@
         revealButton.textContent = nextRevealStep ? "Reveler l'etape suivante" : "Aucun reveal";
         const hasSameProjectedKind = projectorMediaState.isOpen && typeof projectorMediaState.kind === "string";
         if (!hasSameProjectedKind) {
-          projectorMediaState = { isOpen: false, kind: "", index: -1 };
+          projectorMediaState = { isOpen: false, kind: "", index: -1, imageZoomActive: false };
         }
         syncCarousel();
         syncProjectorSignal();
+        syncProjectorZoomUi();
         if (typeof window.html2canvas !== "function") {
           return;
         }
         if (currentArticle) {
-          await renderPreviewIntoStage(currentStage, currentArticle, {
+          const currentAsset = await getOrCreatePreviewAsset(currentIndex, currentRevealStep, currentBuffer, currentArticle);
+          if (renderToken !== currentRenderToken) {
+            return;
+          }
+          await renderPreviewIntoStage(currentStage, currentAsset, {
             interactive: true,
             occupancy: isProjectorFocusMode ? 0.96 : (areStagesSwapped ? 0.68 : 0.96),
           });
@@ -1470,7 +1643,11 @@
           return;
         }
         if (nextArticle) {
-          await renderPreviewIntoStage(nextStage, nextArticle, {
+          const nextAsset = await getOrCreatePreviewAsset(nextSlideIndex, 0, nextBuffer, nextArticle);
+          if (renderToken !== currentRenderToken) {
+            return;
+          }
+          await renderPreviewIntoStage(nextStage, nextAsset, {
             interactive: false,
             occupancy: areStagesSwapped ? 0.96 : 0.68,
           });
@@ -1480,6 +1657,7 @@
         }
         fitStagePreviews();
         syncProjectorHighlight();
+        schedulePreviewCacheWarm(currentIndex, currentRevealStep);
       }
 
       function setPresenterState(index, revealStep, options) {
@@ -1571,8 +1749,10 @@
             isOpen: Boolean(payload.isOpen),
             kind: payload.mediaKind || "",
             index: Number.isInteger(payload.mediaIndex) ? payload.mediaIndex : -1,
+            imageZoomActive: Boolean(payload.imageZoomActive),
           };
           syncProjectorSignal();
+          syncProjectorZoomUi();
           syncProjectorHighlight();
         }
       });
@@ -1599,6 +1779,8 @@
       themeToggle.addEventListener("click", toggleTheme);
       swapStagesButton.addEventListener("click", toggleStagesLayout);
       projectorFocusButton.addEventListener("click", toggleProjectorFocusMode);
+      imageZoomInButton.addEventListener("click", () => sendProjectorImageZoom("in"));
+      imageZoomResetButton.addEventListener("click", () => sendProjectorImageZoom("reset"));
       toolbarPrevButton.addEventListener("click", rewindPresentation);
       toolbarNextButton.addEventListener("click", advancePresentation);
       fullscreenToggle.addEventListener("click", toggleFullscreen);
@@ -1633,6 +1815,16 @@
         if (String(event.key || "").toLowerCase() === "p") {
           event.preventDefault();
           toggleProjectorFocusMode();
+          return;
+        }
+        if (event.key === "+" || event.key === "=") {
+          event.preventDefault();
+          sendProjectorImageZoom("in");
+          return;
+        }
+        if (event.key === "-" || event.key === "_") {
+          event.preventDefault();
+          sendProjectorImageZoom("reset");
         }
       });
 
