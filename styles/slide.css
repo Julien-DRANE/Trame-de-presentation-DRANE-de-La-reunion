@@ -1028,6 +1028,15 @@
   margin-top: 0.2rem;
 }
 
+.slide-free-body [data-rich-layout="two-columns"] {
+  column-count: 2;
+  column-gap: clamp(1rem, 2vw, 1.6rem);
+}
+
+.slide-free-body [data-rich-layout="two-columns"] > * {
+  break-inside: avoid;
+}
+
 .slide-free-links {
   display: flex;
   flex-wrap: wrap;
@@ -2275,6 +2284,10 @@
 .deck-slide-compact .slide-free-body p {
   font-size: 0.62rem;
   line-height: 1.26;
+}
+
+.deck-slide-compact .slide-free-body [data-rich-layout="two-columns"] {
+  column-gap: 0.8rem;
 }
 
 .deck-slide-compact .slide-free-link {

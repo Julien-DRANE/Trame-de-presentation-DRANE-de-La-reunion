@@ -2676,6 +2676,80 @@
     parent.removeChild(element);
   }
 
+  function getFreeEditorLayoutAncestorForNode(node, layoutName) {
+    let current = node && node.nodeType === Node.ELEMENT_NODE ? node : node.parentNode;
+    while (current && current !== refs.slideFreeBody) {
+      if (current.nodeType === Node.ELEMENT_NODE && current.getAttribute("data-rich-layout") === layoutName) {
+        return current;
+      }
+      current = current.parentNode;
+    }
+    return null;
+  }
+
+  function findFreeEditorLayoutAncestor(range, layoutName) {
+    if (!range) {
+      return null;
+    }
+
+    const commonAncestor = getFreeEditorLayoutAncestorForNode(range.commonAncestorContainer, layoutName);
+    if (commonAncestor) {
+      return commonAncestor;
+    }
+
+    const startAncestor = getFreeEditorLayoutAncestorForNode(range.startContainer, layoutName);
+    const endAncestor = getFreeEditorLayoutAncestorForNode(range.endContainer, layoutName);
+    if (startAncestor && endAncestor && startAncestor === endAncestor) {
+      return startAncestor;
+    }
+
+    return null;
+  }
+
+  function applyFreeEditorTwoColumns() {
+    if (!restoreFreeEditorSelection()) {
+      refs.slideFreeBody.focus();
+      return;
+    }
+
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0 || selection.isCollapsed) {
+      return;
+    }
+
+    const range = selection.getRangeAt(0);
+    if (!refs.slideFreeBody.contains(range.commonAncestorContainer)) {
+      return;
+    }
+
+    const existingLayout = findFreeEditorLayoutAncestor(range, "two-columns");
+    if (existingLayout) {
+      unwrapFreeEditorFormat(existingLayout);
+      saveFreeEditorSelection();
+      normalizeFreeEditorMarkup(false);
+      return;
+    }
+
+    const wrapper = document.createElement("div");
+    wrapper.setAttribute("data-rich-layout", "two-columns");
+
+    try {
+      const content = range.extractContents();
+      if (!content.textContent || !content.textContent.trim()) {
+        return;
+      }
+      wrapper.appendChild(content);
+      range.insertNode(wrapper);
+      range.selectNodeContents(wrapper);
+      selection.removeAllRanges();
+      selection.addRange(range);
+      saveFreeEditorSelection();
+      normalizeFreeEditorMarkup(false);
+    } catch (error) {
+      return;
+    }
+  }
+
   function isFreeEditorSelectionInsideList() {
     const selection = window.getSelection();
     if (!selection || selection.rangeCount === 0) {
@@ -3817,6 +3891,10 @@
       }
       if (command === "underline") {
         applyFreeEditorInlineTag("u");
+        return;
+      }
+      if (command === "two-columns") {
+        applyFreeEditorTwoColumns();
       }
     });
   });

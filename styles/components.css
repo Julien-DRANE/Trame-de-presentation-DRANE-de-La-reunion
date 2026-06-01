@@ -1481,6 +1481,15 @@ select {
   margin-bottom: 0;
 }
 
+.free-editor [data-rich-layout="two-columns"] {
+  column-count: 2;
+  column-gap: 1.4rem;
+}
+
+.free-editor [data-rich-layout="two-columns"] > * {
+  break-inside: avoid;
+}
+
 .canvas-editor-toolbar {
   display: flex;
   flex-wrap: wrap;

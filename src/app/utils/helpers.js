@@ -170,6 +170,9 @@
       }
 
       if (tag === "p" || tag === "div") {
+        if (tag === "div" && node.getAttribute("data-rich-layout") === "two-columns") {
+          return `<div data-rich-layout="two-columns">${inner}</div>`;
+        }
         return `<p>${inner}</p>`;
       }
 
