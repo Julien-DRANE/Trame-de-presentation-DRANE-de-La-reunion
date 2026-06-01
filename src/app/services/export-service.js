@@ -1109,6 +1109,13 @@
       .slide-free-body li + li {
         margin-top: 0.2rem;
       }
+      .slide-free-body [data-rich-layout="two-columns"] {
+        column-count: 2;
+        column-gap: clamp(1rem, 2vw, 1.6rem);
+      }
+      .slide-free-body [data-rich-layout="two-columns"] > * {
+        break-inside: avoid;
+      }
       .slide-free-links {
         display: flex;
         flex-wrap: wrap;
