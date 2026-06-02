@@ -592,19 +592,31 @@
       video.muted = true;
       video.playsInline = true;
       video.crossOrigin = "anonymous";
+      let settled = false;
+      let timeoutId = 0;
 
       const cleanup = () => {
+        if (timeoutId) {
+          window.clearTimeout(timeoutId);
+        }
         video.pause();
         video.removeAttribute("src");
         video.load();
       };
 
       const fallback = () => {
+        if (settled) {
+          return;
+        }
+        settled = true;
         cleanup();
         resolve("");
       };
 
       video.addEventListener("loadeddata", () => {
+        if (settled) {
+          return;
+        }
         try {
           const canvas = document.createElement("canvas");
           canvas.width = video.videoWidth || 1280;
@@ -612,6 +624,7 @@
           const ctx = canvas.getContext("2d");
           ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
           const dataUrl = canvas.toDataURL("image/png");
+          settled = true;
           cleanup();
           resolve(dataUrl);
         } catch (error) {
@@ -620,6 +633,7 @@
       }, { once: true });
 
       video.addEventListener("error", fallback, { once: true });
+      timeoutId = window.setTimeout(fallback, 4500);
       video.src = videoSrc;
     });
   }
@@ -629,7 +643,7 @@
   async function resolvePdfMediaAssets(items) {
     const previewMap = {};
     const linkMap = {};
-    const exportUrls = await resolveExportMediaUrls(items || []);
+    const exportUrls = await resolveExportMediaUrls((items || []).filter((item) => item.kind !== "video"));
 
     for (const item of items || []) {
       if (item.kind === "image") {
@@ -653,13 +667,8 @@
       }
 
       if (item.kind === "video") {
-        const source = exportUrls[item.id] || item.externalUrl || "";
-        let poster = "";
-        if (source) {
-          poster = await createVideoPosterDataUrl(source);
-        }
-        previewMap[item.id] = poster || createVideoPlaceholderDataUrl(item.name);
-        linkMap[item.id] = item.externalUrl || source;
+        previewMap[item.id] = createVideoPlaceholderDataUrl("Média vidéo");
+        linkMap[item.id] = item.externalUrl || "";
       }
     }
 

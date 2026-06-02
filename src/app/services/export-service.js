@@ -1,6 +1,58 @@
 ﻿(function () {
   const ns = (window.StudioSlides = window.StudioSlides || {});
   ns.services = ns.services || {};
+  let pdfProgressListener = null;
+
+  function setPdfProgressListener(listener) {
+    pdfProgressListener = typeof listener === "function" ? listener : null;
+  }
+
+  function notifyPdfProgress(detail) {
+    if (!pdfProgressListener) {
+      return;
+    }
+    try {
+      pdfProgressListener(Object.assign({
+        state: "idle",
+        percent: 0,
+        label: "Exporter PDF",
+        detail: "",
+      }, detail || {}));
+    } catch (error) {
+      return;
+    }
+  }
+
+  function waitForNextFrame() {
+    return new Promise((resolve) => {
+      window.requestAnimationFrame(() => {
+        window.setTimeout(resolve, 0);
+      });
+    });
+  }
+
+  function getContainedRect(containerWidth, containerHeight, sourceWidth, sourceHeight) {
+    const safeContainerWidth = Math.max(1, Number(containerWidth) || 1);
+    const safeContainerHeight = Math.max(1, Number(containerHeight) || 1);
+    const safeSourceWidth = Math.max(1, Number(sourceWidth) || 1);
+    const safeSourceHeight = Math.max(1, Number(sourceHeight) || 1);
+    const scale = Math.min(safeContainerWidth / safeSourceWidth, safeContainerHeight / safeSourceHeight);
+    const width = safeSourceWidth * scale;
+    const height = safeSourceHeight * scale;
+    return {
+      x: (safeContainerWidth - width) / 2,
+      y: (safeContainerHeight - height) / 2,
+      width,
+      height,
+    };
+  }
+
+  function serializeForScript(value) {
+    return JSON.stringify(value)
+      .replace(/</g, "\\u003c")
+      .replace(/>/g, "\\u003e")
+      .replace(/&/g, "\\u0026");
+  }
 
   function downloadBlob(blob, fileName) {
     const url = URL.createObjectURL(blob);
@@ -3401,6 +3453,144 @@
 </html>`;
   }
 
+  function buildPdfWorkerHtml(state) {
+    return `<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Export PDF en cours</title>
+    <link rel="icon" type="image/png" href="assets/images/icon.png" />
+    <link rel="stylesheet" href="styles/base.css" />
+    <link rel="stylesheet" href="styles/layout.css" />
+    <link rel="stylesheet" href="styles/components.css" />
+    <link rel="stylesheet" href="styles/slide.css" />
+    <style>
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        background: linear-gradient(160deg, #edf3f9, #d7e4f3);
+        color: #122033;
+        font-family: Aptos, "Segoe UI", "Trebuchet MS", sans-serif;
+      }
+      .pdf-export-worker {
+        width: min(32rem, calc(100vw - 2rem));
+        padding: 1.4rem 1.5rem;
+        border-radius: 24px;
+        background: rgba(255, 255, 255, 0.96);
+        box-shadow: 0 24px 60px rgba(18, 31, 52, 0.18);
+      }
+      .pdf-export-worker h1 {
+        margin: 0 0 0.35rem;
+        font-size: 1.45rem;
+      }
+      .pdf-export-worker p {
+        margin: 0;
+        line-height: 1.45;
+      }
+      .pdf-export-worker-status {
+        margin-top: 0.95rem;
+        font-weight: 700;
+      }
+      .pdf-export-worker-progress {
+        height: 0.7rem;
+        margin-top: 1rem;
+        border-radius: 999px;
+        background: rgba(18, 32, 51, 0.08);
+        overflow: hidden;
+      }
+      .pdf-export-worker-progress-bar {
+        width: 0%;
+        height: 100%;
+        background: linear-gradient(90deg, #2c73da, #72a8f5);
+        transition: width 0.2s ease;
+      }
+      .pdf-export-worker-note {
+        margin-top: 0.95rem;
+        color: #5d6c81;
+        font-size: 0.92rem;
+      }
+    </style>
+    <script defer src="src/app/data/bloom-levels.js"></script>
+    <script defer src="src/app/data/cognitive-principles.js"></script>
+    <script defer src="src/app/data/color-palettes.js"></script>
+    <script defer src="src/app/data/font-options.js"></script>
+    <script defer src="src/app/state/default-state.js"></script>
+    <script defer src="src/app/utils/helpers.js"></script>
+    <script defer src="src/app/services/storage-service.js"></script>
+    <script defer src="src/app/services/media-service.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+    <script defer src="src/app/ui/slide-markup.js"></script>
+    <script defer src="src/app/services/export-service.js"></script>
+  </head>
+  <body>
+    <div class="pdf-export-worker">
+      <h1>Export PDF en cours</h1>
+      <p>La génération se fait dans cette fenêtre pour laisser l’éditeur principal réactif.</p>
+      <p id="pdf-export-worker-status" class="pdf-export-worker-status">Préparation…</p>
+      <div class="pdf-export-worker-progress" aria-hidden="true">
+        <div id="pdf-export-worker-progress-bar" class="pdf-export-worker-progress-bar"></div>
+      </div>
+      <p id="pdf-export-worker-note" class="pdf-export-worker-note">La fenêtre se fermera automatiquement après l’export.</p>
+    </div>
+    <script>
+      window.__PDF_EXPORT_STATE__ = ${serializeForScript(state)};
+      window.addEventListener("load", () => {
+        const statusNode = document.querySelector("#pdf-export-worker-status");
+        const progressBar = document.querySelector("#pdf-export-worker-progress-bar");
+        const noteNode = document.querySelector("#pdf-export-worker-note");
+
+        function syncProgress(detail) {
+          const payload = detail || {};
+          const percent = Math.max(0, Math.min(100, Number(payload.percent) || 0));
+          const message = payload.detail || payload.label || "Export PDF";
+          if (statusNode) {
+            statusNode.textContent = payload.state === "running"
+              ? message + " (" + percent + "%)"
+              : message;
+          }
+          if (progressBar) {
+            progressBar.style.width = percent + "%";
+          }
+          if (window.opener && !window.opener.closed) {
+            window.opener.postMessage({ type: "studio-pdf-export-progress", detail: payload }, window.location.origin);
+          }
+        }
+
+        window.StudioSlides.services.exporter.setPdfProgressListener(syncProgress);
+        syncProgress({ state: "running", percent: 0, label: "Exporter PDF", detail: "Préparation de l'export PDF" });
+
+        window.StudioSlides.services.exporter.runPdfExportJob(window.__PDF_EXPORT_STATE__)
+          .then(() => {
+            if (noteNode) {
+              noteNode.textContent = "PDF généré. Téléchargement lancé.";
+            }
+            if (window.opener && !window.opener.closed) {
+              window.opener.postMessage({ type: "studio-pdf-export-finished" }, window.location.origin);
+            }
+            window.setTimeout(() => window.close(), 900);
+          })
+          .catch((error) => {
+            const message = error && error.message ? error.message : "Échec de l'export PDF";
+            if (statusNode) {
+              statusNode.textContent = message;
+            }
+            if (noteNode) {
+              noteNode.textContent = "Tu peux laisser cette fenêtre ouverte pour lire l'erreur.";
+            }
+            if (window.opener && !window.opener.closed) {
+              window.opener.postMessage({ type: "studio-pdf-export-error", detail: message }, window.location.origin);
+            }
+          });
+      });
+    </script>
+  </body>
+</html>`;
+  }
+
   async function exportHtml(state, openOnly) {
     const fileName = `${ns.utils.slugify(state.settings.title || "presentation")}.html`;
     const logoSources = await resolveLogoSources();
@@ -3420,24 +3610,150 @@
     downloadBlob(blob, fileName);
   }
 
-  async function exportPdf(state) {
-    const logoSources = await resolveLogoSources();
-    const html = await buildPresentationHtml(state, logoSources, { pdfMode: true });
-    const blob = new Blob([html], { type: "text/html;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const win = window.open(url, "_blank");
-    setTimeout(() => URL.revokeObjectURL(url), 30000);
-    if (win) {
-      const triggerPrint = () => {
-        try {
-          win.focus();
-          win.print();
-        } catch (error) {
-          return;
-        }
-      };
-      setTimeout(triggerPrint, 800);
+  async function runPdfExportJob(state) {
+    if (!window.html2canvas) {
+      window.alert("La librairie de rendu n'est pas chargée. Vérifie la connexion internet puis réessaie.");
+      return;
     }
+    if (!window.jspdf || !window.jspdf.jsPDF) {
+      window.alert("La librairie PDF n'est pas chargée. Vérifie la connexion internet puis réessaie.");
+      return;
+    }
+
+    const logoSources = await resolveLogoSources();
+    const mediaAssets = await ns.services.media.resolvePdfMediaAssets(state.mediaLibrary || []);
+    const mediaPreviewMap = mediaAssets.previewMap || {};
+    const mediaLinkMap = mediaAssets.linkMap || {};
+    const { jsPDF } = window.jspdf;
+    const pageWidth = 297;
+    const pageHeight = 210;
+    const slideX = 0;
+    const slideY = (pageHeight - ((pageWidth / 16) * 9)) / 2;
+    const slideW = pageWidth;
+    const slideH = (pageWidth / 16) * 9;
+    const pdf = new jsPDF({
+      orientation: "landscape",
+      unit: "mm",
+      format: "a4",
+      compress: true,
+      putOnlyUsedFonts: true,
+    });
+
+    notifyPdfProgress({
+      state: "running",
+      percent: 0,
+      label: "Exporter PDF",
+      detail: "Préparation de l'export PDF",
+    });
+
+    try {
+      for (let index = 0; index < state.slides.length; index += 1) {
+        const slide = state.slides[index];
+        notifyPdfProgress({
+          state: "running",
+          percent: Math.round((index / Math.max(1, state.slides.length)) * 100),
+          label: `Slide ${index + 1}/${state.slides.length}`,
+          detail: `Rendu de la slide ${index + 1} sur ${state.slides.length}`,
+        });
+        await waitForNextFrame();
+
+        const mounted = mountSlideExportNode(slide, state, {
+          logoSources,
+          mediaUrls: mediaPreviewMap,
+          mediaLinks: mediaLinkMap,
+          pdfMode: true,
+        });
+        const host = mounted.host;
+        const slideNode = mounted.slideNode;
+
+        try {
+          await waitForRenderAssets(host);
+          const linkRects = collectSlideLinkRects(slideNode, 1280, 720);
+          const canvas = await window.html2canvas(slideNode, {
+            backgroundColor: "#ffffff",
+            useCORS: true,
+            allowTaint: true,
+            scale: 1.2,
+            logging: false,
+          });
+          await waitForNextFrame();
+          const imageData = canvas.toDataURL("image/jpeg", 0.72);
+
+          if (index > 0) {
+            pdf.addPage("a4", "landscape");
+          }
+
+          pdf.addImage(imageData, "JPEG", slideX, slideY, slideW, slideH, undefined, "FAST");
+          linkRects.forEach((link) => {
+            pdf.link(
+              slideX + ((link.x / 1280) * slideW),
+              slideY + ((link.y / 720) * slideH),
+              (link.w / 1280) * slideW,
+              (link.h / 720) * slideH,
+              { url: link.href }
+            );
+          });
+        } finally {
+          unmountSlideExportNode(host);
+        }
+      }
+
+      notifyPdfProgress({
+        state: "running",
+        percent: 100,
+        label: "Finalisation",
+        detail: "Création du fichier PDF",
+      });
+      await waitForNextFrame();
+
+      const fileName = `${ns.utils.slugify(state.settings.title || "presentation")}.pdf`;
+      pdf.save(fileName);
+      notifyPdfProgress({
+        state: "completed",
+        percent: 100,
+        label: "Exporter PDF",
+        detail: "Export PDF terminé",
+      });
+    } catch (error) {
+      notifyPdfProgress({
+        state: "error",
+        percent: 0,
+        label: "Exporter PDF",
+        detail: "Échec de l'export PDF",
+      });
+      throw error;
+    }
+  }
+
+  async function exportPdf(state) {
+    notifyPdfProgress({
+      state: "running",
+      percent: 0,
+      label: "Exporter PDF",
+      detail: "Ouverture de la fenêtre d'export PDF",
+    });
+
+    const workerWindow = window.open("", "studio-pdf-export", "popup,width=1480,height=980");
+    if (!workerWindow) {
+      notifyPdfProgress({
+        state: "error",
+        percent: 0,
+        label: "Exporter PDF",
+        detail: "La fenêtre d'export a été bloquée",
+      });
+      window.alert("La fenêtre d'export PDF a été bloquée par le navigateur. Autorise les popups puis réessaie.");
+      return;
+    }
+
+    try {
+      workerWindow.resizeTo(1480, 980);
+    } catch (error) {
+      // Ignore browsers that block scripted resize.
+    }
+
+    workerWindow.document.open();
+    workerWindow.document.write(buildPdfWorkerHtml(state));
+    workerWindow.document.close();
   }
 
   async function renderPresentationDocument(state) {
@@ -3503,33 +3819,47 @@
   async function waitForRenderAssets(root) {
     const images = Array.from(root.querySelectorAll("img"));
     const videos = Array.from(root.querySelectorAll("video"));
+    const withTimeout = (promise, timeoutMs) => new Promise((resolve) => {
+      let settled = false;
+      const timer = window.setTimeout(() => {
+        if (settled) {
+          return;
+        }
+        settled = true;
+        resolve();
+      }, timeoutMs);
+      promise.finally(() => {
+        if (settled) {
+          return;
+        }
+        settled = true;
+        window.clearTimeout(timer);
+        resolve();
+      });
+    });
 
     await Promise.all(images.map((img) => {
       if (img.complete) {
         return Promise.resolve();
       }
-      return new Promise((resolve) => {
+      return withTimeout(new Promise((resolve) => {
         img.addEventListener("load", resolve, { once: true });
         img.addEventListener("error", resolve, { once: true });
-      });
+      }), 4000);
     }));
 
     await Promise.all(videos.map((video) => {
       if (video.readyState >= 2) {
         return Promise.resolve();
       }
-      return new Promise((resolve) => {
+      return withTimeout(new Promise((resolve) => {
         video.addEventListener("loadeddata", resolve, { once: true });
         video.addEventListener("error", resolve, { once: true });
-      });
+      }), 4000);
     }));
   }
 
-  async function renderSlideToImage(slide, state, options) {
-    if (!window.html2canvas) {
-      throw new Error("html2canvas indisponible");
-    }
-
+  function mountSlideExportNode(slide, state, options) {
     const opts = options || {};
     const host = document.createElement("div");
     host.style.position = "fixed";
@@ -3559,18 +3889,81 @@
     slideNode.style.boxShadow = "none";
     slideNode.style.borderRadius = "0";
 
+    return { host, slideNode };
+  }
+
+  function unmountSlideExportNode(host) {
+    if (host && host.parentNode) {
+      host.parentNode.removeChild(host);
+    }
+  }
+
+  function collectSlideLinkRects(slideNode, width, height) {
+    if (!slideNode) {
+      return [];
+    }
+
+    const slideRect = slideNode.getBoundingClientRect();
+    const safeWidth = width || slideRect.width || 1280;
+    const safeHeight = height || slideRect.height || 720;
+
+    return Array.from(slideNode.querySelectorAll("a[href]"))
+      .map((link) => {
+        const href = String(link.href || link.getAttribute("href") || "").trim();
+        if (!href || /^javascript:/i.test(href)) {
+          return null;
+        }
+
+        const computed = window.getComputedStyle(link);
+        if (computed.display === "none" || computed.visibility === "hidden") {
+          return null;
+        }
+
+        const rect = link.getBoundingClientRect();
+        if (!rect.width || !rect.height) {
+          return null;
+        }
+
+        const x = Math.max(0, rect.left - slideRect.left);
+        const y = Math.max(0, rect.top - slideRect.top);
+        const w = Math.max(0, Math.min(rect.width, safeWidth - x));
+        const h = Math.max(0, Math.min(rect.height, safeHeight - y));
+
+        if (w < 2 || h < 2) {
+          return null;
+        }
+
+        return { href, x, y, w, h };
+      })
+      .filter(Boolean);
+  }
+
+  async function renderSlideToImage(slide, state, options) {
+    if (!window.html2canvas) {
+      throw new Error("html2canvas indisponible");
+    }
+
+    const opts = options || {};
+    const mounted = mountSlideExportNode(slide, state, opts);
+    const host = mounted.host;
+    const slideNode = mounted.slideNode;
+
     await waitForRenderAssets(host);
 
     const canvas = await window.html2canvas(slideNode, {
-      backgroundColor: null,
+      backgroundColor: opts.backgroundColor || null,
       useCORS: true,
       allowTaint: true,
-      scale: 2,
+      scale: Number.isFinite(opts.scale) ? opts.scale : 2,
       logging: false,
     });
 
-    host.remove();
-    return canvas.toDataURL("image/png");
+    const mimeType = opts.mimeType === "image/jpeg" ? "image/jpeg" : "image/png";
+    const quality = mimeType === "image/jpeg"
+      ? Math.max(0.4, Math.min(0.95, Number(opts.quality) || 0.82))
+      : undefined;
+    unmountSlideExportNode(host);
+    return canvas.toDataURL(mimeType, quality);
   }
 
   async function exportPptx(state) {
@@ -3649,9 +4042,11 @@
   ns.services.exporter = {
     exportJson,
     exportPdf,
+    runPdfExportJob,
     exportPptx,
     exportHtml,
     buildPresentationHtml,
     renderPresentationDocument,
+    setPdfProgressListener,
   };
 })();

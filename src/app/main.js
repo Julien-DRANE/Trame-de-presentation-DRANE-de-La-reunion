@@ -219,9 +219,11 @@
   let activeCanvasInteraction = null;
   let suppressCanvasClickUntil = 0;
   let isPptxExportRunning = false;
+  let isPdfExportRunning = false;
   let isCanvasPreviewFullscreen = false;
   let activeUndoEditKey = "";
   const defaultPptxButtonLabel = refs.exportPptx ? refs.exportPptx.textContent : "Exporter PPTX";
+  const defaultPdfButtonLabel = refs.exportPdf ? refs.exportPdf.textContent : "Exporter PDF";
   const urlSearchParams = new URLSearchParams(window.location.search);
   const isPresenterMode = urlSearchParams.get("presenter") === "1";
   const isPresentationMode = new URLSearchParams(window.location.search).get("present") === "1";
@@ -471,9 +473,87 @@
     }
   }
 
+  function updatePdfExportButton(progress) {
+    if (!refs.exportPdf) {
+      return;
+    }
+
+    const detail = progress || {};
+    const percent = Math.max(0, Math.min(100, Number(detail.percent) || 0));
+    const stateName = detail.state || "idle";
+    const label = detail.label || defaultPdfButtonLabel;
+    const buttonText = stateName === "running"
+      ? `${label} ${percent}%`
+      : label;
+
+    refs.exportPdf.textContent = buttonText;
+    refs.exportPdf.classList.toggle("is-exporting", stateName === "running");
+    refs.exportPdf.classList.toggle("is-complete", stateName === "completed");
+    refs.exportPdf.disabled = stateName === "running";
+    refs.exportPdf.setAttribute("aria-busy", stateName === "running" ? "true" : "false");
+    refs.exportPdf.title = detail.detail || defaultPdfButtonLabel;
+
+    if (stateName === "running") {
+      isPdfExportRunning = true;
+      return;
+    }
+
+    isPdfExportRunning = false;
+
+    if (stateName === "completed") {
+      refs.exportPdf.disabled = false;
+      refs.exportPdf.setAttribute("aria-busy", "false");
+      window.setTimeout(() => {
+        if (isPdfExportRunning) {
+          return;
+        }
+        refs.exportPdf.textContent = defaultPdfButtonLabel;
+        refs.exportPdf.classList.remove("is-complete");
+        refs.exportPdf.title = defaultPdfButtonLabel;
+      }, 1800);
+    }
+
+    if (stateName === "idle" || stateName === "error") {
+      refs.exportPdf.textContent = defaultPdfButtonLabel;
+      refs.exportPdf.classList.remove("is-exporting", "is-complete");
+      refs.exportPdf.disabled = false;
+      refs.exportPdf.setAttribute("aria-busy", "false");
+      refs.exportPdf.title = defaultPdfButtonLabel;
+    }
+  }
+
   if (ns.services.exporter && typeof ns.services.exporter.setPptxProgressListener === "function") {
     ns.services.exporter.setPptxProgressListener(updatePptxExportButton);
   }
+  if (ns.services.exporter && typeof ns.services.exporter.setPdfProgressListener === "function") {
+    ns.services.exporter.setPdfProgressListener(updatePdfExportButton);
+  }
+  window.addEventListener("message", (event) => {
+    if (event.origin !== window.location.origin || !event.data || typeof event.data !== "object") {
+      return;
+    }
+    if (event.data.type === "studio-pdf-export-progress") {
+      updatePdfExportButton(event.data.detail || {});
+      return;
+    }
+    if (event.data.type === "studio-pdf-export-finished") {
+      updatePdfExportButton({
+        state: "completed",
+        percent: 100,
+        label: "Exporter PDF",
+        detail: "Export PDF terminé",
+      });
+      return;
+    }
+    if (event.data.type === "studio-pdf-export-error") {
+      updatePdfExportButton({
+        state: "error",
+        percent: 0,
+        label: "Exporter PDF",
+        detail: event.data.detail || "Échec de l'export PDF",
+      });
+    }
+  });
 
   function render() {
     syncSelectedCanvasElement();
@@ -3798,7 +3878,18 @@
   refs.deleteSlide.addEventListener("click", deleteCurrentSlide);
   refs.deleteSlideInline.addEventListener("click", deleteCurrentSlide);
   refs.exportJson.addEventListener("click", () => ns.services.exporter.exportJson(state));
-  refs.exportPdf.addEventListener("click", () => ns.services.exporter.exportPdf(state));
+  refs.exportPdf.addEventListener("click", async () => {
+    if (isPdfExportRunning) {
+      return;
+    }
+    isPdfExportRunning = true;
+    try {
+      await ns.services.exporter.exportPdf(state);
+    } catch (error) {
+      isPdfExportRunning = false;
+      window.alert("L'export PDF a rencontré un problème. Réessaie avec moins de médias lourds si besoin.");
+    }
+  });
   refs.exportPptx.addEventListener("click", async () => {
     if (isPptxExportRunning) {
       return;
