@@ -73,6 +73,113 @@
     downloadBlob(blob, fileName);
   }
 
+  function richTextToPlainText(value) {
+    const raw = String(value || "").trim();
+    if (!raw) {
+      return "";
+    }
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(`<div>${raw}</div>`, "text/html");
+    return String(doc.body.textContent || "")
+      .replace(/\u00a0/g, " ")
+      .replace(/[ \t]+\n/g, "\n")
+      .replace(/\n[ \t]+/g, "\n")
+      .replace(/\n{3,}/g, "\n\n")
+      .replace(/[ \t]{2,}/g, " ")
+      .trim();
+  }
+
+  function getCanvasTextLines(slide) {
+    const elements = slide && slide.canvasData && Array.isArray(slide.canvasData.elements)
+      ? slide.canvasData.elements
+      : [];
+    return elements
+      .filter((item) => item && item.type === "text")
+      .sort((a, b) => (Number(a.y) || 0) - (Number(b.y) || 0) || (Number(a.x) || 0) - (Number(b.x) || 0))
+      .map((item) => richTextToPlainText(item.text || ""))
+      .filter(Boolean);
+  }
+
+  function buildSlideTextExport(slide, index) {
+    const lines = [];
+    const slideNumber = slide && slide.number ? String(slide.number).trim() : String(index + 1);
+    lines.push(`SLIDE ${slideNumber}`);
+
+    if (slide && slide.title) {
+      lines.push(`Titre : ${String(slide.title).trim()}`);
+    }
+    if (slide && slide.subtitle) {
+      lines.push(`Sous-titre : ${String(slide.subtitle).trim()}`);
+    }
+
+    const bullets = Array.isArray(slide && slide.bullets) ? slide.bullets : [];
+    const subBullets = slide && slide.subBullets && typeof slide.subBullets === "object" ? slide.subBullets : {};
+    const bulletLines = bullets
+      .map((bullet, bulletIndex) => {
+        const main = String(bullet || "").trim();
+        const children = Array.isArray(subBullets[bulletIndex]) ? subBullets[bulletIndex] : [];
+        return {
+          main,
+          children: children.map((item) => String(item || "").trim()).filter(Boolean),
+        };
+      })
+      .filter((item) => item.main || item.children.length);
+
+    if (bulletLines.length) {
+      lines.push("Points :");
+      bulletLines.forEach((item) => {
+        if (item.main) {
+          lines.push(`- ${item.main}`);
+        }
+        item.children.forEach((child) => {
+          lines.push(`  - ${child}`);
+        });
+      });
+    }
+
+    const freeText = richTextToPlainText(slide && slide.freeBody);
+    if (freeText) {
+      lines.push("Texte libre :");
+      lines.push(freeText);
+    }
+
+    const canvasTextLines = getCanvasTextLines(slide);
+    if (canvasTextLines.length) {
+      lines.push("Textes canvas :");
+      canvasTextLines.forEach((item) => {
+        lines.push(`- ${item}`);
+      });
+    }
+
+    return lines.join("\n");
+  }
+
+  function exportTxt(state) {
+    const fileName = `${ns.utils.slugify(state.settings.title || "presentation")}.txt`;
+    const sections = [];
+
+    if (state && state.settings && state.settings.title) {
+      sections.push(`Présentation : ${String(state.settings.title).trim()}`);
+    }
+    if (state && state.settings && state.settings.subtitle) {
+      sections.push(`Sous-titre général : ${String(state.settings.subtitle).trim()}`);
+    }
+
+    const slidesText = (state.slides || [])
+      .map((slide, index) => buildSlideTextExport(slide, index))
+      .filter(Boolean);
+
+    if (slidesText.length) {
+      if (sections.length) {
+        sections.push("");
+      }
+      sections.push(slidesText.join("\n\n--------------------\n\n"));
+    }
+
+    const blob = new Blob([sections.join("\n")], { type: "text/plain;charset=utf-8" });
+    downloadBlob(blob, fileName);
+  }
+
   async function resolveLogoAsDataUrl(src) {
     try {
       const response = await fetch(src);
@@ -4041,6 +4148,7 @@
 
   ns.services.exporter = {
     exportJson,
+    exportTxt,
     exportPdf,
     runPdfExportJob,
     exportPptx,

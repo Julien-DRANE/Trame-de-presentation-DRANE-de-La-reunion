@@ -23,6 +23,7 @@
     exportPptx: document.querySelector("#export-pptx"),
     exportHtml: document.querySelector("#export-html"),
     exportJson: document.querySelector("#export-json"),
+    exportTxt: document.querySelector("#export-txt"),
     importJson: document.querySelector("#import-json"),
     importJsonInput: document.querySelector("#import-json-input"),
     toggleNightMode: document.querySelector("#toggle-night-mode"),
@@ -3878,6 +3879,7 @@
   refs.deleteSlide.addEventListener("click", deleteCurrentSlide);
   refs.deleteSlideInline.addEventListener("click", deleteCurrentSlide);
   refs.exportJson.addEventListener("click", () => ns.services.exporter.exportJson(state));
+  refs.exportTxt.addEventListener("click", () => ns.services.exporter.exportTxt(state));
   refs.exportPdf.addEventListener("click", async () => {
     if (isPdfExportRunning) {
       return;
