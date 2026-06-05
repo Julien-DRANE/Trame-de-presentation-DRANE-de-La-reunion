@@ -31,6 +31,14 @@
     });
   }
 
+  function getAvailableMediaItems(items) {
+    return ns.data.augmentMediaItems ? ns.data.augmentMediaItems(items || []) : (items || []);
+  }
+
+  function getAvailableMediaUrls(urlMap) {
+    return ns.data.augmentMediaUrlMap ? ns.data.augmentMediaUrlMap(urlMap || {}) : (urlMap || {});
+  }
+
   function getContainedRect(containerWidth, containerHeight, sourceWidth, sourceHeight) {
     const safeContainerWidth = Math.max(1, Number(containerWidth) || 1);
     const safeContainerHeight = Math.max(1, Number(containerHeight) || 1);
@@ -211,17 +219,18 @@
   async function buildPresentationHtml(state, logoSources, options) {
     const opts = options || {};
     const startSlideId = opts.startSlideId || "";
+    const availableMediaItems = getAvailableMediaItems(state.mediaLibrary || []);
     const pdfMediaAssets = opts.pdfMode || opts.exportMode === "html"
-      ? await ns.services.media.resolvePdfMediaAssets(state.mediaLibrary || [])
+      ? await ns.services.media.resolvePdfMediaAssets(availableMediaItems)
       : null;
     const mediaUrls = opts.pdfMode
       ? pdfMediaAssets.previewMap
-      : await ns.services.media.resolveExportMediaUrls(state.mediaLibrary || []);
+      : await ns.services.media.resolveExportMediaUrls(availableMediaItems);
     const mediaLinks = pdfMediaAssets ? pdfMediaAssets.linkMap : {};
-    const mergedMediaUrls = Object.assign({}, mediaUrls);
+    const mergedMediaUrls = getAvailableMediaUrls(mediaUrls);
 
     if (opts.exportMode === "html" && pdfMediaAssets) {
-      (state.mediaLibrary || []).forEach((item) => {
+      availableMediaItems.forEach((item) => {
         if (item.kind === "embed") {
           mergedMediaUrls[item.id] = pdfMediaAssets.previewMap[item.id] || mergedMediaUrls[item.id] || "";
         }
@@ -235,7 +244,7 @@
           pdfMode: Boolean(opts.pdfMode),
           exportMode: opts.exportMode || "",
           logoSources,
-          mediaItems: state.mediaLibrary || [],
+          mediaItems: availableMediaItems,
           mediaUrls: mergedMediaUrls,
           mediaLinks,
         })}</section>`;
@@ -260,9 +269,10 @@
       .join("");
     const initialSlideIndex = Math.max(0, state.slides.findIndex((slide) => slide.id === startSlideId));
     const isPdfMode = Boolean(opts.pdfMode);
+    const isPresentMode = opts.exportMode === "present";
     const bodyAttributes = isPdfMode
       ? ' class="pdf-export"'
-      : ` data-transition="${ns.utils.escapeHtml(state.settings.transition || "fade")}"`;
+      : ` class="${isPresentMode ? "presentation-runtime" : ""}" data-transition="${ns.utils.escapeHtml(state.settings.transition || "fade")}"`;
 
     return `<!doctype html>
 <html lang="fr">
@@ -374,6 +384,29 @@
         color: var(--slide-text);
         font-family: var(--slide-font-body);
         box-shadow: 0 20px 44px rgba(11, 22, 42, 0.2);
+      }
+      body.presentation-runtime main {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: calc(100vh - 6rem);
+        overflow: hidden;
+        --deck-window-scale: 1;
+      }
+      body.presentation-runtime .slide-screen {
+        width: 100%;
+        min-height: calc(720px * var(--deck-window-scale, 1));
+        padding: 0;
+        overflow: visible;
+      }
+      body.presentation-runtime .deck-slide {
+        width: 1280px;
+        height: 720px;
+        max-width: none;
+        max-height: none;
+        aspect-ratio: auto;
+        transform: scale(var(--deck-window-scale, 1));
+        transform-origin: center center;
       }
       main:fullscreen {
         width: 100vw;
@@ -2939,6 +2972,20 @@
         main.style.setProperty("--deck-fullscreen-scale", String(scale));
       }
 
+      function updateWindowScale() {
+        if (!main || document.fullscreenElement === main) {
+          if (main) {
+            main.style.removeProperty("--deck-window-scale");
+          }
+          return;
+        }
+        const topbar = document.querySelector(".deck-topbar");
+        const availableWidth = Math.max(320, window.innerWidth - 32);
+        const availableHeight = Math.max(180, window.innerHeight - (topbar ? (topbar.offsetHeight || 0) : 0) - 32);
+        const scale = Math.min(availableWidth / 1280, availableHeight / 720);
+        main.style.setProperty("--deck-window-scale", String(scale));
+      }
+
       function syncProgress() {
         progressSteps.forEach((step, index) => {
           const isActive = index === currentIndex;
@@ -3514,8 +3561,12 @@
         document.body.classList.toggle("deck-is-fullscreen", Boolean(document.fullscreenElement));
         fullscreenButton.textContent = document.fullscreenElement ? "Quitter le plein écran" : "Plein écran";
         updateFullscreenScale();
+        updateWindowScale();
       });
-      window.addEventListener("resize", updateFullscreenScale);
+      window.addEventListener("resize", () => {
+        updateFullscreenScale();
+        updateWindowScale();
+      });
       printButton.addEventListener("click", () => window.print());
       document.addEventListener("keydown", (event) => {
         if (isTransitioning && event.key !== "Escape") {
@@ -3554,6 +3605,7 @@
         });
         window.addEventListener("beforeunload", () => syncBridge.close());
       }
+      updateWindowScale();
       showSlide(${initialSlideIndex}, { silent: Boolean(syncBridge) });
     </script>`}
   </body>
@@ -3728,7 +3780,8 @@
     }
 
     const logoSources = await resolveLogoSources();
-    const mediaAssets = await ns.services.media.resolvePdfMediaAssets(state.mediaLibrary || []);
+    const availableMediaItems = getAvailableMediaItems(state.mediaLibrary || []);
+    const mediaAssets = await ns.services.media.resolvePdfMediaAssets(availableMediaItems);
     const mediaPreviewMap = mediaAssets.previewMap || {};
     const mediaLinkMap = mediaAssets.linkMap || {};
     const { jsPDF } = window.jspdf;
@@ -3983,8 +4036,8 @@
     host.innerHTML = ns.ui.createSlideMarkup(slide, state.settings, {
       compact: false,
       logoSources: opts.logoSources,
-      mediaItems: state.mediaLibrary || [],
-      mediaUrls: opts.mediaUrls || {},
+      mediaItems: getAvailableMediaItems(state.mediaLibrary || []),
+      mediaUrls: getAvailableMediaUrls(opts.mediaUrls || {}),
       mediaLinks: opts.mediaLinks || {},
       pdfMode: true,
     });
@@ -4099,7 +4152,8 @@
     };
 
     const logoSources = await resolveLogoSources();
-    const mediaAssets = await ns.services.media.resolvePdfMediaAssets(state.mediaLibrary || []);
+    const availableMediaItems = getAvailableMediaItems(state.mediaLibrary || []);
+    const mediaAssets = await ns.services.media.resolvePdfMediaAssets(availableMediaItems);
     const mediaPreviewMap = mediaAssets.previewMap;
     const mediaLinkMap = mediaAssets.linkMap;
     const slideImageMap = {};

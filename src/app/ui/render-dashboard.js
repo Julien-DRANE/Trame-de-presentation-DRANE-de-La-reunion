@@ -20,6 +20,8 @@
     const decorativeAccents = ns.data.decorativeAccents || [];
     const fontOptions = ns.data.fontOptions || [];
     const principles = ns.data.cognitivePrinciples || [];
+    const availableMediaItems = ns.data.augmentMediaItems ? ns.data.augmentMediaItems(state.mediaLibrary || []) : (state.mediaLibrary || []);
+    const availableMediaUrls = ns.data.augmentMediaUrlMap ? ns.data.augmentMediaUrlMap(ns.services.media.getUrlMap()) : ns.services.media.getUrlMap();
     const density = ns.ui.computeDensity(selectedSlide);
     const visualData = selectedSlide.visualData || {};
     const canvasData = getCanvasData(selectedSlide);
@@ -154,9 +156,9 @@
     refs.visualChartBars.innerHTML = renderVisualChartEditor(visualData);
     refs.visualChartAddColumn.disabled = (visualData.chartBarCount || 3) >= 6;
     refs.visualChartRemoveColumn.disabled = (visualData.chartBarCount || 3) <= 1;
-    refs.canvasElementsList.innerHTML = renderCanvasElementsList(canvasData, selectedCanvasElement && selectedCanvasElement.id, state.mediaLibrary);
+    refs.canvasElementsList.innerHTML = renderCanvasElementsList(canvasData, selectedCanvasElement && selectedCanvasElement.id, availableMediaItems);
     refs.canvasProgressive.checked = Boolean(canvasData.progressive);
-    refs.canvasImageMedia.innerHTML = renderVisualMediaOptions(state.mediaLibrary, "Choisir un media");
+    refs.canvasImageMedia.innerHTML = renderVisualMediaOptions(availableMediaItems, "Choisir un media");
     refs.canvasElementFields.hidden = !selectedCanvasElement;
     refs.canvasEmptySelection.hidden = Boolean(selectedCanvasElement);
     if (selectedCanvasElement) {
@@ -258,14 +260,14 @@
     refs.slideTableEditor.hidden = !isTableMode;
     refs.slideFreeEditor.hidden = !isFreeMode;
     refs.slideVisualEditor.hidden = !isVisualMode;
-    refs.slideCanvasEditor.hidden = !isCanvasMode;
+    refs.slideCanvasEditor.hidden = false;
     refs.slideNoteEditor.hidden = false;
     refs.slidePresenterNotesEditor.hidden = false;
     refs.slideBulletsEditor.classList.toggle("is-collapsed", isTableMode || isFreeMode || isVisualMode || isCanvasMode);
     refs.slideTableEditor.classList.toggle("is-collapsed", !isTableMode);
     refs.slideFreeEditor.classList.toggle("is-collapsed", !isFreeMode);
     refs.slideVisualEditor.classList.toggle("is-collapsed", !isVisualMode);
-    refs.slideCanvasEditor.classList.toggle("is-collapsed", !isCanvasMode);
+    refs.slideCanvasEditor.classList.toggle("is-collapsed", false);
     refs.globalPanelBody.hidden = Boolean(state.uiGlobalPanelCollapsed);
     refs.toggleGlobalPanel.textContent = state.uiGlobalPanelCollapsed ? "Déplier" : "Replier";
     refs.toggleGlobalPanel.setAttribute("aria-expanded", state.uiGlobalPanelCollapsed ? "false" : "true");
@@ -294,14 +296,14 @@
       : isFreeMode
       ? "Mode libre : texte long, liens et plusieurs medias pour les annexes."
       : isCanvasMode
-      ? "Mode canvas : place librement textes, medias et fleches directement sur la slide."
-      : "Modele : un niveau Bloom, une idee forte, trois points maximum.";
+      ? "Mode canvas : place librement textes, medias, fleches et pictos directement sur la slide."
+      : "Modele : un niveau Bloom, une idee forte, trois points maximum, avec un calque libre pour les pictos et repères visuels.";
     refs.slideMediaSelection.textContent = isVisualMode
       ? getVisualMediaSelectionText(selectedSlide, state.mediaLibrary)
       : isFreeMode
       ? `${(selectedSlide.freeMediaIds || []).length} média(x) dans l'annexe libre.`
       : isCanvasMode
-      ? getCanvasMediaSelectionText(canvasData, state.mediaLibrary)
+      ? getCanvasMediaSelectionText(canvasData, availableMediaItems)
       : (selectedSlide.mediaId || selectedSlide.secondaryMediaId)
         ? getMediaSelectionText(selectedSlide, state.mediaLibrary)
         : "Aucun média affecté à cette slide.";
@@ -310,14 +312,17 @@
     refs.principlesList.innerHTML = renderPrinciplesList(selectedSlide, principles);
     refs.stage.innerHTML = ns.ui.createSlideMarkup(selectedSlide, state.settings, {
       compact: false,
-      mediaItems: state.mediaLibrary,
-      mediaUrls: ns.services.media.getUrlMap(),
-      canvasInteractive: isCanvasMode,
+      mediaItems: availableMediaItems,
+      mediaUrls: availableMediaUrls,
+      canvasInteractive: true,
       selectedCanvasElementId: selectedCanvasElement ? selectedCanvasElement.id : "",
     });
     refs.presentationProgress.innerHTML = renderPresentationProgress(state, selectedSlide.id);
     refs.pedagogyBrief.innerHTML = renderPedagogyBrief(selectedSlide, principles);
     refs.mediaLibrary.innerHTML = renderMediaLibrary(state.mediaLibrary, selectedSlide);
+    if (refs.pictoLibrary) {
+      refs.pictoLibrary.innerHTML = renderPictoLibrary(selectedSlide, availableMediaUrls);
+    }
     refs.thumbStrip.innerHTML = renderThumbStrip(state, selectedSlide.id);
     refs.thumbStrip.hidden = Boolean(state.uiThumbStripCollapsed);
     refs.toggleThumbStrip.textContent = state.uiThumbStripCollapsed ? "Déplier" : "Replier";
@@ -482,8 +487,8 @@
             </div>
             ${ns.ui.createSlideMarkup(slide, state.settings, {
               compact: true,
-              mediaItems: state.mediaLibrary,
-              mediaUrls: ns.services.media.getUrlMap(),
+              mediaItems: ns.data.augmentMediaItems ? ns.data.augmentMediaItems(state.mediaLibrary || []) : (state.mediaLibrary || []),
+              mediaUrls: ns.data.augmentMediaUrlMap ? ns.data.augmentMediaUrlMap(ns.services.media.getUrlMap()) : ns.services.media.getUrlMap(),
             })}
             <p class="thumb-caption">${ns.utils.escapeHtml(slide.number)} - ${ns.utils.escapeHtml(slide.label)}</p>
           </article>
@@ -611,7 +616,7 @@
     if (!elements.length) {
       return '<p class="extra-bullets-empty">Aucun élément sur le canvas.</p>';
     }
-    const mediaUrls = ns.services.media.getUrlMap();
+    const mediaUrls = ns.data.augmentMediaUrlMap ? ns.data.augmentMediaUrlMap(ns.services.media.getUrlMap()) : ns.services.media.getUrlMap();
     const layerOrder = elements.map((element) => element.id);
 
     const ordered = elements
@@ -816,6 +821,32 @@
           </button>
         </div>
       `)
+      .join("");
+  }
+
+  function renderPictoLibrary(selectedSlide, mediaUrls) {
+    const pictoItems = ns.data.getPictoMediaItems ? ns.data.getPictoMediaItems() : [];
+    if (!pictoItems.length) {
+      return '<p class="media-empty">Aucun picto intégré.</p>';
+    }
+
+    const canvasMediaIds = selectedSlide.canvasData && Array.isArray(selectedSlide.canvasData.elements)
+      ? selectedSlide.canvasData.elements.filter((item) => item.type === "image" && item.mediaId).map((item) => item.mediaId)
+      : [];
+
+    return pictoItems
+      .map((item) => {
+        const activeClass = canvasMediaIds.includes(item.id) ? " is-active" : "";
+        const previewUrl = mediaUrls && mediaUrls[item.id] ? mediaUrls[item.id] : item.thumbnailUrl || item.externalUrl || "";
+        return `
+          <article class="picto-card${activeClass}">
+            <button class="picto-card-button" type="button" data-add-picto="${ns.utils.escapeHtml(item.id)}" title="Ajouter ${ns.utils.escapeHtml(item.name)}">
+              <span class="picto-thumb"><img src="${ns.utils.escapeHtml(previewUrl)}" alt="${ns.utils.escapeHtml(item.name)}" /></span>
+              <span class="picto-card-label">${ns.utils.escapeHtml(item.name)}</span>
+            </button>
+          </article>
+        `;
+      })
       .join("");
   }
 

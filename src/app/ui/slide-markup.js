@@ -223,6 +223,7 @@
   function createResolvedMediaMarkup(media, options) {
     const utils = ns.utils;
     const isCompact = Boolean(options && options.compact);
+    const transparentImageClass = isTransparentPngMedia(media) ? " is-transparent-png-media" : "";
     const mediaInstanceKey = options && options.mediaInstanceKey ? String(options.mediaInstanceKey) : "";
     const preserveMediaAttrs = !isCompact && mediaInstanceKey
       ? ` data-preserve-media-instance="${utils.escapeHtml(mediaInstanceKey)}" data-media-id="${utils.escapeHtml(media.id || "")}" data-media-kind="${utils.escapeHtml(media.kind || "")}"`
@@ -301,7 +302,7 @@
       `;
     }
 
-    return `<img class="slide-media-image" src="${utils.escapeHtml(media.src)}" alt="${utils.escapeHtml(media.name)}" />`;
+    return `<img class="slide-media-image${transparentImageClass}" src="${utils.escapeHtml(media.src)}" alt="${utils.escapeHtml(media.name)}" />`;
   }
 
   function createSlideMediaMarkup(slide, options) {
@@ -1200,18 +1201,24 @@
 
   function createCanvasMarkup(slide, settings, options) {
     const canvasData = getCanvasData(slide);
+    const opts = options || {};
     const revealStepMap = createCanvasRevealStepMap(canvasData.elements);
     const elementsMarkup = canvasData.elements
-      .map((element) => createCanvasElementMarkup(element, Object.assign({}, options, {
-        canvasProgressive: Boolean(canvasData.progressive) && !options.canvasInteractive,
+      .map((element) => createCanvasElementMarkup(element, Object.assign({}, opts, {
+        canvasProgressive: Boolean(canvasData.progressive) && !opts.canvasInteractive,
         canvasRevealStep: revealStepMap.get(element.id) || 0,
         deckFontId: (settings && settings.font) || "studio",
       })))
       .join("");
+    const surfaceClass = opts.surfaceClass || "slide-canvas-surface";
+    const emptyMessage = opts.emptyMessage === undefined
+      ? "Ajoutez un texte, une flèche, ou cliquez une image dans la médiathèque."
+      : String(opts.emptyMessage || "");
+    const fallbackMarkup = emptyMessage ? `<div class="slide-canvas-empty">${ns.utils.escapeHtml(emptyMessage)}</div>` : "";
 
     return `
-      <div class="slide-canvas-surface" data-canvas-surface="true">
-        ${elementsMarkup || '<div class="slide-canvas-empty">Ajoutez un texte, une flèche, ou cliquez une image dans la médiathèque.</div>'}
+      <div class="${ns.utils.escapeHtml(surfaceClass)}" data-canvas-surface="true">
+        ${elementsMarkup || fallbackMarkup}
       </div>
     `;
   }
@@ -1242,7 +1249,8 @@
     const tableProgressive = Boolean(slide.tableProgressive) && !opts.compact && isTableMode;
     const tableProgressiveOrder = slide.tableProgressiveOrder === "column" ? "column" : "row";
     const visualData = slide.visualData || {};
-    const canvasData = isCanvasMode ? getCanvasData(slide) : { progressive: false, elements: [] };
+    const canvasData = getCanvasData(slide);
+    const hasOverlayElements = canvasData.elements.length > 0;
     const visualShowsImages = visualData.showImages !== false;
     const visualProgressive = !opts.compact && isVisualMode && Boolean(
       (visualShowsImages && visualData.primaryMediaReveal && visualData.primaryMediaId) ||
@@ -1422,6 +1430,12 @@
     const visualHeaderClass = isVisualMode && (slide.title || slide.subtitle) ? " is-visual-has-header" : "";
     const stackedMediaLayoutClass = slideMediaItems.length > 1 ? " has-media-stack-layout" : "";
     const compactBulletMediaClass = useCompactBulletMediaLayout ? " has-compact-media-layout" : "";
+    const overlayMarkup = !isCanvasMode && hasOverlayElements
+      ? createCanvasMarkup(slide, settings, Object.assign({}, opts, {
+          surfaceClass: "slide-overlay-canvas-surface",
+          emptyMessage: "",
+        }))
+      : "";
 
     return `
       <article class="deck-slide theme-${utils.escapeHtml(themeName)}${compactClass}${visualModeClass}${canvasModeClass}${tableModeClass}${visualHeaderClass}" data-progressive-content="${bulletsProgressive || tableProgressive || visualProgressive || Boolean(canvasData.progressive) ? "true" : "false"}" style="${utils.escapeHtml(paletteStyle)}">
@@ -1443,6 +1457,7 @@
             ${footerNoteMarkup}
             ${signature}
           </div>
+          ${overlayMarkup}
         </div>
       </article>
     `;

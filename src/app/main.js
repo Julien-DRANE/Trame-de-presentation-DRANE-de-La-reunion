@@ -69,6 +69,9 @@
     mediaLinkAdd: document.querySelector("#media-link-add"),
     mediaLinkFeedback: document.querySelector("#media-link-feedback"),
     mediaLibrary: document.querySelector("#media-library"),
+    pictoLibrary: document.querySelector("#picto-library"),
+    pictoPlacement: document.querySelector("#picto-placement"),
+    pictoSize: document.querySelector("#picto-size"),
     slideMediaSelection: document.querySelector("#slide-media-selection"),
     slideBloomLevel: document.querySelector("#slide-bloom-level"),
     slideLabel: document.querySelector("#slide-label"),
@@ -336,9 +339,9 @@
     const slide = selectedSlide || getSelectedSlide();
     return {
       compact: false,
-      mediaItems: state.mediaLibrary,
-      mediaUrls: ns.services.media.getUrlMap(),
-      canvasInteractive: (slide.contentType || "bullets") === "canvas",
+      mediaItems: ns.data.augmentMediaItems ? ns.data.augmentMediaItems(state.mediaLibrary || []) : (state.mediaLibrary || []),
+      mediaUrls: ns.data.augmentMediaUrlMap ? ns.data.augmentMediaUrlMap(ns.services.media.getUrlMap()) : ns.services.media.getUrlMap(),
+      canvasInteractive: true,
       selectedCanvasElementId: selectedCanvasElementId || "",
     };
   }
@@ -420,7 +423,7 @@
 
   function syncSelectedCanvasElement() {
     const selectedSlide = getSelectedSlide();
-    if (!selectedSlide || (selectedSlide.contentType || "bullets") !== "canvas") {
+    if (!selectedSlide) {
       selectedCanvasElementId = null;
       return;
     }
@@ -973,23 +976,18 @@
 
   function toggleCanvasPreviewFullscreen() {
     const slide = getSelectedSlide();
-    if (!slide || (slide.contentType || "bullets") !== "canvas") {
+    if (!slide) {
       return;
     }
     setCanvasPreviewFullscreen(!isCanvasPreviewFullscreen);
   }
 
   function syncCanvasPreviewFullscreenUi() {
-    const slide = getSelectedSlide();
-    const isCanvasMode = Boolean(slide) && (slide.contentType || "bullets") === "canvas";
-    if (!isCanvasMode && isCanvasPreviewFullscreen) {
-      setCanvasPreviewFullscreen(false);
-    }
     if (!refs.toggleCanvasPreviewFullscreen) {
       return;
     }
-    refs.toggleCanvasPreviewFullscreen.hidden = !isCanvasMode;
-    refs.toggleCanvasPreviewFullscreen.disabled = !isCanvasMode;
+    refs.toggleCanvasPreviewFullscreen.hidden = false;
+    refs.toggleCanvasPreviewFullscreen.disabled = false;
     refs.toggleCanvasPreviewFullscreen.textContent = isCanvasPreviewFullscreen ? "Quitter le plein écran" : "Éditer en plein écran";
     refs.toggleCanvasPreviewFullscreen.setAttribute("aria-pressed", isCanvasPreviewFullscreen ? "true" : "false");
   }
@@ -1473,6 +1471,46 @@
       return;
     }
     addCanvasElement("image", { mediaId });
+  }
+
+  function getPictoPlacementRect(placement, sizePreset) {
+    const sizeMap = {
+      sm: { w: 8.5, h: 14 },
+      md: { w: 11, h: 18 },
+      lg: { w: 14, h: 22 },
+    };
+    const size = sizeMap[sizePreset] || sizeMap.md;
+    const placements = {
+      "title-right": { x: 76, y: 7 },
+      "top-right": { x: 83, y: 5 },
+      "top-left": { x: 4, y: 5 },
+      "middle-right": { x: 84, y: 34 },
+      "bullet-side": { x: 73, y: 28 },
+      "bottom-right": { x: 84, y: 68 },
+      "bottom-left": { x: 6, y: 68 },
+      center: { x: 44.5, y: 38 },
+    };
+    const base = placements[placement] || placements["title-right"];
+    return {
+      x: base.x,
+      y: base.y,
+      w: size.w,
+      h: size.h,
+    };
+  }
+
+  function addPictoElement(mediaId) {
+    if (!mediaId) {
+      return;
+    }
+    const placement = refs.pictoPlacement ? refs.pictoPlacement.value : "title-right";
+    const sizePreset = refs.pictoSize ? refs.pictoSize.value : "md";
+    const selectedElement = getCanvasSelectedElement(getSelectedCanvasData().elements);
+    if (selectedElement && selectedElement.type === "image") {
+      updateCanvasElementById(selectedElement.id, { mediaId });
+      return;
+    }
+    addCanvasElement("image", Object.assign({ mediaId }, getPictoPlacementRect(placement, sizePreset), { locked: false }));
   }
 
   function updateSelectedCanvasElement(patch, rerender = true) {
@@ -2016,7 +2054,7 @@
       return;
     }
     const slide = getSelectedSlide();
-    if (!slide || (slide.contentType || "bullets") !== "canvas") {
+    if (!slide) {
       return;
     }
     const canvasData = getSelectedCanvasData();
@@ -4053,6 +4091,7 @@
     const removeTableFillTrigger = event.target.closest("[data-remove-table-fill]");
     const toggleFreeMediaTrigger = event.target.closest("[data-toggle-free-media]");
     const addCanvasMediaTrigger = event.target.closest("[data-add-canvas-media]");
+    const addPictoTrigger = event.target.closest("[data-add-picto]");
     const toggleCanvasLockTrigger = event.target.closest("[data-toggle-canvas-lock]");
     const moveCanvasLayerTrigger = event.target.closest("[data-canvas-layer-move]");
     const selectCanvasElementTrigger = event.target.closest("[data-select-canvas-element]");
@@ -4089,6 +4128,11 @@
 
     if (addCanvasMediaTrigger) {
       addCanvasMediaElement(addCanvasMediaTrigger.getAttribute("data-add-canvas-media"));
+      return;
+    }
+
+    if (addPictoTrigger) {
+      addPictoElement(addPictoTrigger.getAttribute("data-add-picto"));
       return;
     }
 
@@ -4509,10 +4553,6 @@
   });
 
   refs.stage.addEventListener("pointerdown", (event) => {
-    const selectedSlide = getSelectedSlide();
-    if (!selectedSlide || (selectedSlide.contentType || "bullets") !== "canvas") {
-      return;
-    }
     const rotateHandle = event.target.closest("[data-canvas-rotate-handle]");
     const resizeHandle = event.target.closest("[data-canvas-resize-handle]");
     const canvasElement = event.target.closest("[data-canvas-element-id]");
@@ -4527,26 +4567,23 @@
   });
 
   refs.stage.addEventListener("click", (event) => {
-    const selectedSlide = getSelectedSlide();
-    if ((selectedSlide.contentType || "bullets") === "canvas") {
-      if (Date.now() < suppressCanvasClickUntil) {
+    if (Date.now() < suppressCanvasClickUntil) {
+      return;
+    }
+    const canvasElement = event.target.closest("[data-canvas-element-id]");
+    const canvasSurface = event.target.closest("[data-canvas-surface]");
+    if (canvasElement) {
+      if (canvasElement.getAttribute("data-canvas-locked") === "true") {
         return;
       }
-      const canvasElement = event.target.closest("[data-canvas-element-id]");
-      const canvasSurface = event.target.closest("[data-canvas-surface]");
-      if (canvasElement) {
-        if (canvasElement.getAttribute("data-canvas-locked") === "true") {
-          return;
-        }
-        selectedCanvasElementId = canvasElement.getAttribute("data-canvas-element-id");
-        render();
-        return;
-      }
-      if (canvasSurface) {
-        selectedCanvasElementId = null;
-        render();
-        return;
-      }
+      selectedCanvasElementId = canvasElement.getAttribute("data-canvas-element-id");
+      render();
+      return;
+    }
+    if (canvasSurface && selectedCanvasElementId) {
+      selectedCanvasElementId = null;
+      render();
+      return;
     }
     const tableCard = event.target.closest(".slide-table[data-table-lightbox='true']");
     if (tableCard) {
@@ -4554,10 +4591,14 @@
       return;
     }
     const chartCard = event.target.closest(".slide-visual-chart-card");
-    if (!chartCard) {
+    if (chartCard) {
+      openChartLightbox(chartCard);
       return;
     }
-    openChartLightbox(chartCard);
+    if (selectedCanvasElementId) {
+      selectedCanvasElementId = null;
+      render();
+    }
   });
 
   document.addEventListener("pointermove", handleCanvasPointerMove);
@@ -4623,7 +4664,6 @@
 
     if (
       ((event.key === "Delete") || (event.key === "Backspace")) &&
-      (getSelectedSlide().contentType || "bullets") === "canvas" &&
       selectedCanvasElementId &&
       !isEditableTarget(event.target)
     ) {

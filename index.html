@@ -17,6 +17,7 @@
     <script defer src="src/app/data/cognitive-principles.js"></script>
     <script defer src="src/app/data/color-palettes.js"></script>
     <script defer src="src/app/data/font-options.js"></script>
+    <script defer src="src/app/data/picto-assets.js"></script>
     <script defer src="src/app/state/default-state.js"></script>
     <script defer src="src/app/utils/helpers.js"></script>
     <script defer src="src/app/services/storage-service.js"></script>
@@ -674,6 +675,39 @@
                   <p id="media-link-feedback" class="field-meta"></p>
                   <p id="slide-media-selection" class="preview-hint"></p>
                   <div id="media-library" class="media-library" aria-label="Bibliothèque média"></div>
+                  <div class="picto-panel">
+                    <div class="picto-panel-header">
+                      <div>
+                        <p class="panel-kicker">Pictos</p>
+                        <h3>Overlay dynamique</h3>
+                      </div>
+                      <div class="picto-panel-controls">
+                        <label>
+                          Placement
+                          <select id="picto-placement">
+                            <option value="title-right">Près du titre</option>
+                            <option value="top-right">Coin haut droit</option>
+                            <option value="top-left">Coin haut gauche</option>
+                            <option value="middle-right">Milieu droit</option>
+                            <option value="bullet-side">Près des points</option>
+                            <option value="bottom-right">Coin bas droit</option>
+                            <option value="bottom-left">Coin bas gauche</option>
+                            <option value="center">Centre</option>
+                          </select>
+                        </label>
+                        <label>
+                          Taille
+                          <select id="picto-size">
+                            <option value="sm">Petite</option>
+                            <option value="md" selected>Moyenne</option>
+                            <option value="lg">Grande</option>
+                          </select>
+                        </label>
+                      </div>
+                    </div>
+                    <p class="canvas-editor-hint">Clique un picto pour l’ajouter à la slide active, puis déplace-le librement dans l’aperçu.</p>
+                    <div id="picto-library" class="picto-library" aria-label="Bibliothèque de pictos"></div>
+                  </div>
                 </div>
               </div>
             </form>

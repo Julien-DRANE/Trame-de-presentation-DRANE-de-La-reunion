@@ -35,6 +35,10 @@
     });
   }
 
+  function getAvailableMediaItems(items) {
+    return ns.data.augmentMediaItems ? ns.data.augmentMediaItems(items || []) : (items || []);
+  }
+
   function isDataUrl(value) {
     return /^data:/i.test(String(value || "").trim());
   }
@@ -332,9 +336,10 @@
 
   function getResolvedSlideMedia(slide, state, assets) {
     const ids = [slide.mediaId, slide.secondaryMediaId].filter(Boolean);
+    const mediaItems = getAvailableMediaItems(state.mediaLibrary || []);
     return ids
       .map((id) => {
-        const item = getMediaItemById(state.mediaLibrary, id);
+        const item = getMediaItemById(mediaItems, id);
         if (!item || item.kind !== "image") {
           return null;
         }
@@ -351,9 +356,10 @@
 
   function getResolvedFreeMedia(slide, state, assets) {
     const ids = Array.isArray(slide && slide.freeMediaIds) ? slide.freeMediaIds.slice(0, 12) : [];
+    const mediaItems = getAvailableMediaItems(state.mediaLibrary || []);
     return ids
       .map((id) => {
-        const item = getMediaItemById(state.mediaLibrary, id);
+        const item = getMediaItemById(mediaItems, id);
         if (!item || item.kind !== "image") {
           return null;
         }
@@ -1368,7 +1374,7 @@
     host.innerHTML = ns.ui.createSlideMarkup(slide, state.settings, {
       compact: false,
       logoSources: assets.logos,
-      mediaItems: (state.mediaLibrary || []).filter((item) => item.kind === "image"),
+      mediaItems: getAvailableMediaItems(state.mediaLibrary || []).filter((item) => item.kind === "image"),
       mediaUrls: assets.imagePreviewMap || {},
       mediaLinks: {},
       pdfMode: true,
@@ -1439,9 +1445,10 @@
       lang: "fr-FR",
     };
 
+    const availableMediaItems = getAvailableMediaItems(state.mediaLibrary || []);
     const [logos, mediaAssets] = await Promise.all([
       resolveLogoSources(),
-      ns.services.media.resolvePdfMediaAssets(state.mediaLibrary || []),
+      ns.services.media.resolvePdfMediaAssets(availableMediaItems),
     ]);
     notifyPptxProgress({
       state: "running",
@@ -1454,7 +1461,7 @@
       logos,
       previewMap: mediaAssets.previewMap || {},
       linkMap: mediaAssets.linkMap || {},
-      imagePreviewMap: (state.mediaLibrary || []).reduce((result, item) => {
+      imagePreviewMap: availableMediaItems.reduce((result, item) => {
         if (item && item.kind === "image" && mediaAssets.previewMap && mediaAssets.previewMap[item.id]) {
           result[item.id] = mediaAssets.previewMap[item.id];
         }

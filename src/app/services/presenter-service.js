@@ -23,13 +23,22 @@
     return ns.utils.plainTextToRichHtml(source, 600);
   }
 
+  function getAvailableMediaItems(items) {
+    return ns.data.augmentMediaItems ? ns.data.augmentMediaItems(items || []) : (items || []);
+  }
+
+  function getAvailableMediaUrls(urlMap) {
+    return ns.data.augmentMediaUrlMap ? ns.data.augmentMediaUrlMap(urlMap || {}) : (urlMap || {});
+  }
+
   async function buildPresenterHtml(state, options) {
     const opts = options || {};
     const startSlideId = opts.startSlideId || "";
     const initialSlideIndex = normalizeStartSlideIndex(state, startSlideId);
     const sessionId = opts.sessionId || ns.utils.createId("presenter-session");
     const slideLogoSources = ns.ui.getSlideLogoSources();
-    const mediaUrls = await ns.services.media.resolveExportMediaUrls(state.mediaLibrary || []);
+    const availableMediaItems = getAvailableMediaItems(state.mediaLibrary || []);
+    const mediaUrls = getAvailableMediaUrls(await ns.services.media.resolveExportMediaUrls(availableMediaItems));
     const slideTemplatesMarkup = (state.slides || [])
       .map((slide, index) => {
         return `
@@ -37,7 +46,7 @@
             ${ns.ui.createSlideMarkup(slide, state.settings, {
               compact: false,
               logoSources: slideLogoSources,
-              mediaItems: state.mediaLibrary || [],
+              mediaItems: availableMediaItems,
               mediaUrls,
             })}
           </template>
