@@ -214,6 +214,82 @@
   text-transform: uppercase;
 }
 
+.deck-slide.is-html-slide .slide-content {
+  height: 100%;
+  padding: 0;
+  padding-top: 0;
+  padding-right: 0;
+}
+
+.deck-slide.is-html-slide .slide-logo-region {
+  width: clamp(6.2rem, 11.8vw, 8.6rem);
+  max-width: 17.8%;
+}
+
+.deck-slide.is-html-slide .slide-headline,
+.deck-slide.is-html-slide .slide-subtitle-text {
+  max-width: min(96%, 48ch);
+}
+
+.slide-body.slide-body-html {
+  display: block;
+  height: 100%;
+}
+
+.slide-html-embed-shell {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 100%;
+  margin-top: 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.slide-html-embed-frame {
+  width: 100%;
+  height: 100%;
+  min-height: 100%;
+  border: 0;
+  background: transparent;
+}
+
+.deck-slide.is-html-slide .slide-body,
+.deck-slide.is-html-slide .slide-main {
+  height: 100%;
+  min-height: 0;
+}
+
+.slide-html-empty,
+.slide-html-static-card {
+  display: grid;
+  place-items: center;
+  gap: 0.45rem;
+  min-height: clamp(18rem, 50vh, 28rem);
+  margin-top: 0.9rem;
+  padding: 1.4rem;
+  border: 1px dashed rgba(18, 32, 51, 0.18);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.68);
+  text-align: center;
+  color: var(--slide-text-muted);
+}
+
+.slide-html-empty strong,
+.slide-html-static-card strong {
+  color: var(--slide-text);
+  font-size: calc(1.04rem * var(--slide-content-font-scale));
+}
+
+.slide-html-static-card small {
+  max-width: 34ch;
+  font-size: calc(0.86rem * var(--slide-content-font-scale));
+  line-height: 1.35;
+}
+
 .slide-headline {
   margin-top: calc(0.88rem + 1cm);
   margin-bottom: 0.22rem;
@@ -441,6 +517,20 @@
 
 .canvas-element-text-content li:last-child {
   margin-bottom: 0;
+}
+
+.canvas-element-text-content .canvas-text-links {
+  margin-top: 0.28rem;
+}
+
+.canvas-element-text-content .canvas-text-links .slide-link-bubble {
+  max-width: 100%;
+}
+
+.canvas-element-text-content a {
+  color: inherit;
+  text-decoration: underline;
+  pointer-events: auto;
 }
 
 .canvas-element-shape-content {

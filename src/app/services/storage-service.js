@@ -131,6 +131,7 @@
     const freeMediaIds = sanitizeFreeMediaIds(slide.freeMediaIds);
     const visualData = sanitizeVisualData(slide.visualData);
     const canvasData = sanitizeCanvasData(slide.canvasData);
+    const htmlEmbed = sanitizeHtmlEmbedData(slide.htmlEmbed);
     const subBullets = sanitizeSubBullets(slide.subBullets);
 
     const principleIds = utils.uniqueStrings(slide.principleIds || []).filter((id) => allowedPrincipleIds.includes(id));
@@ -147,7 +148,9 @@
             ? "visual"
             : slide.contentType === "canvas"
               ? "canvas"
-              : "bullets",
+              : slide.contentType === "html"
+                ? "html"
+                : "bullets",
       bulletsNumbered: Boolean(slide.bulletsNumbered),
       bulletsProgressive: Boolean(slide.bulletsProgressive),
       bulletsSubProgressive: Boolean(slide.bulletsSubProgressive),
@@ -163,6 +166,7 @@
       freeMediaIds,
       visualData,
       canvasData,
+      htmlEmbed,
       subBullets,
       mediaId: utils.clampText(slide.mediaId, 80),
       secondaryMediaId: utils.clampText(slide.secondaryMediaId, 80),
@@ -234,6 +238,20 @@
       chartBarCount: Math.max(1, Math.min(6, Number(raw.chartBarCount) || fallback.chartBarCount || 3)),
       chartTitle: typeof raw.chartTitle === "string" ? utils.clampText(raw.chartTitle, 48) : fallback.chartTitle,
       chartBars,
+    };
+  }
+
+  function sanitizeHtmlEmbedData(input) {
+    const fallback = ns.stateFactory.createDefaultHtmlEmbedData
+      ? ns.stateFactory.createDefaultHtmlEmbedData()
+      : { assetId: "", name: "", mimeType: "text/html", size: 0 };
+    const raw = input && typeof input === "object" ? input : {};
+
+    return {
+      assetId: ns.utils.clampText(raw.assetId, 120) || fallback.assetId,
+      name: ns.utils.clampText(raw.name, 180) || fallback.name,
+      mimeType: ns.utils.clampText(raw.mimeType, 120) || fallback.mimeType,
+      size: Number.isFinite(Number(raw.size)) ? Math.max(0, Number(raw.size)) : fallback.size,
     };
   }
 

@@ -204,6 +204,37 @@ h2 {
   color: var(--blue-deep);
 }
 
+.html-embed-panel {
+  display: grid;
+  gap: 0.9rem;
+  padding: 1rem;
+  border: 1px solid rgba(18, 32, 51, 0.08);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.74);
+}
+
+.html-embed-panel-topline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+}
+
+.html-embed-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+}
+
+.html-embed-summary {
+  padding: 0.85rem 1rem;
+  border-radius: 14px;
+  background: rgba(44, 115, 218, 0.08);
+  color: var(--ink);
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
 #open-presentation.button-soft {
   border-color: rgba(44, 140, 92, 0.2);
   background: rgba(48, 166, 103, 0.16);

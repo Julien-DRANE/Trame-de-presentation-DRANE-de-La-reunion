@@ -39,6 +39,9 @@
     const slideLogoSources = ns.ui.getSlideLogoSources();
     const availableMediaItems = getAvailableMediaItems(state.mediaLibrary || []);
     const mediaUrls = getAvailableMediaUrls(await ns.services.media.resolveExportMediaUrls(availableMediaItems));
+    const htmlSources = ns.services.htmlAssets
+      ? await ns.services.htmlAssets.resolveExportSourceMap(state.slides || [])
+      : {};
     const slideTemplatesMarkup = (state.slides || [])
       .map((slide, index) => {
         return `
@@ -48,6 +51,7 @@
               logoSources: slideLogoSources,
               mediaItems: availableMediaItems,
               mediaUrls,
+              htmlSources,
             })}
           </template>
         `;
@@ -58,6 +62,7 @@
       number: slide.number || String(index + 1).padStart(2, "0"),
       title: slide.title || `Slide ${index + 1}`,
       noteHtml: buildNoteMarkup(slide.presenterNotes),
+      contentType: slide.contentType || "bullets",
     }));
     const deckTitle = ns.utils.escapeHtml(state.settings.title || "Presentation");
 
@@ -395,6 +400,23 @@
         object-fit: contain;
         object-position: center;
         pointer-events: none;
+        border-radius: 18px;
+        box-shadow: 0 18px 32px rgba(18, 32, 51, 0.12);
+      }
+      .presenter-stage-live-shell {
+        width: min(100%, calc(100% - 4px));
+        max-height: 100%;
+        aspect-ratio: 16 / 9;
+        display: flex;
+        align-items: stretch;
+        justify-content: stretch;
+      }
+      .presenter-stage-live-shell > .deck-slide {
+        width: 100%;
+        height: 100%;
+        max-width: none;
+        max-height: none;
+        aspect-ratio: auto;
         border-radius: 18px;
         box-shadow: 0 18px 32px rgba(18, 32, 51, 0.12);
       }
@@ -1103,6 +1125,15 @@
         return currentBuffer.querySelector(".deck-slide");
       }
 
+      function getCurrentStageLiveSlide() {
+        return currentStage.querySelector(".presenter-stage-live-shell .deck-slide");
+      }
+
+      function getCurrentBufferHtmlEmbedFrame() {
+        const slide = getCurrentStageLiveSlide() || getCurrentBufferSlide();
+        return slide ? slide.querySelector("[data-html-embed-frame='true']") : null;
+      }
+
       function mountSlide(index, mountNode) {
         mountNode.innerHTML = "";
         const template = getTemplateByIndex(index);
@@ -1156,6 +1187,80 @@
         await waitForSlideAssets(slideNode);
         await waitForFrame();
         await waitForFrame();
+      }
+
+      async function waitForCurrentHtmlEmbedReady() {
+        const frame = getCurrentBufferHtmlEmbedFrame();
+        if (!frame) {
+          return false;
+        }
+        if (frame.getAttribute("data-html-ready") === "true") {
+          return true;
+        }
+        return new Promise((resolve) => {
+          const timeoutId = window.setTimeout(() => resolve(false), 650);
+          const handleReady = (event) => {
+            const data = event && event.data && typeof event.data === "object" ? event.data : null;
+            if (!data || data.type !== "studio-html-ready") {
+              return;
+            }
+            if (getCurrentBufferHtmlEmbedFrame() !== frame) {
+              return;
+            }
+            frame.setAttribute("data-html-ready", "true");
+            window.clearTimeout(timeoutId);
+            window.removeEventListener("message", handleReady);
+            resolve(true);
+          };
+          window.addEventListener("message", handleReady);
+        });
+      }
+
+      async function sendCurrentHtmlEmbedCommand(command) {
+        const frame = getCurrentBufferHtmlEmbedFrame();
+        if (!frame || !frame.contentWindow) {
+          return false;
+        }
+        await waitForCurrentHtmlEmbedReady();
+
+        return new Promise((resolve) => {
+          const requestId = "presenter-html-command-" + String(Date.now()) + "-" + String(Math.random()).slice(2, 8);
+          let settled = false;
+          let timeoutId = 0;
+
+          function cleanup(result) {
+            if (settled) {
+              return;
+            }
+            settled = true;
+            if (timeoutId) {
+              window.clearTimeout(timeoutId);
+            }
+            window.removeEventListener("message", handleMessage);
+            resolve(Boolean(result));
+          }
+
+          function handleMessage(event) {
+            const data = event && event.data && typeof event.data === "object" ? event.data : null;
+            if (!data || data.type !== "studio-html-command-result" || data.requestId !== requestId) {
+              return;
+            }
+            cleanup(Boolean(data.consumed));
+          }
+
+          window.addEventListener("message", handleMessage);
+          timeoutId = window.setTimeout(() => cleanup(false), 450);
+
+          try {
+            frame.contentWindow.postMessage({
+              type: "studio-html-command",
+              requestId,
+              command,
+            }, "*");
+          } catch (error) {
+            cleanup(false);
+          }
+        });
       }
 
       function collectInteractiveDescriptors(slide) {
@@ -1263,6 +1368,39 @@
           return;
         }
         stageNode.innerHTML = '<div class="presenter-stage-loading">' + String(message || "Aperçu en préparation...") + '</div>';
+      }
+
+      function renderLiveSlideIntoStage(stageNode, slideNode) {
+        if (!stageNode || !slideNode) {
+          return;
+        }
+        const currentLayer = stageNode.querySelector(".presenter-stage-layer.is-visible");
+        const nextLayer = document.createElement("div");
+        nextLayer.className = "presenter-stage-layer";
+        const shell = document.createElement("div");
+        shell.className = "presenter-stage-live-shell";
+        shell.appendChild(slideNode.cloneNode(true));
+        nextLayer.appendChild(shell);
+        stageNode.querySelectorAll(".presenter-stage-loading").forEach((node) => node.remove());
+        stageNode.appendChild(nextLayer);
+        if (!currentLayer || !shouldAnimatePreviewSwap()) {
+          stageNode.querySelectorAll(".presenter-stage-layer").forEach((node) => {
+            if (node !== nextLayer) {
+              node.remove();
+            }
+          });
+          nextLayer.classList.add("is-visible");
+          return;
+        }
+        window.requestAnimationFrame(() => {
+          nextLayer.classList.add("is-visible");
+          currentLayer.classList.add("is-exiting");
+        });
+        window.setTimeout(() => {
+          if (currentLayer.parentNode === stageNode) {
+            currentLayer.remove();
+          }
+        }, 340);
       }
 
       function fitStagePreview(stageNode) {
@@ -1639,14 +1777,18 @@
           return;
         }
         if (currentArticle) {
-          const currentAsset = await getOrCreatePreviewAsset(currentIndex, currentRevealStep, currentBuffer, currentArticle);
-          if (renderToken !== currentRenderToken) {
-            return;
+          if (currentSlideMeta && currentSlideMeta.contentType === "html") {
+            renderLiveSlideIntoStage(currentStage, currentArticle);
+          } else {
+            const currentAsset = await getOrCreatePreviewAsset(currentIndex, currentRevealStep, currentBuffer, currentArticle);
+            if (renderToken !== currentRenderToken) {
+              return;
+            }
+            await renderPreviewIntoStage(currentStage, currentAsset, {
+              interactive: true,
+              occupancy: isProjectorFocusMode ? 0.96 : (areStagesSwapped ? 0.68 : 0.96),
+            });
           }
-          await renderPreviewIntoStage(currentStage, currentAsset, {
-            interactive: true,
-            occupancy: isProjectorFocusMode ? 0.96 : (areStagesSwapped ? 0.68 : 0.96),
-          });
         }
         if (renderToken !== currentRenderToken) {
           return;
@@ -1682,7 +1824,17 @@
         setPresenterState(index, 0, options);
       }
 
-      function advancePresentation() {
+      async function advancePresentation(command) {
+        const htmlCommand = command === "arrow-right" || command === "arrow-down" ? command : "space";
+        if (await sendCurrentHtmlEmbedCommand(htmlCommand)) {
+          syncBridge.post({
+            type: "html-embed-command",
+            origin: presenterControllerId,
+            currentIndex,
+            command: htmlCommand,
+          });
+          return;
+        }
         const currentArticle = getCurrentBufferSlide();
         const nextRevealStep = currentArticle ? getNextRevealStep(currentArticle, currentRevealStep) : 0;
         if (nextRevealStep) {
@@ -1692,7 +1844,16 @@
         goToSlide(currentIndex + 1);
       }
 
-      function rewindPresentation() {
+      async function rewindPresentation() {
+        if (await sendCurrentHtmlEmbedCommand("arrow-left")) {
+          syncBridge.post({
+            type: "html-embed-command",
+            origin: presenterControllerId,
+            currentIndex,
+            command: "arrow-left",
+          });
+          return;
+        }
         const currentArticle = getCurrentBufferSlide();
         const previousRevealStep = currentArticle ? getPreviousRevealStep(currentArticle, currentRevealStep) : 0;
         if (currentRevealStep > 0) {
@@ -1753,6 +1914,13 @@
           setPresenterState(payload.currentIndex, payload.revealStep, { silent: true });
           return;
         }
+        if (payload.type === "html-embed-command") {
+          if (Number(payload.currentIndex) !== currentIndex) {
+            return;
+          }
+          void sendCurrentHtmlEmbedCommand(payload.command || "space");
+          return;
+        }
         if (payload.type === "projector-media-state") {
           projectorMediaState = {
             isOpen: Boolean(payload.isOpen),
@@ -1808,7 +1976,7 @@
         }
         if (event.key === "ArrowRight" || event.key === "PageDown" || event.key === " " || event.code === "Space") {
           event.preventDefault();
-          advancePresentation();
+          advancePresentation(event.key === "ArrowRight" ? "arrow-right" : "space");
           return;
         }
         if (event.key === "ArrowLeft" || event.key === "ArrowUp" || event.key === "PageUp") {

@@ -88,6 +88,7 @@
     slideTableEditor: document.querySelector("#slide-table-editor"),
     slideFreeEditor: document.querySelector("#slide-free-editor"),
     slideCanvasEditor: document.querySelector("#slide-canvas-editor"),
+    slideHtmlEditor: document.querySelector("#slide-html-editor"),
     slideVisualEditor: document.querySelector("#slide-visual-editor"),
     slideNoteEditor: document.querySelector("#slide-note-editor"),
     slideBulletsNumbered: document.querySelector("#slide-bullets-numbered"),
@@ -164,6 +165,12 @@
     canvasShapeColor: document.querySelector("#canvas-shape-color"),
     canvasDuplicateElement: document.querySelector("#canvas-duplicate-element"),
     canvasDeleteElement: document.querySelector("#canvas-delete-element"),
+    slideHtmlFileInput: document.querySelector("#slide-html-file-input"),
+    slideHtmlImportTrigger: document.querySelector("#slide-html-import-trigger"),
+    slideHtmlReplace: document.querySelector("#slide-html-replace"),
+    slideHtmlClear: document.querySelector("#slide-html-clear"),
+    slideHtmlName: document.querySelector("#slide-html-name"),
+    slideHtmlStatus: document.querySelector("#slide-html-status"),
     visualPrimaryMedia: document.querySelector("#visual-primary-media"),
     visualSecondaryMedia: document.querySelector("#visual-secondary-media"),
     visualShowImages: document.querySelector("#visual-show-images"),
@@ -341,6 +348,7 @@
       compact: false,
       mediaItems: ns.data.augmentMediaItems ? ns.data.augmentMediaItems(state.mediaLibrary || []) : (state.mediaLibrary || []),
       mediaUrls: ns.data.augmentMediaUrlMap ? ns.data.augmentMediaUrlMap(ns.services.media.getUrlMap()) : ns.services.media.getUrlMap(),
+      htmlAssetUrls: ns.services.htmlAssets ? ns.services.htmlAssets.getUrlMap() : {},
       canvasInteractive: true,
       selectedCanvasElementId: selectedCanvasElementId || "",
     };
@@ -633,6 +641,14 @@
     render();
   }
 
+  async function hydrateHtmlAssets() {
+    if (!ns.services.htmlAssets) {
+      return;
+    }
+    await ns.services.htmlAssets.hydrateSlides(state.slides || []);
+    render();
+  }
+
   async function importJsonProject(file) {
     pushUndoSnapshot({ editKey: "" });
     const raw = await file.text();
@@ -640,6 +656,9 @@
     const nextState = ns.services.storage.sanitizeState(parsed);
     const importedMedia = await ns.services.media.importMediaDataMap(parsed.mediaDataMap || {}, nextState.mediaLibrary || []);
     nextState.mediaLibrary = importedMedia;
+    if (ns.services.htmlAssets) {
+      await ns.services.htmlAssets.importSourceDataMap(parsed.htmlDataMap || {}, nextState.slides || []);
+    }
     state = nextState;
     closeAddSlideMenu();
     render();
@@ -1010,6 +1029,85 @@
       return;
     }
     render();
+  }
+
+  function getHtmlAssetUsageCount(assetId, excludedSlideId) {
+    if (!assetId) {
+      return 0;
+    }
+    return state.slides.filter((slide) => {
+      if (!slide || slide.id === excludedSlideId) {
+        return false;
+      }
+      return Boolean(slide.htmlEmbed && slide.htmlEmbed.assetId === assetId);
+    }).length;
+  }
+
+  async function maybeDeleteUnusedHtmlAsset(assetId, excludedSlideId) {
+    if (!assetId || !ns.services.htmlAssets) {
+      return;
+    }
+    if (getHtmlAssetUsageCount(assetId, excludedSlideId) > 0) {
+      return;
+    }
+    await ns.services.htmlAssets.deleteAsset(assetId);
+  }
+
+  async function setSelectedHtmlEmbedMeta(nextHtmlEmbed) {
+    const selectedSlide = getSelectedSlide();
+    if (!selectedSlide) {
+      return;
+    }
+
+    const normalizedHtmlEmbed = nextHtmlEmbed
+      ? {
+          assetId: nextHtmlEmbed.assetId || nextHtmlEmbed.id || "",
+          name: nextHtmlEmbed.name || "",
+          mimeType: nextHtmlEmbed.mimeType || "text/html",
+          size: Number.isFinite(Number(nextHtmlEmbed.size)) ? Number(nextHtmlEmbed.size) : 0,
+        }
+      : {};
+    const currentAssetId = selectedSlide.htmlEmbed && selectedSlide.htmlEmbed.assetId
+      ? selectedSlide.htmlEmbed.assetId
+      : "";
+    const nextAssetId = normalizedHtmlEmbed && normalizedHtmlEmbed.assetId ? normalizedHtmlEmbed.assetId : "";
+
+    pushUndoSnapshot({ editKey: "" });
+    state.slides = state.slides.map((slide) => {
+      if (slide.id !== state.selectedSlideId) {
+        return slide;
+      }
+      return Object.assign({}, slide, {
+        htmlEmbed: Object.assign(
+          {},
+          ns.stateFactory.createDefaultHtmlEmbedData ? ns.stateFactory.createDefaultHtmlEmbedData() : {},
+          normalizedHtmlEmbed || {}
+        ),
+      });
+    });
+
+    if (currentAssetId && currentAssetId !== nextAssetId) {
+      await maybeDeleteUnusedHtmlAsset(currentAssetId, selectedSlide.id);
+    }
+    render();
+  }
+
+  async function importHtmlEmbedForSelectedSlide(file) {
+    if (!file || !ns.services.htmlAssets) {
+      return;
+    }
+
+    const importedAsset = await ns.services.htmlAssets.importFile(file);
+    await setSelectedHtmlEmbedMeta(importedAsset);
+  }
+
+  async function clearSelectedHtmlEmbed() {
+    const selectedSlide = getSelectedSlide();
+    if (!selectedSlide || !selectedSlide.htmlEmbed || !selectedSlide.htmlEmbed.assetId) {
+      return;
+    }
+
+    await setSelectedHtmlEmbedMeta(ns.stateFactory.createDefaultHtmlEmbedData ? ns.stateFactory.createDefaultHtmlEmbedData() : {});
   }
 
   function updateSelectedTableCell(rowIndex, columnIndex, value, rerender = true) {
@@ -3192,10 +3290,10 @@
 
   function deleteCurrentSlide() {
     closeAddSlideMenu();
-    deleteSlideById(state.selectedSlideId);
+    void deleteSlideById(state.selectedSlideId);
   }
 
-  function deleteSlideById(id) {
+  async function deleteSlideById(id) {
     closeAddSlideMenu();
     if (state.slides.length === 1) {
       return;
@@ -3207,9 +3305,12 @@
     }
 
     pushUndoSnapshot({ editKey: "" });
-    state.slides.splice(index, 1);
+    const removedSlide = state.slides.splice(index, 1)[0];
     reindexSlides();
     state.selectedSlideId = state.slides[Math.max(0, index - 1)].id;
+    if (removedSlide && removedSlide.htmlEmbed && removedSlide.htmlEmbed.assetId) {
+      await maybeDeleteUnusedHtmlAsset(removedSlide.htmlEmbed.assetId, removedSlide.id);
+    }
     render();
   }
 
@@ -3341,7 +3442,9 @@
           ? "visual"
           : event.target.value === "canvas"
             ? "canvas"
-            : "bullets",
+            : event.target.value === "html"
+              ? "html"
+              : "bullets",
   }));
   refs.slidePaletteOverride.addEventListener("change", (event) => updateSelectedSlide({
     paletteOverride: event.target.value,
@@ -3881,6 +3984,30 @@
     render();
     event.target.value = "";
   });
+  refs.slideHtmlImportTrigger.addEventListener("click", () => {
+    refs.slideHtmlFileInput.click();
+  });
+  refs.slideHtmlReplace.addEventListener("click", () => {
+    refs.slideHtmlFileInput.click();
+  });
+  refs.slideHtmlFileInput.addEventListener("change", async (event) => {
+    const file = event.target.files && event.target.files[0];
+    if (!file) {
+      return;
+    }
+
+    try {
+      await importHtmlEmbedForSelectedSlide(file);
+      refs.slideHtmlStatus.textContent = "Animation HTML importée.";
+    } catch (error) {
+      refs.slideHtmlStatus.textContent = "Import impossible. Vérifie le fichier HTML.";
+    } finally {
+      event.target.value = "";
+    }
+  });
+  refs.slideHtmlClear.addEventListener("click", () => {
+    void clearSelectedHtmlEmbed();
+  });
   refs.clearSlideMedia.addEventListener("click", () => assignMediaToSelectedSlide(""));
   refs.mediaLinkAdd.addEventListener("click", () => {
     const rawValue = refs.mediaLinkInput.value;
@@ -4213,7 +4340,7 @@
 
     if (deleteTrigger) {
       event.stopPropagation();
-      deleteSlideById(deleteTrigger.getAttribute("data-delete-slide"));
+      void deleteSlideById(deleteTrigger.getAttribute("data-delete-slide"));
       return;
     }
 
@@ -4689,4 +4816,5 @@
 
   render();
   hydrateMediaLibrary();
+  hydrateHtmlAssets();
 })();

@@ -1091,7 +1091,7 @@
   }
 
   function createCanvasTextMarkup(value) {
-    return ns.utils.sanitizeRichText(value, 2000);
+    return ns.utils.linkifyHtmlUrls(ns.utils.sanitizeRichText(value, 2000));
   }
 
   function createCanvasRevealStepMap(elements) {
@@ -1223,6 +1223,55 @@
     `;
   }
 
+  function createHtmlEmbedMarkup(slide, options) {
+    const utils = ns.utils;
+    const htmlEmbed = slide && slide.htmlEmbed && typeof slide.htmlEmbed === "object" ? slide.htmlEmbed : {};
+    const assetId = String(htmlEmbed.assetId || "").trim();
+    const assetName = String(htmlEmbed.name || "").trim();
+    const htmlSources = options && options.htmlSources && typeof options.htmlSources === "object" ? options.htmlSources : {};
+    const htmlAssetUrls = options && options.htmlAssetUrls && typeof options.htmlAssetUrls === "object" ? options.htmlAssetUrls : {};
+    const source = assetId ? String(htmlSources[assetId] || "") : "";
+    const runtimeUrl = assetId ? String(htmlAssetUrls[assetId] || "") : "";
+
+    if (!assetId || (!source && !runtimeUrl)) {
+      return `
+        <div class="slide-html-empty">
+          <strong>Ajoutez un fichier HTML animé</strong>
+          <span>Importez un fichier autonome pour l’intégrer comme slide interactive.</span>
+        </div>
+      `;
+    }
+
+    if (options && options.pdfMode && !source) {
+      return `
+        <div class="slide-html-static-card">
+          <strong>HTML animé</strong>
+          <span>${utils.escapeHtml(assetName || "Animation HTML")}</span>
+          <small>Version interactive disponible dans la présentation web exportée.</small>
+        </div>
+      `;
+    }
+
+    const srcdocAttr = source ? ` srcdoc="${utils.escapeHtml(source)}"` : "";
+    const srcAttr = !source && runtimeUrl ? ` src="${utils.escapeHtml(runtimeUrl)}"` : "";
+    const pdfStaticClass = options && options.pdfMode ? " is-pdf-static-capture" : "";
+    const sandboxValue = options && options.pdfMode ? "allow-scripts allow-same-origin" : "allow-scripts";
+    return `
+      <div class="slide-html-embed-shell${pdfStaticClass}">
+        <iframe
+          class="slide-html-embed-frame"
+          data-html-embed-frame="true"
+          data-html-asset-id="${utils.escapeHtml(assetId)}"
+          title="${utils.escapeHtml(assetName || "Animation HTML")}"
+          loading="lazy"
+          sandbox="${sandboxValue}"
+          referrerpolicy="no-referrer"
+          ${srcdocAttr}${srcAttr}
+        ></iframe>
+      </div>
+    `;
+  }
+
   function createSlideMarkup(slide, settings, options) {
     const opts = options || {};
     const utils = ns.utils;
@@ -1233,6 +1282,7 @@
     const isFreeMode = slide.contentType === "free";
     const isVisualMode = slide.contentType === "visual";
     const isCanvasMode = slide.contentType === "canvas";
+    const isHtmlMode = slide.contentType === "html";
     const allBullets = buildBulletItems(slide);
     const bulletColumns = splitBulletsForLayout(allBullets);
     const mainBullets = bulletColumns.mainBullets;
@@ -1244,7 +1294,7 @@
       return sum + (Array.isArray(bulletItem.children) ? bulletItem.children.length : 0);
     }, 0);
     const bulletsNumbered = Boolean(slide.bulletsNumbered);
-    const bulletsProgressive = Boolean(slide.bulletsProgressive) && !opts.compact && !isFreeMode && !isTableMode && !isVisualMode && !isCanvasMode;
+    const bulletsProgressive = Boolean(slide.bulletsProgressive) && !opts.compact && !isFreeMode && !isTableMode && !isVisualMode && !isCanvasMode && !isHtmlMode;
     const bulletsSubProgressive = bulletsProgressive && Boolean(slide.bulletsSubProgressive);
     const tableProgressive = Boolean(slide.tableProgressive) && !opts.compact && isTableMode;
     const tableProgressiveOrder = slide.tableProgressiveOrder === "column" ? "column" : "row";
@@ -1257,7 +1307,17 @@
       (visualShowsImages && visualData.secondaryMediaReveal && visualData.secondaryMediaId) ||
       (visualData.chartReveal && visualData.showChart)
     );
-    const canKeepMediaWithExtendedBullets = Boolean(slideMedia) && allBullets.length > 3 && allBullets.length <= 6;
+    const forcePdfBulletColumns = Boolean(opts.pdfMode)
+      && !isTableMode
+      && !isFreeMode
+      && !isVisualMode
+      && !isCanvasMode
+      && !isHtmlMode
+      && allBullets.length > 3;
+    const canKeepMediaWithExtendedBullets = !forcePdfBulletColumns
+      && Boolean(slideMedia)
+      && allBullets.length > 3
+      && allBullets.length <= 6;
     const useSecondBulletSideLayout = shouldUseSecondBulletSideLayout(slide, allBullets, slideMediaItems.length);
     const useCompactBulletMediaLayout = shouldUseCompactBulletMediaLayout(slide, allBullets, slideMediaItems.length);
     const totalBulletHeight = estimateBulletColumnHeight(allBullets);
@@ -1360,10 +1420,10 @@
           bulletsSubProgressive
         )
       : "";
-    const headline = slide.title ? `<h3 class="slide-headline">${utils.escapeHtml(slide.title)}</h3>` : "";
-    const subtitle = slide.subtitle ? `<p class="slide-subtitle-text">${utils.escapeHtml(slide.subtitle)}</p>` : "";
-    const signature = settings.footer ? `<span class="slide-signature">${utils.escapeHtml(settings.footer)}</span>` : "";
-    const note = slide.note
+    const headline = !isHtmlMode && slide.title ? `<h3 class="slide-headline">${utils.escapeHtml(slide.title)}</h3>` : "";
+    const subtitle = !isHtmlMode && slide.subtitle ? `<p class="slide-subtitle-text">${utils.escapeHtml(slide.subtitle)}</p>` : "";
+    const signature = !isHtmlMode && settings.footer ? `<span class="slide-signature">${utils.escapeHtml(settings.footer)}</span>` : "";
+    const note = !isHtmlMode && slide.note
       ? `<div class="slide-note"><span class="slide-note-content">${createLinkedTextMarkup(slide.note, { textClass: "slide-note-text", linksClass: "slide-link-bubbles slide-link-bubbles-inline slide-link-bubbles-note", linksTag: "span" })}</span></div>`
       : "";
 
@@ -1380,6 +1440,8 @@
       contentMarkup = createCanvasMarkup(slide, settings, opts);
     } else if (isVisualMode) {
       contentMarkup = createVisualMarkup(slide, opts);
+    } else if (isHtmlMode) {
+      contentMarkup = createHtmlEmbedMarkup(slide, opts);
     } else if (isTableMode) {
       contentMarkup = createTableMarkup(slide.table, slide.tableHighlights, {
         progressive: tableProgressive,
@@ -1426,6 +1488,7 @@
     const paletteStyle = createSlidePaletteStyle(slide, settings);
     const visualModeClass = isVisualMode ? " is-visual-slide" : "";
     const canvasModeClass = isCanvasMode ? " is-canvas-slide" : "";
+    const htmlModeClass = isHtmlMode ? " is-html-slide" : "";
     const tableModeClass = isTableMode ? " is-table-slide" : "";
     const visualHeaderClass = isVisualMode && (slide.title || slide.subtitle) ? " is-visual-has-header" : "";
     const stackedMediaLayoutClass = slideMediaItems.length > 1 ? " has-media-stack-layout" : "";
@@ -1438,25 +1501,25 @@
       : "";
 
     return `
-      <article class="deck-slide theme-${utils.escapeHtml(themeName)}${compactClass}${visualModeClass}${canvasModeClass}${tableModeClass}${visualHeaderClass}" data-progressive-content="${bulletsProgressive || tableProgressive || visualProgressive || Boolean(canvasData.progressive) ? "true" : "false"}" style="${utils.escapeHtml(paletteStyle)}">
+      <article class="deck-slide theme-${utils.escapeHtml(themeName)}${compactClass}${visualModeClass}${canvasModeClass}${htmlModeClass}${tableModeClass}${visualHeaderClass}" data-progressive-content="${bulletsProgressive || tableProgressive || visualProgressive || Boolean(canvasData.progressive) ? "true" : "false"}" style="${utils.escapeHtml(paletteStyle)}">
         <div class="slide-wave" aria-hidden="true"></div>
         <img class="slide-logo slide-logo-region" src="${utils.escapeHtml(logoSources.region)}" alt="Logo region academique" />
         <img class="slide-logo slide-logo-drane" src="${utils.escapeHtml(logoSources.drane)}" alt="Logo Drane" />
         <div class="slide-content">
-          <div class="slide-topline"></div>
+          ${isHtmlMode ? "" : '<div class="slide-topline"></div>'}
           ${floatingTopRightMediaMarkup}
-          <div class="${isCanvasMode ? "slide-body slide-body-no-media slide-body-canvas" : isVisualMode ? "slide-body slide-body-no-media slide-body-visual" : slideMedia && (!extraBullets.length || isTableMode || canKeepMediaWithExtendedBullets) && !isFreeMode && !useInlineBulletMediaLayout ? `slide-body${stackedMediaLayoutClass}${compactBulletMediaClass}` : "slide-body slide-body-no-media"}">
+          <div class="${isCanvasMode ? "slide-body slide-body-no-media slide-body-canvas" : isVisualMode ? "slide-body slide-body-no-media slide-body-visual" : isHtmlMode ? "slide-body slide-body-no-media slide-body-html" : slideMedia && (!extraBullets.length || isTableMode || canKeepMediaWithExtendedBullets) && !isFreeMode && !useInlineBulletMediaLayout ? `slide-body${stackedMediaLayoutClass}${compactBulletMediaClass}` : "slide-body slide-body-no-media"}">
             <div class="slide-main">
               ${headline}
               ${subtitle}
               ${contentMarkup}
             </div>
-            ${slideMediaItems.length && (!extraBullets.length || canKeepMediaWithExtendedBullets) && !isFreeMode && !isVisualMode && !isTableMode && !useFloatingTopRightMedia && !useInlineBulletMediaLayout ? `<aside class="slide-media-slot is-media-bare${slideMediaItems.length > 1 ? " has-media-stack" : ""}">${mediaMarkup}</aside>` : ""}
+            ${slideMediaItems.length && (!extraBullets.length || canKeepMediaWithExtendedBullets) && !isFreeMode && !isVisualMode && !isHtmlMode && !isTableMode && !useFloatingTopRightMedia && !useInlineBulletMediaLayout ? `<aside class="slide-media-slot is-media-bare${slideMediaItems.length > 1 ? " has-media-stack" : ""}">${mediaMarkup}</aside>` : ""}
           </div>
-          <div class="slide-footer">
+          ${isHtmlMode ? "" : `<div class="slide-footer">
             ${footerNoteMarkup}
             ${signature}
-          </div>
+          </div>`}
           ${overlayMarkup}
         </div>
       </article>

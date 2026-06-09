@@ -260,6 +260,70 @@
     return html;
   }
 
+  function linkifyHtmlUrls(value) {
+    const source = String(value || "");
+    if (!source.trim()) {
+      return "";
+    }
+
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(`<div>${source}</div>`, "text/html");
+    const urlRegex = /(https?:\/\/[^\s<]+)/g;
+
+    function processTextNode(node) {
+      const text = String(node.textContent || "");
+      if (!urlRegex.test(text)) {
+        urlRegex.lastIndex = 0;
+        return;
+      }
+      urlRegex.lastIndex = 0;
+
+      const fragment = doc.createDocumentFragment();
+      let lastIndex = 0;
+      let match;
+      while ((match = urlRegex.exec(text)) !== null) {
+        const before = text.slice(lastIndex, match.index);
+        if (before) {
+          fragment.appendChild(doc.createTextNode(before));
+        }
+        const url = match[0];
+        const link = doc.createElement("a");
+        link.setAttribute("href", url);
+        link.setAttribute("target", "_blank");
+        link.setAttribute("rel", "noopener noreferrer");
+        link.textContent = formatUrlLabel(url);
+        link.setAttribute("title", url);
+        fragment.appendChild(link);
+        lastIndex = match.index + url.length;
+      }
+      const after = text.slice(lastIndex);
+      if (after) {
+        fragment.appendChild(doc.createTextNode(after));
+      }
+      node.parentNode.replaceChild(fragment, node);
+    }
+
+    function walk(node) {
+      if (!node) {
+        return;
+      }
+      if (node.nodeType === Node.TEXT_NODE) {
+        processTextNode(node);
+        return;
+      }
+      if (node.nodeType !== Node.ELEMENT_NODE) {
+        return;
+      }
+      if (String(node.tagName || "").toLowerCase() === "a") {
+        return;
+      }
+      Array.from(node.childNodes).forEach(walk);
+    }
+
+    Array.from((doc.body.firstElementChild || doc.body).childNodes).forEach(walk);
+    return (doc.body.firstElementChild || doc.body).innerHTML;
+  }
+
   ns.utils.clone = clone;
   ns.utils.clampText = clampText;
   ns.utils.slugify = slugify;
@@ -272,4 +336,5 @@
   ns.utils.extractLinks = extractLinks;
   ns.utils.formatUrlLabel = formatUrlLabel;
   ns.utils.linkifyText = linkifyText;
+  ns.utils.linkifyHtmlUrls = linkifyHtmlUrls;
 })();

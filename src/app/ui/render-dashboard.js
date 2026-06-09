@@ -10,6 +10,20 @@
     return Math.max(85, Math.min(140, Math.round(parsed / 5) * 5));
   }
 
+  function formatBytes(value) {
+    const size = Number(value) || 0;
+    if (size <= 0) {
+      return "0 o";
+    }
+    if (size < 1024) {
+      return `${size} o`;
+    }
+    if (size < 1024 * 1024) {
+      return `${(size / 1024).toFixed(1)} Ko`;
+    }
+    return `${(size / (1024 * 1024)).toFixed(1)} Mo`;
+  }
+
   function renderDashboard(payload) {
     const state = payload.state;
     const refs = payload.refs;
@@ -22,9 +36,11 @@
     const principles = ns.data.cognitivePrinciples || [];
     const availableMediaItems = ns.data.augmentMediaItems ? ns.data.augmentMediaItems(state.mediaLibrary || []) : (state.mediaLibrary || []);
     const availableMediaUrls = ns.data.augmentMediaUrlMap ? ns.data.augmentMediaUrlMap(ns.services.media.getUrlMap()) : ns.services.media.getUrlMap();
+    const availableHtmlAssetUrls = ns.services.htmlAssets ? ns.services.htmlAssets.getUrlMap() : {};
     const density = ns.ui.computeDensity(selectedSlide);
     const visualData = selectedSlide.visualData || {};
     const canvasData = getCanvasData(selectedSlide);
+    const htmlEmbed = selectedSlide.htmlEmbed || {};
     const selectedCanvasElement = getSelectedCanvasElement(canvasData, payload.selectedCanvasElementId);
 
     refs.deckTitle.value = state.settings.title;
@@ -256,22 +272,33 @@
     const isFreeMode = (selectedSlide.contentType || "bullets") === "free";
     const isVisualMode = (selectedSlide.contentType || "bullets") === "visual";
     const isCanvasMode = (selectedSlide.contentType || "bullets") === "canvas";
-    refs.slideBulletsEditor.hidden = isTableMode || isFreeMode || isVisualMode || isCanvasMode;
+    const isHtmlMode = (selectedSlide.contentType || "bullets") === "html";
+    refs.slideBulletsEditor.hidden = isTableMode || isFreeMode || isVisualMode || isCanvasMode || isHtmlMode;
     refs.slideTableEditor.hidden = !isTableMode;
     refs.slideFreeEditor.hidden = !isFreeMode;
     refs.slideVisualEditor.hidden = !isVisualMode;
-    refs.slideCanvasEditor.hidden = false;
+    refs.slideCanvasEditor.hidden = !isCanvasMode;
+    refs.slideHtmlEditor.hidden = !isHtmlMode;
     refs.slideNoteEditor.hidden = false;
     refs.slidePresenterNotesEditor.hidden = false;
-    refs.slideBulletsEditor.classList.toggle("is-collapsed", isTableMode || isFreeMode || isVisualMode || isCanvasMode);
+    refs.slideBulletsEditor.classList.toggle("is-collapsed", isTableMode || isFreeMode || isVisualMode || isCanvasMode || isHtmlMode);
     refs.slideTableEditor.classList.toggle("is-collapsed", !isTableMode);
     refs.slideFreeEditor.classList.toggle("is-collapsed", !isFreeMode);
     refs.slideVisualEditor.classList.toggle("is-collapsed", !isVisualMode);
     refs.slideCanvasEditor.classList.toggle("is-collapsed", false);
+    refs.slideHtmlEditor.classList.toggle("is-collapsed", !isHtmlMode);
+    refs.slideHtmlName.textContent = htmlEmbed.assetId
+      ? `${htmlEmbed.name || "Animation HTML"}${htmlEmbed.size ? ` (${formatBytes(htmlEmbed.size)})` : ""}`
+      : "Aucun fichier chargé.";
+    refs.slideHtmlStatus.textContent = htmlEmbed.assetId
+      ? "Animation prête pour la présentation web."
+      : "Aucun asset HTML associé à cette slide.";
+    refs.slideHtmlReplace.disabled = !htmlEmbed.assetId;
+    refs.slideHtmlClear.disabled = !htmlEmbed.assetId;
     refs.globalPanelBody.hidden = Boolean(state.uiGlobalPanelCollapsed);
     refs.toggleGlobalPanel.textContent = state.uiGlobalPanelCollapsed ? "Déplier" : "Replier";
     refs.toggleGlobalPanel.setAttribute("aria-expanded", state.uiGlobalPanelCollapsed ? "false" : "true");
-    refs.clearSlideMedia.hidden = isFreeMode || isVisualMode || isCanvasMode;
+    refs.clearSlideMedia.hidden = isFreeMode || isVisualMode || isCanvasMode || isHtmlMode;
     refs.slideMediaPanelBody.hidden = Boolean(state.uiMediaPanelCollapsed);
     refs.toggleMediaPanel.textContent = state.uiMediaPanelCollapsed ? "Déplier" : "Replier";
     refs.toggleMediaPanel.setAttribute("aria-expanded", state.uiMediaPanelCollapsed ? "false" : "true");
@@ -297,6 +324,8 @@
       ? "Mode libre : texte long, liens et plusieurs medias pour les annexes."
       : isCanvasMode
       ? "Mode canvas : place librement textes, medias, fleches et pictos directement sur la slide."
+      : isHtmlMode
+      ? "Mode HTML animé : intègre un fichier HTML autonome interactif dans la slide."
       : "Modele : un niveau Bloom, une idee forte, trois points maximum, avec un calque libre pour les pictos et repères visuels.";
     refs.slideMediaSelection.textContent = isVisualMode
       ? getVisualMediaSelectionText(selectedSlide, state.mediaLibrary)
@@ -304,6 +333,8 @@
       ? `${(selectedSlide.freeMediaIds || []).length} média(x) dans l'annexe libre.`
       : isCanvasMode
       ? getCanvasMediaSelectionText(canvasData, availableMediaItems)
+      : isHtmlMode
+      ? (htmlEmbed.assetId ? `Animation HTML chargée : ${htmlEmbed.name || "animation.html"}` : "Aucune animation HTML affectée à cette slide.")
       : (selectedSlide.mediaId || selectedSlide.secondaryMediaId)
         ? getMediaSelectionText(selectedSlide, state.mediaLibrary)
         : "Aucun média affecté à cette slide.";
@@ -314,6 +345,7 @@
       compact: false,
       mediaItems: availableMediaItems,
       mediaUrls: availableMediaUrls,
+      htmlAssetUrls: availableHtmlAssetUrls,
       canvasInteractive: true,
       selectedCanvasElementId: selectedCanvasElement ? selectedCanvasElement.id : "",
     });

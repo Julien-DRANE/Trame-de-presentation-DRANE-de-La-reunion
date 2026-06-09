@@ -76,7 +76,10 @@
   async function exportJson(state) {
     const fileName = `${ns.utils.slugify(state.settings.title || "presentation")}.json`;
     const mediaDataMap = await ns.services.media.resolveExportMediaUrls(state.mediaLibrary || []);
-    const exportPayload = Object.assign({}, state, { mediaDataMap });
+    const htmlDataMap = ns.services.htmlAssets
+      ? await ns.services.htmlAssets.exportRawSourceMap(state.slides || [])
+      : {};
+    const exportPayload = Object.assign({}, state, { mediaDataMap, htmlDataMap });
     const blob = new Blob([JSON.stringify(exportPayload, null, 2)], { type: "application/json;charset=utf-8" });
     downloadBlob(blob, fileName);
   }
@@ -228,6 +231,9 @@
       : await ns.services.media.resolveExportMediaUrls(availableMediaItems);
     const mediaLinks = pdfMediaAssets ? pdfMediaAssets.linkMap : {};
     const mergedMediaUrls = getAvailableMediaUrls(mediaUrls);
+    const htmlSources = opts.pdfMode || !ns.services.htmlAssets
+      ? {}
+      : await ns.services.htmlAssets.resolveExportSourceMap(state.slides || []);
 
     if (opts.exportMode === "html" && pdfMediaAssets) {
       availableMediaItems.forEach((item) => {
@@ -247,6 +253,7 @@
           mediaItems: availableMediaItems,
           mediaUrls: mergedMediaUrls,
           mediaLinks,
+          htmlSources,
         })}</section>`;
       })
       .join("");
@@ -269,7 +276,7 @@
       .join("");
     const initialSlideIndex = Math.max(0, state.slides.findIndex((slide) => slide.id === startSlideId));
     const isPdfMode = Boolean(opts.pdfMode);
-    const isPresentMode = opts.exportMode === "present";
+    const isPresentMode = opts.exportMode === "present" || opts.exportMode === "html";
     const bodyAttributes = isPdfMode
       ? ' class="pdf-export"'
       : ` class="${isPresentMode ? "presentation-runtime" : ""}" data-transition="${ns.utils.escapeHtml(state.settings.transition || "fade")}"`;
@@ -646,6 +653,72 @@
         font-weight: 800;
         letter-spacing: 0.14em;
         text-transform: uppercase;
+      }
+      .deck-slide.is-html-slide .slide-content {
+        height: 100%;
+        padding: 0;
+        padding-top: 0;
+        padding-right: 0;
+      }
+      .deck-slide.is-html-slide .slide-logo-region {
+        width: clamp(6.2rem, 11.8vw, 8.6rem);
+        max-width: 17.8%;
+      }
+      .deck-slide.is-html-slide .slide-headline,
+      .deck-slide.is-html-slide .slide-subtitle-text {
+        max-width: min(96%, 48ch);
+      }
+      .slide-body.slide-body-html {
+        display: block;
+        height: 100%;
+      }
+      .slide-html-embed-shell {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        min-height: 100%;
+        margin-top: 0;
+        overflow: hidden;
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+        box-shadow: none;
+      }
+      .slide-html-embed-frame {
+        width: 100%;
+        height: 100%;
+        min-height: 100%;
+        border: 0;
+        background: transparent;
+      }
+      .deck-slide.is-html-slide .slide-body,
+      .deck-slide.is-html-slide .slide-main {
+        height: 100%;
+        min-height: 0;
+      }
+      .slide-html-empty,
+      .slide-html-static-card {
+        display: grid;
+        place-items: center;
+        gap: 0.45rem;
+        min-height: clamp(18rem, 50vh, 28rem);
+        margin-top: 0.9rem;
+        padding: 1.4rem;
+        border: 1px dashed rgba(18, 32, 51, 0.18);
+        border-radius: 20px;
+        background: rgba(255, 255, 255, 0.68);
+        text-align: center;
+        color: var(--slide-text-muted);
+      }
+      .slide-html-empty strong,
+      .slide-html-static-card strong {
+        color: var(--slide-text);
+        font-size: calc(1.04rem * var(--slide-content-font-scale));
+      }
+      .slide-html-static-card small {
+        max-width: 34ch;
+        font-size: calc(0.86rem * var(--slide-content-font-scale));
+        line-height: 1.35;
       }
       .slide-headline {
         margin-top: calc(0.88rem + 1cm);
@@ -2728,6 +2801,8 @@
       const progressSteps = Array.from(document.querySelectorAll("[data-progress-index]"));
       let currentIndex = 0;
       let isTransitioning = false;
+      let htmlCommandRequestCount = 0;
+      let htmlReadyWaiters = [];
       let activeProjectorMedia = { kind: "", index: -1 };
       let imageLightboxZoomActive = false;
       let pendingRemoteDeckState = null;
@@ -2841,6 +2916,91 @@
         return screens[currentIndex] || null;
       }
 
+      function getActiveHtmlEmbedFrame() {
+        const screen = getActiveScreen();
+        return screen ? screen.querySelector("[data-html-embed-frame='true']") : null;
+      }
+
+      function resetHtmlEmbedsInScreen(screen) {
+        if (!screen) {
+          return;
+        }
+        Array.from(screen.querySelectorAll("[data-html-embed-frame='true']")).forEach((frame) => {
+          const replacement = frame.cloneNode(true);
+          replacement.removeAttribute("data-html-ready");
+          frame.replaceWith(replacement);
+        });
+      }
+
+      function waitForActiveHtmlEmbedReady() {
+        const frame = getActiveHtmlEmbedFrame();
+        if (!frame) {
+          return Promise.resolve(false);
+        }
+        if (frame.getAttribute("data-html-ready") === "true") {
+          return Promise.resolve(true);
+        }
+
+        return new Promise((resolve) => {
+          const timeoutId = window.setTimeout(() => resolve(false), 650);
+          htmlReadyWaiters.push(function (readyFrame) {
+            if (readyFrame !== frame) {
+              return false;
+            }
+            window.clearTimeout(timeoutId);
+            resolve(true);
+            return true;
+          });
+        });
+      }
+
+      async function sendHtmlEmbedCommand(command) {
+        const frame = getActiveHtmlEmbedFrame();
+        if (!frame || !frame.contentWindow) {
+          return false;
+        }
+        await waitForActiveHtmlEmbedReady();
+
+        return await new Promise((resolve) => {
+          const requestId = "html-command-" + (++htmlCommandRequestCount);
+          let settled = false;
+          let timeoutId = 0;
+
+          function cleanup(result) {
+            if (settled) {
+              return;
+            }
+            settled = true;
+            if (timeoutId) {
+              window.clearTimeout(timeoutId);
+            }
+            window.removeEventListener("message", handleMessage);
+            resolve(Boolean(result));
+          }
+
+          function handleMessage(event) {
+            const data = event && event.data && typeof event.data === "object" ? event.data : null;
+            if (!data || data.type !== "studio-html-command-result" || data.requestId !== requestId) {
+              return;
+            }
+            cleanup(Boolean(data.consumed));
+          }
+
+          window.addEventListener("message", handleMessage);
+          timeoutId = window.setTimeout(() => cleanup(false), 420);
+
+          try {
+            frame.contentWindow.postMessage({
+              type: "studio-html-command",
+              requestId,
+              command,
+            }, "*");
+          } catch (error) {
+            cleanup(false);
+          }
+        });
+      }
+
       function resetSlideReveals(screen) {
         if (!screen) {
           return;
@@ -2899,6 +3059,18 @@
           origin: syncClientId,
           currentIndex,
           revealStep: getCurrentRevealStep(),
+        });
+      }
+
+      function broadcastHtmlEmbedCommand(command) {
+        if (!syncBridge) {
+          return;
+        }
+        syncBridge.post({
+          type: "html-embed-command",
+          origin: syncClientId,
+          currentIndex,
+          command,
         });
       }
 
@@ -3018,6 +3190,7 @@
           screens.forEach((screen, index) => {
             screen.classList.toggle("is-active", index === currentIndex);
           });
+          resetHtmlEmbedsInScreen(getActiveScreen());
           resetSlideReveals(getActiveScreen());
           applyRevealState(getActiveScreen(), opts.revealStep);
           syncProgress();
@@ -3047,6 +3220,7 @@
           clearTransitionClasses(outgoingSlide);
           currentIndex = normalizedIndex;
           incomingScreen.classList.add("is-active");
+          resetHtmlEmbedsInScreen(incomingScreen);
           resetSlideReveals(incomingScreen);
           applyRevealState(incomingScreen, opts.revealStep);
           syncProgress();
@@ -3447,6 +3621,13 @@
             applyProjectorImageZoom(payload.mode);
             return;
           }
+          if (payload.type === "html-embed-command") {
+            if (Number(payload.currentIndex) !== currentIndex) {
+              return;
+            }
+            void sendHtmlEmbedCommand(payload.command || "space");
+            return;
+          }
           if (payload.type !== "deck-state") {
             return;
           }
@@ -3478,7 +3659,7 @@
           showSlide(Number(step.getAttribute("data-progress-index")));
         });
       });
-      main.addEventListener("click", (event) => {
+      main.addEventListener("click", async (event) => {
         if (isTransitioning) {
           return;
         }
@@ -3516,6 +3697,10 @@
           event.target.closest("a, button, video, iframe") ||
           event.target.closest(".slide-media-link")
         ) {
+          return;
+        }
+        if (await sendHtmlEmbedCommand("click")) {
+          broadcastHtmlEmbedCommand("click");
           return;
         }
         if (revealNextItemInCurrentSlide()) {
@@ -3563,12 +3748,24 @@
         updateFullscreenScale();
         updateWindowScale();
       });
+      window.addEventListener("message", (event) => {
+        const data = event && event.data && typeof event.data === "object" ? event.data : null;
+        if (!data || data.type !== "studio-html-ready") {
+          return;
+        }
+        const frame = getActiveHtmlEmbedFrame();
+        if (!frame) {
+          return;
+        }
+        frame.setAttribute("data-html-ready", "true");
+        htmlReadyWaiters = htmlReadyWaiters.filter((waiter) => !waiter(frame));
+      });
       window.addEventListener("resize", () => {
         updateFullscreenScale();
         updateWindowScale();
       });
       printButton.addEventListener("click", () => window.print());
-      document.addEventListener("keydown", (event) => {
+      document.addEventListener("keydown", async (event) => {
         if (isTransitioning && event.key !== "Escape") {
           return;
         }
@@ -3584,14 +3781,37 @@
           closeTableLightbox();
           return;
         }
-        if (event.key === "ArrowRight" || event.key === "PageDown" || event.key === " " || event.code === "Space") {
+        if (event.key === "ArrowRight" || event.key === "ArrowDown" || event.key === "PageDown" || event.key === " " || event.code === "Space") {
           event.preventDefault();
+          if (await sendHtmlEmbedCommand(
+            event.key === "ArrowRight"
+              ? "arrow-right"
+              : event.key === "ArrowDown"
+                ? "arrow-down"
+                : "space"
+          )) {
+            broadcastHtmlEmbedCommand(
+              event.key === "ArrowRight"
+                ? "arrow-right"
+                : event.key === "ArrowDown"
+                  ? "arrow-down"
+                  : "space"
+            );
+            return;
+          }
           if (revealNextItemInCurrentSlide()) {
             return;
           }
           showSlide(currentIndex + 1);
         }
-        if (event.key === "ArrowLeft" || event.key === "PageUp") showSlide(currentIndex - 1);
+        if (event.key === "ArrowLeft" || event.key === "ArrowUp" || event.key === "PageUp") {
+          event.preventDefault();
+          if (await sendHtmlEmbedCommand(event.key === "ArrowLeft" ? "arrow-left" : "arrow-up")) {
+            broadcastHtmlEmbedCommand(event.key === "ArrowLeft" ? "arrow-left" : "arrow-up");
+            return;
+          }
+          showSlide(currentIndex - 1);
+        }
       });
       if (syncBridge) {
         broadcastProjectorReady();
@@ -3680,6 +3900,7 @@
     <script defer src="src/app/utils/helpers.js"></script>
     <script defer src="src/app/services/storage-service.js"></script>
     <script defer src="src/app/services/media-service.js"></script>
+    <script defer src="src/app/services/html-asset-service.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
     <script defer src="src/app/ui/slide-markup.js"></script>
@@ -3784,6 +4005,11 @@
     const mediaAssets = await ns.services.media.resolvePdfMediaAssets(availableMediaItems);
     const mediaPreviewMap = mediaAssets.previewMap || {};
     const mediaLinkMap = mediaAssets.linkMap || {};
+    const htmlSources = state && state.__pdfHtmlSourceMap && typeof state.__pdfHtmlSourceMap === "object"
+      ? state.__pdfHtmlSourceMap
+      : (ns.services.htmlAssets
+        ? await ns.services.htmlAssets.resolveExportSourceMap(state.slides || [])
+        : {});
     const { jsPDF } = window.jspdf;
     const pageWidth = 297;
     const pageHeight = 210;
@@ -3821,35 +4047,48 @@
           logoSources,
           mediaUrls: mediaPreviewMap,
           mediaLinks: mediaLinkMap,
+          htmlSources,
           pdfMode: true,
         });
         const host = mounted.host;
         const slideNode = mounted.slideNode;
+        const captureWidth = mounted.captureWidth || 1280;
+        const captureHeight = mounted.captureHeight || 720;
 
         try {
           await waitForRenderAssets(host);
-          const linkRects = collectSlideLinkRects(slideNode, 1280, 720);
+          await waitForHtmlEmbedFrames(host);
+          await advanceHtmlEmbedsToFinalState(host);
+          await flattenHtmlEmbedsForCapture(host);
+          normalizeMediaLayoutForCapture(host);
+          preserveSurfaceStylesForCapture(host);
+          await waitForRenderAssets(host);
+          const linkRects = collectSlideLinkRects(slideNode, captureWidth, captureHeight);
           const canvas = await window.html2canvas(slideNode, {
             backgroundColor: "#ffffff",
             useCORS: true,
             allowTaint: true,
             scale: 1.2,
+            windowWidth: captureWidth,
+            windowHeight: captureHeight,
+            width: captureWidth,
+            height: captureHeight,
             logging: false,
           });
           await waitForNextFrame();
-          const imageData = canvas.toDataURL("image/jpeg", 0.72);
+          const imageData = canvas.toDataURL("image/png");
 
           if (index > 0) {
             pdf.addPage("a4", "landscape");
           }
 
-          pdf.addImage(imageData, "JPEG", slideX, slideY, slideW, slideH, undefined, "FAST");
+          pdf.addImage(imageData, "PNG", slideX, slideY, slideW, slideH, undefined, "FAST");
           linkRects.forEach((link) => {
             pdf.link(
-              slideX + ((link.x / 1280) * slideW),
-              slideY + ((link.y / 720) * slideH),
-              (link.w / 1280) * slideW,
-              (link.h / 720) * slideH,
+              slideX + ((link.x / captureWidth) * slideW),
+              slideY + ((link.y / captureHeight) * slideH),
+              (link.w / captureWidth) * slideW,
+              (link.h / captureHeight) * slideH,
               { url: link.href }
             );
           });
@@ -3912,7 +4151,13 @@
     }
 
     workerWindow.document.open();
-    workerWindow.document.write(buildPdfWorkerHtml(state));
+    const pdfHtmlSourceMap = ns.services.htmlAssets
+      ? await ns.services.htmlAssets.resolveExportSourceMap(state.slides || [])
+      : {};
+    const workerState = Object.assign({}, state, {
+      __pdfHtmlSourceMap: pdfHtmlSourceMap,
+    });
+    workerWindow.document.write(buildPdfWorkerHtml(workerState));
     workerWindow.document.close();
   }
 
@@ -4019,14 +4264,310 @@
     }));
   }
 
+  async function waitForHtmlEmbedFrames(root) {
+    const frames = Array.from(root.querySelectorAll("iframe[data-html-embed-frame]"));
+    if (!frames.length) {
+      return;
+    }
+
+    const withTimeout = (promise, timeoutMs) => new Promise((resolve) => {
+      let settled = false;
+      const timer = window.setTimeout(() => {
+        if (settled) {
+          return;
+        }
+        settled = true;
+        resolve();
+      }, timeoutMs);
+      promise.finally(() => {
+        if (settled) {
+          return;
+        }
+        settled = true;
+        window.clearTimeout(timer);
+        resolve();
+      });
+    });
+
+    await Promise.all(frames.map((frame) => {
+      try {
+        const doc = frame.contentDocument;
+        if (doc && doc.readyState === "complete") {
+          return Promise.resolve();
+        }
+      } catch (error) {
+        return Promise.resolve();
+      }
+
+      return withTimeout(new Promise((resolve) => {
+        frame.addEventListener("load", resolve, { once: true });
+        frame.addEventListener("error", resolve, { once: true });
+      }), 5000);
+    }));
+
+    await new Promise((resolve) => window.setTimeout(resolve, 220));
+  }
+
+  async function advanceHtmlEmbedsToFinalState(root) {
+    const frames = Array.from(root.querySelectorAll("iframe[data-html-embed-frame]"));
+    for (const frame of frames) {
+      let frameWindow;
+      try {
+        frameWindow = frame.contentWindow || null;
+      } catch (error) {
+        frameWindow = null;
+      }
+      if (!frameWindow || !frameWindow.__studioHtmlBridge || typeof frameWindow.__studioHtmlBridge.handleCommand !== "function") {
+        continue;
+      }
+
+      const commands = ["space", "arrow-right", "arrow-down", "click"];
+      let safety = 0;
+      while (safety < 80) {
+        safety += 1;
+        let consumed = false;
+        let remaining = null;
+
+        for (const command of commands) {
+          let result = null;
+          try {
+            result = frameWindow.__studioHtmlBridge.handleCommand(command);
+          } catch (error) {
+            result = null;
+          }
+          if (result && typeof result === "object") {
+            remaining = Number.isFinite(Number(result.remaining)) ? Number(result.remaining) : remaining;
+            if (result.consumed) {
+              consumed = true;
+              break;
+            }
+          }
+        }
+
+        await new Promise((resolve) => window.setTimeout(resolve, consumed ? 90 : 30));
+
+        if (!consumed || remaining === 0) {
+          break;
+        }
+      }
+    }
+  }
+
+  function normalizeMediaLayoutForCapture(root) {
+    const slideRoot = root && root.querySelector ? root.querySelector(".deck-slide") : null;
+    if (slideRoot) {
+      slideRoot.style.setProperty("--slide-content-font-scale", "1");
+    }
+
+    Array.from(root.querySelectorAll(".slide-media-slot, .slide-primary-column-media, .slide-side-column-media, .slide-inline-bullet-media-slot, .slide-free-gallery-item"))
+      .forEach((node) => {
+        const directVisual = Array.from(node.children || []).find((child) => (
+          child.classList && (
+            child.classList.contains("slide-media-image")
+            || child.classList.contains("slide-media-video")
+            || child.classList.contains("slide-media-external-link")
+            || child.classList.contains("slide-media-print-card")
+            || child.classList.contains("slide-media-embed-wrap")
+          )
+        ));
+        if (!directVisual || node.classList.contains("has-media-stack")) {
+          return;
+        }
+        node.style.width = "fit-content";
+        node.style.maxWidth = "100%";
+        node.style.justifyContent = "flex-start";
+        node.style.alignItems = "flex-start";
+      });
+
+    Array.from(root.querySelectorAll(".slide-media-external-link"))
+      .forEach((link) => {
+        if (!link.querySelector(".slide-media-image") || link.closest(".slide-media-stack-card")) {
+          return;
+        }
+        link.style.display = "inline-block";
+        link.style.width = "auto";
+        link.style.maxWidth = "100%";
+      });
+
+    Array.from(root.querySelectorAll(".slide-media-print-card"))
+      .forEach((card) => {
+        if (card.closest(".slide-media-stack-card")) {
+          return;
+        }
+        card.style.display = "inline-grid";
+        card.style.width = "auto";
+        card.style.maxWidth = "100%";
+      });
+
+    Array.from(root.querySelectorAll(".slide-media-image"))
+      .forEach((img) => {
+        if (img.closest(".slide-media-stack-card") || img.closest(".canvas-element-media-content")) {
+          return;
+        }
+        img.style.display = "block";
+        img.style.width = "auto";
+        img.style.maxWidth = "100%";
+        img.style.height = "auto";
+        img.style.objectFit = "contain";
+        img.style.objectPosition = "center";
+      });
+
+    Array.from(root.querySelectorAll(".canvas-element-media-content"))
+      .forEach((node) => {
+        node.style.overflow = node.classList.contains("is-transparent-png") ? "visible" : "hidden";
+      });
+
+    Array.from(root.querySelectorAll(".canvas-element-media-content .slide-media-external-link, .canvas-element-media-content .slide-media-print-card, .canvas-element-media-content .slide-media-embed-wrap"))
+      .forEach((node) => {
+        node.style.display = "block";
+        node.style.width = "100%";
+        node.style.height = "100%";
+        node.style.maxWidth = "none";
+        node.style.maxHeight = "none";
+      });
+
+    Array.from(root.querySelectorAll(".canvas-element-media-content .slide-media-image, .canvas-element-media-content .slide-media-video"))
+      .forEach((node) => {
+        const isTransparent = node.classList.contains("is-transparent-png-media")
+          || Boolean(node.closest(".canvas-element-media-content.is-transparent-png"));
+        node.style.display = "block";
+        node.style.width = "100%";
+        node.style.height = "100%";
+        node.style.maxWidth = "none";
+        node.style.maxHeight = "none";
+        node.style.objectFit = isTransparent ? "contain" : "cover";
+        node.style.objectPosition = "center";
+      });
+
+    Array.from(root.querySelectorAll(".slide-bullets-row-extra"))
+      .forEach((node) => {
+        node.style.gridTemplateColumns = "minmax(0, 1fr) minmax(0, 1.24fr)";
+        node.style.gap = "1.45rem";
+      });
+
+    Array.from(root.querySelectorAll(".slide-side-bullets"))
+      .forEach((node) => {
+        node.style.display = "grid";
+        node.style.gridTemplateColumns = "minmax(0, 1fr)";
+      });
+  }
+
+  function preserveSurfaceStylesForCapture(root) {
+    const surfaceSelectors = [
+      ".slide-note",
+      ".slide-media-slot",
+      ".slide-media-stack-card",
+      ".slide-visual-text-card",
+      ".slide-visual-callout-card",
+      ".slide-visual-chart-card",
+      ".slide-html-static-card",
+      ".slide-html-empty",
+    ];
+    Array.from(root.querySelectorAll(surfaceSelectors.join(","))).forEach((node) => {
+      const computed = window.getComputedStyle(node);
+      node.style.background = computed.background;
+      node.style.border = computed.border;
+      node.style.borderRadius = computed.borderRadius;
+      node.style.boxShadow = computed.boxShadow;
+      node.style.backdropFilter = computed.backdropFilter;
+    });
+  }
+
+  async function flattenHtmlEmbedsForCapture(root) {
+    const frames = Array.from(root.querySelectorAll("iframe[data-html-embed-frame]"));
+    for (const frame of frames) {
+      let frameDocument;
+      try {
+        frameDocument = frame.contentDocument;
+      } catch (error) {
+        frameDocument = null;
+      }
+
+      if (!frameDocument) {
+        continue;
+      }
+
+      const target = frameDocument.documentElement || frameDocument.body;
+      if (!target) {
+        continue;
+      }
+
+      try {
+        await waitForRenderAssets(frameDocument);
+        await new Promise((resolve) => window.setTimeout(resolve, 120));
+        const width = Math.max(
+          frame.clientWidth || 0,
+          target.scrollWidth || 0,
+          target.clientWidth || 0,
+          16
+        );
+        const height = Math.max(
+          frame.clientHeight || 0,
+          target.scrollHeight || 0,
+          target.clientHeight || 0,
+          16
+        );
+        const canvas = await window.html2canvas(target, {
+          backgroundColor: null,
+          useCORS: true,
+          allowTaint: true,
+          scale: 1.2,
+          logging: false,
+          width,
+          height,
+          windowWidth: width,
+          windowHeight: height,
+        });
+        const flattened = document.createElement("img");
+        flattened.className = "slide-html-embed-frame slide-html-embed-flattened";
+        flattened.src = canvas.toDataURL("image/png");
+        flattened.alt = frame.getAttribute("title") || "Animation HTML";
+        flattened.style.width = "100%";
+        flattened.style.height = "100%";
+        flattened.style.minHeight = "100%";
+        flattened.style.display = "block";
+        flattened.style.objectFit = "fill";
+        flattened.style.background = "transparent";
+        frame.replaceWith(flattened);
+      } catch (error) {
+        const shell = frame.closest(".slide-html-embed-shell");
+        if (!shell) {
+          continue;
+        }
+        shell.innerHTML = `
+          <div class="slide-html-static-card">
+            <strong>HTML animé</strong>
+            <span>${ns.utils.escapeHtml(frame.getAttribute("title") || "Animation HTML")}</span>
+            <small>Impossible d’aplatir automatiquement ce fichier pour le PDF.</small>
+          </div>
+        `;
+      }
+    }
+  }
+
+  function getExportCaptureSize() {
+    const baseWidth = 1280;
+    const baseHeight = 720;
+    const viewportWidth = Math.max(baseWidth, Number(window.innerWidth) || baseWidth);
+    const viewportHeight = Math.max(baseHeight, Number(window.innerHeight) || baseHeight);
+    const availableWidth = Math.max(baseWidth, viewportWidth - 80);
+    const availableHeight = Math.max(baseHeight, viewportHeight - 80);
+    const scale = Math.max(1, Math.min(availableWidth / baseWidth, availableHeight / baseHeight));
+    return {
+      width: Math.round(baseWidth * scale),
+      height: Math.round(baseHeight * scale),
+    };
+  }
+
   function mountSlideExportNode(slide, state, options) {
     const opts = options || {};
+    const captureSize = getExportCaptureSize();
     const host = document.createElement("div");
     host.style.position = "fixed";
     host.style.left = "-20000px";
     host.style.top = "0";
-    host.style.width = "1280px";
-    host.style.height = "720px";
+    host.style.width = `${captureSize.width}px`;
+    host.style.height = `${captureSize.height}px`;
     host.style.padding = "0";
     host.style.margin = "0";
     host.style.zIndex = "-1";
@@ -4039,17 +4580,23 @@
       mediaItems: getAvailableMediaItems(state.mediaLibrary || []),
       mediaUrls: getAvailableMediaUrls(opts.mediaUrls || {}),
       mediaLinks: opts.mediaLinks || {},
+      htmlSources: opts.htmlSources || {},
       pdfMode: true,
     });
 
     const slideNode = host.firstElementChild;
-    slideNode.style.width = "1280px";
-    slideNode.style.height = "720px";
+    slideNode.style.width = `${captureSize.width}px`;
+    slideNode.style.height = `${captureSize.height}px`;
     slideNode.style.aspectRatio = "16 / 9";
     slideNode.style.boxShadow = "none";
     slideNode.style.borderRadius = "0";
 
-    return { host, slideNode };
+    return {
+      host,
+      slideNode,
+      captureWidth: captureSize.width,
+      captureHeight: captureSize.height,
+    };
   }
 
   function unmountSlideExportNode(host) {
@@ -4109,12 +4656,22 @@
     const slideNode = mounted.slideNode;
 
     await waitForRenderAssets(host);
+    await waitForHtmlEmbedFrames(host);
+    await advanceHtmlEmbedsToFinalState(host);
+    await flattenHtmlEmbedsForCapture(host);
+    normalizeMediaLayoutForCapture(host);
+    preserveSurfaceStylesForCapture(host);
+    await waitForRenderAssets(host);
 
     const canvas = await window.html2canvas(slideNode, {
       backgroundColor: opts.backgroundColor || null,
       useCORS: true,
       allowTaint: true,
       scale: Number.isFinite(opts.scale) ? opts.scale : 2,
+      windowWidth: mounted.captureWidth || 1280,
+      windowHeight: mounted.captureHeight || 720,
+      width: mounted.captureWidth || 1280,
+      height: mounted.captureHeight || 720,
       logging: false,
     });
 
@@ -4156,6 +4713,9 @@
     const mediaAssets = await ns.services.media.resolvePdfMediaAssets(availableMediaItems);
     const mediaPreviewMap = mediaAssets.previewMap;
     const mediaLinkMap = mediaAssets.linkMap;
+    const htmlSources = ns.services.htmlAssets
+      ? await ns.services.htmlAssets.resolveExportSourceMap(state.slides || [])
+      : {};
     const slideImageMap = {};
 
     for (const slide of state.slides) {
@@ -4163,6 +4723,7 @@
         logoSources,
         mediaUrls: mediaPreviewMap,
         mediaLinks: mediaLinkMap,
+        htmlSources,
       });
     }
 

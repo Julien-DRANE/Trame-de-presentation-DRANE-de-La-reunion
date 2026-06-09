@@ -22,6 +22,7 @@
     <script defer src="src/app/utils/helpers.js"></script>
     <script defer src="src/app/services/storage-service.js"></script>
     <script defer src="src/app/services/media-service.js"></script>
+    <script defer src="src/app/services/html-asset-service.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
@@ -269,6 +270,7 @@
                     <option value="free">Zone de texte libre</option>
                     <option value="visual">Histogramme</option>
                     <option value="canvas">Canvas libre</option>
+                    <option value="html">HTML animé</option>
                   </select>
                 </label>
                 <label>
@@ -554,6 +556,25 @@
                   </div>
                 </div>
                 <p id="canvas-empty-selection" class="extra-bullets-empty">Sélectionne un élément sur la slide pour régler sa position, sa taille ou son contenu.</p>
+              </div>
+
+              <div id="slide-html-editor" class="slide-content-mode" hidden>
+                <input id="slide-html-file-input" class="media-upload-input" type="file" accept=".html,.htm,text/html" />
+                <div class="html-embed-panel">
+                  <div class="html-embed-panel-topline">
+                    <strong>Fichier HTML animé</strong>
+                    <span id="slide-html-status" class="field-meta"></span>
+                  </div>
+                  <p class="canvas-editor-hint">Importe un fichier HTML autonome avec animations. En mode présentation, les clics, la barre d’espace et les flèches pourront déclencher l’animation.</p>
+                  <div class="html-embed-actions">
+                    <button id="slide-html-import-trigger" class="button button-ghost" type="button">Importer un fichier HTML</button>
+                    <button id="slide-html-replace" class="button button-soft" type="button">Remplacer</button>
+                    <button id="slide-html-clear" class="button button-soft" type="button">Effacer</button>
+                  </div>
+                  <div class="html-embed-summary">
+                    <span id="slide-html-name">Aucun fichier chargé.</span>
+                  </div>
+                </div>
               </div>
 
               <div id="slide-visual-editor" class="slide-content-mode" hidden>
