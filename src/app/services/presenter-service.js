@@ -420,6 +420,24 @@
         border-radius: 18px;
         box-shadow: 0 18px 32px rgba(18, 32, 51, 0.12);
       }
+      .presenter-stage-html-placeholder {
+        width: min(100%, calc(100% - 4px));
+        aspect-ratio: 16 / 9;
+        display: grid;
+        place-items: center;
+        padding: 1rem;
+        border-radius: 18px;
+        background: linear-gradient(160deg, rgba(20, 93, 160, 0.1), rgba(255,255,255,0.82));
+        border: 1px solid rgba(20, 93, 160, 0.12);
+        text-align: center;
+        color: var(--presenter-muted);
+        box-shadow: 0 18px 32px rgba(18, 32, 51, 0.08);
+      }
+      .presenter-stage-html-placeholder strong {
+        display: block;
+        margin-bottom: 0.35rem;
+        color: var(--presenter-ink);
+      }
       .presenter-stage-hotspot {
         position: absolute;
         z-index: 2;
@@ -932,6 +950,7 @@
       let areStagesSwapped = false;
       let isProjectorFocusMode = false;
       let lastPublishedStateSignature = "";
+      let lastRenderedStateSignature = "";
       let previewWarmRequestId = 0;
       let previewWarmQueue = Promise.resolve();
       const previewCache = new Map();
@@ -1127,6 +1146,11 @@
 
       function getCurrentStageLiveSlide() {
         return currentStage.querySelector(".presenter-stage-live-shell .deck-slide");
+      }
+
+      function isHtmlSlideIndex(index) {
+        const normalizedIndex = normalizeIndex(index);
+        return Boolean(slideMeta[normalizedIndex] && slideMeta[normalizedIndex].contentType === "html");
       }
 
       function getCurrentBufferHtmlEmbedFrame() {
@@ -1370,17 +1394,55 @@
         stageNode.innerHTML = '<div class="presenter-stage-loading">' + String(message || "Aperçu en préparation...") + '</div>';
       }
 
-      function renderLiveSlideIntoStage(stageNode, slideNode) {
+      function renderLiveSlideIntoStage(stageNode, slideNode, options) {
         if (!stageNode || !slideNode) {
           return;
         }
+        const opts = options || {};
         const currentLayer = stageNode.querySelector(".presenter-stage-layer.is-visible");
         const nextLayer = document.createElement("div");
         nextLayer.className = "presenter-stage-layer";
         const shell = document.createElement("div");
         shell.className = "presenter-stage-live-shell";
-        shell.appendChild(slideNode.cloneNode(true));
+        shell.appendChild(opts.reuseNode ? slideNode : slideNode.cloneNode(true));
         nextLayer.appendChild(shell);
+        const containsHtmlEmbed = Boolean(nextLayer.querySelector("[data-html-embed-frame='true']"));
+        stageNode.querySelectorAll(".presenter-stage-loading").forEach((node) => node.remove());
+        stageNode.appendChild(nextLayer);
+        if (!currentLayer || !shouldAnimatePreviewSwap() || containsHtmlEmbed) {
+          stageNode.querySelectorAll(".presenter-stage-layer").forEach((node) => {
+            if (node !== nextLayer) {
+              node.remove();
+            }
+          });
+          nextLayer.classList.add("is-visible");
+          return;
+        }
+        window.requestAnimationFrame(() => {
+          nextLayer.classList.add("is-visible");
+          currentLayer.classList.add("is-exiting");
+        });
+        window.setTimeout(() => {
+          if (currentLayer.parentNode === stageNode) {
+            currentLayer.remove();
+          }
+        }, 340);
+      }
+
+      function renderHtmlPlaceholderIntoStage(stageNode, slideTitle) {
+        if (!stageNode) {
+          return;
+        }
+        const currentLayer = stageNode.querySelector(".presenter-stage-layer.is-visible");
+        const nextLayer = document.createElement("div");
+        nextLayer.className = "presenter-stage-layer";
+        nextLayer.innerHTML =
+          '<div class="presenter-stage-html-placeholder">' +
+            "<div>" +
+              "<strong>Slide HTML animé</strong>" +
+              "<span>" + String(slideTitle || "Animation HTML") + "</span>" +
+            "</div>" +
+          "</div>";
         stageNode.querySelectorAll(".presenter-stage-loading").forEach((node) => node.remove());
         stageNode.appendChild(nextLayer);
         if (!currentLayer || !shouldAnimatePreviewSwap()) {
@@ -1452,6 +1514,9 @@
       }
 
       async function getOrCreatePreviewAsset(index, revealStep, mountNode, existingSlideNode) {
+        if (isHtmlSlideIndex(index)) {
+          return null;
+        }
         const key = getPreviewCacheKey(index, revealStep);
         if (previewCache.has(key)) {
           return previewCache.get(key);
@@ -1504,6 +1569,9 @@
                 return;
               }
               const index = normalizeIndex(centerIndex + offset);
+              if (isHtmlSlideIndex(index)) {
+                continue;
+              }
               const targetRevealStep = index === centerIndex ? revealStep : 0;
               const key = getPreviewCacheKey(index, targetRevealStep);
               if (!desiredKeys.has(key) || previewCache.has(key)) {
@@ -1734,6 +1802,7 @@
 
       async function renderPresenter() {
         const renderToken = ++currentRenderToken;
+        lastRenderedStateSignature = String(currentIndex) + ":" + String(currentRevealStep);
         const currentSlideMeta = slideMeta[currentIndex] || null;
         const nextSlideIndex = slideMeta.length ? normalizeIndex(currentIndex + 1) : 0;
         const nextSlideMeta = slideMeta[nextSlideIndex] || null;
@@ -1773,13 +1842,13 @@
         syncCarousel();
         syncProjectorSignal();
         syncProjectorZoomUi();
-        if (typeof window.html2canvas !== "function") {
-          return;
-        }
         if (currentArticle) {
           if (currentSlideMeta && currentSlideMeta.contentType === "html") {
-            renderLiveSlideIntoStage(currentStage, currentArticle);
+            renderLiveSlideIntoStage(currentStage, currentArticle, { reuseNode: true });
           } else {
+            if (typeof window.html2canvas !== "function") {
+              return;
+            }
             const currentAsset = await getOrCreatePreviewAsset(currentIndex, currentRevealStep, currentBuffer, currentArticle);
             if (renderToken !== currentRenderToken) {
               return;
@@ -1794,16 +1863,23 @@
           return;
         }
         if (nextArticle) {
-          const nextAsset = await getOrCreatePreviewAsset(nextSlideIndex, 0, nextBuffer, nextArticle);
-          if (renderToken !== currentRenderToken) {
-            return;
-          }
-          await renderPreviewIntoStage(nextStage, nextAsset, {
-            interactive: false,
-            occupancy: areStagesSwapped ? 0.96 : 0.68,
-          });
-          if (renderToken !== currentRenderToken) {
-            return;
+          if (nextSlideMeta && nextSlideMeta.contentType === "html") {
+            renderHtmlPlaceholderIntoStage(nextStage, nextSlideMeta.title);
+          } else {
+            if (typeof window.html2canvas !== "function") {
+              return;
+            }
+            const nextAsset = await getOrCreatePreviewAsset(nextSlideIndex, 0, nextBuffer, nextArticle);
+            if (renderToken !== currentRenderToken) {
+              return;
+            }
+            await renderPreviewIntoStage(nextStage, nextAsset, {
+              interactive: false,
+              occupancy: areStagesSwapped ? 0.96 : 0.68,
+            });
+            if (renderToken !== currentRenderToken) {
+              return;
+            }
           }
         }
         fitStagePreviews();
@@ -1812,9 +1888,16 @@
       }
 
       function setPresenterState(index, revealStep, options) {
-        currentIndex = normalizeIndex(index);
-        currentRevealStep = Math.max(0, Number(revealStep) || 0);
-        void renderPresenter();
+        const normalizedIndex = normalizeIndex(index);
+        const normalizedRevealStep = Math.max(0, Number(revealStep) || 0);
+        const nextSignature = String(normalizedIndex) + ":" + String(normalizedRevealStep);
+        const stageHasRenderedContent = Boolean(currentStage.querySelector(".presenter-stage-layer"));
+        const stateChanged = normalizedIndex !== currentIndex || normalizedRevealStep !== currentRevealStep;
+        currentIndex = normalizedIndex;
+        currentRevealStep = normalizedRevealStep;
+        if (stateChanged || !stageHasRenderedContent || lastRenderedStateSignature !== nextSignature) {
+          void renderPresenter();
+        }
         if (!options || !options.silent) {
           publishState();
         }
