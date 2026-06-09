@@ -399,6 +399,8 @@
         min-height: calc(100vh - 6rem);
         overflow: hidden;
         --deck-window-scale: 1;
+        --deck-runtime-slide-width: 1280px;
+        --deck-runtime-slide-height: 720px;
       }
       body.presentation-runtime .slide-screen {
         width: 100%;
@@ -414,6 +416,12 @@
         aspect-ratio: auto;
         transform: scale(var(--deck-window-scale, 1));
         transform-origin: center center;
+      }
+      body.presentation-runtime .deck-slide.is-html-slide {
+        width: var(--deck-runtime-slide-width, 1280px);
+        height: var(--deck-runtime-slide-height, 720px);
+        transform: none;
+        margin-inline: auto;
       }
       main:fullscreen {
         width: 100vw;
@@ -434,6 +442,11 @@
         border-radius: 0;
         transform: scale(var(--deck-fullscreen-scale, 1));
         transform-origin: center center;
+      }
+      main:fullscreen .deck-slide.is-html-slide {
+        width: var(--deck-runtime-slide-width, 1280px);
+        height: var(--deck-runtime-slide-height, 720px);
+        transform: none;
       }
       body.deck-is-fullscreen .deck-shell {
         padding: 0;
@@ -3141,7 +3154,11 @@
         }
 
         const scale = Math.min(window.innerWidth / 1280, window.innerHeight / 720);
+        const runtimeWidth = Math.round(Math.min(window.innerWidth, window.innerHeight * (16 / 9)));
+        const runtimeHeight = Math.round(runtimeWidth * (9 / 16));
         main.style.setProperty("--deck-fullscreen-scale", String(scale));
+        main.style.setProperty("--deck-runtime-slide-width", String(runtimeWidth) + "px");
+        main.style.setProperty("--deck-runtime-slide-height", String(runtimeHeight) + "px");
       }
 
       function updateWindowScale() {
@@ -3155,7 +3172,11 @@
         const availableWidth = Math.max(320, window.innerWidth - 32);
         const availableHeight = Math.max(180, window.innerHeight - (topbar ? (topbar.offsetHeight || 0) : 0) - 32);
         const scale = Math.min(availableWidth / 1280, availableHeight / 720);
+        const runtimeWidth = Math.round(Math.min(availableWidth, availableHeight * (16 / 9)));
+        const runtimeHeight = Math.round(runtimeWidth * (9 / 16));
         main.style.setProperty("--deck-window-scale", String(scale));
+        main.style.setProperty("--deck-runtime-slide-width", String(runtimeWidth) + "px");
+        main.style.setProperty("--deck-runtime-slide-height", String(runtimeHeight) + "px");
       }
 
       function syncProgress() {
