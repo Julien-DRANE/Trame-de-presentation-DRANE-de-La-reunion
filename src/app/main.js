@@ -62,8 +62,10 @@
     mediaUploadTrigger: document.querySelector("#media-upload-trigger"),
     toggleGlobalPanel: document.querySelector("#toggle-global-panel"),
     toggleMediaPanel: document.querySelector("#toggle-media-panel"),
+    togglePictoPanel: document.querySelector("#toggle-picto-panel"),
     toggleThumbStrip: document.querySelector("#toggle-thumb-strip"),
     slideMediaPanelBody: document.querySelector("#slide-media-panel-body"),
+    pictoPanelBody: document.querySelector("#picto-panel-body"),
     clearSlideMedia: document.querySelector("#clear-slide-media"),
     mediaLinkInput: document.querySelector("#media-link-input"),
     mediaLinkAdd: document.querySelector("#media-link-add"),
@@ -169,6 +171,13 @@
     slideHtmlImportTrigger: document.querySelector("#slide-html-import-trigger"),
     slideHtmlReplace: document.querySelector("#slide-html-replace"),
     slideHtmlClear: document.querySelector("#slide-html-clear"),
+    slideHtmlReset: document.querySelector("#slide-html-reset"),
+    slideHtmlOffsetX: document.querySelector("#slide-html-offset-x"),
+    slideHtmlOffsetXValue: document.querySelector("#slide-html-offset-x-value"),
+    slideHtmlOffsetY: document.querySelector("#slide-html-offset-y"),
+    slideHtmlOffsetYValue: document.querySelector("#slide-html-offset-y-value"),
+    slideHtmlScale: document.querySelector("#slide-html-scale"),
+    slideHtmlScaleValue: document.querySelector("#slide-html-scale-value"),
     slideHtmlName: document.querySelector("#slide-html-name"),
     slideHtmlStatus: document.querySelector("#slide-html-status"),
     visualPrimaryMedia: document.querySelector("#visual-primary-media"),
@@ -963,6 +972,12 @@
     render();
   }
 
+  function togglePictoPanel() {
+    pushUndoSnapshot({ editKey: "" });
+    state.uiPictoPanelCollapsed = !state.uiPictoPanelCollapsed;
+    render();
+  }
+
   function syncCanvasPreviewFullscreenScale() {
     if (!isCanvasPreviewFullscreen || !refs.previewPanel || !refs.stageWrap) {
       if (refs.previewPanel) {
@@ -1031,6 +1046,28 @@
     render();
   }
 
+  function updateSelectedHtmlEmbed(patch, rerender = true) {
+    pushUndoSnapshot();
+    state.slides = state.slides.map((slide) => {
+      if (slide.id !== state.selectedSlideId) {
+        return slide;
+      }
+      return Object.assign({}, slide, {
+        htmlEmbed: Object.assign(
+          {},
+          ns.stateFactory.createDefaultHtmlEmbedData ? ns.stateFactory.createDefaultHtmlEmbedData() : {},
+          slide.htmlEmbed || {},
+          patch || {}
+        ),
+      });
+    });
+    if (rerender === false) {
+      refreshStageOnly();
+      return;
+    }
+    render();
+  }
+
   function getHtmlAssetUsageCount(assetId, excludedSlideId) {
     if (!assetId) {
       return 0;
@@ -1081,6 +1118,7 @@
         htmlEmbed: Object.assign(
           {},
           ns.stateFactory.createDefaultHtmlEmbedData ? ns.stateFactory.createDefaultHtmlEmbedData() : {},
+          selectedSlide.htmlEmbed || {},
           normalizedHtmlEmbed || {}
         ),
       });
@@ -3956,6 +3994,9 @@
   refs.toggleNightMode.addEventListener("click", toggleNightMode);
   refs.toggleGlobalPanel.addEventListener("click", toggleGlobalPanel);
   refs.toggleMediaPanel.addEventListener("click", toggleMediaPanel);
+  if (refs.togglePictoPanel) {
+    refs.togglePictoPanel.addEventListener("click", togglePictoPanel);
+  }
   refs.toggleThumbStrip.addEventListener("click", toggleThumbStrip);
   if (refs.toggleCanvasPreviewFullscreen) {
     refs.toggleCanvasPreviewFullscreen.addEventListener("click", toggleCanvasPreviewFullscreen);
@@ -4008,6 +4049,42 @@
   refs.slideHtmlClear.addEventListener("click", () => {
     void clearSelectedHtmlEmbed();
   });
+  if (refs.slideHtmlReset) {
+    refs.slideHtmlReset.addEventListener("click", () => {
+      updateSelectedHtmlEmbed({
+        offsetX: 0,
+        offsetY: 0,
+        scale: 100,
+      });
+    });
+  }
+  if (refs.slideHtmlOffsetX) {
+    refs.slideHtmlOffsetX.addEventListener("input", (event) => {
+      const nextValue = Math.max(-100, Math.min(100, Math.round(Number(event.target.value) || 0)));
+      if (refs.slideHtmlOffsetXValue) {
+        refs.slideHtmlOffsetXValue.textContent = `${nextValue} %`;
+      }
+      updateSelectedHtmlEmbed({ offsetX: nextValue }, false);
+    });
+  }
+  if (refs.slideHtmlOffsetY) {
+    refs.slideHtmlOffsetY.addEventListener("input", (event) => {
+      const nextValue = Math.max(-100, Math.min(100, Math.round(Number(event.target.value) || 0)));
+      if (refs.slideHtmlOffsetYValue) {
+        refs.slideHtmlOffsetYValue.textContent = `${nextValue} %`;
+      }
+      updateSelectedHtmlEmbed({ offsetY: nextValue }, false);
+    });
+  }
+  if (refs.slideHtmlScale) {
+    refs.slideHtmlScale.addEventListener("input", (event) => {
+      const nextValue = Math.max(25, Math.min(150, Math.round(Number(event.target.value) || 100)));
+      if (refs.slideHtmlScaleValue) {
+        refs.slideHtmlScaleValue.textContent = `${nextValue} %`;
+      }
+      updateSelectedHtmlEmbed({ scale: nextValue }, false);
+    });
+  }
   refs.clearSlideMedia.addEventListener("click", () => assignMediaToSelectedSlide(""));
   refs.mediaLinkAdd.addEventListener("click", () => {
     const rawValue = refs.mediaLinkInput.value;

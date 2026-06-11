@@ -1256,8 +1256,28 @@
     const srcAttr = !source && runtimeUrl ? ` src="${utils.escapeHtml(runtimeUrl)}"` : "";
     const pdfStaticClass = options && options.pdfMode ? " is-pdf-static-capture" : "";
     const sandboxValue = options && options.pdfMode ? "allow-scripts allow-same-origin" : "allow-scripts";
+    const normalizeOffset = (value, fallbackValue) => {
+      const parsed = Number(value);
+      if (!Number.isFinite(parsed)) {
+        return fallbackValue;
+      }
+      return Math.max(-100, Math.min(100, Math.round(parsed)));
+    };
+    const normalizeScale = (value, fallbackValue) => {
+      const parsed = Number(value);
+      if (!Number.isFinite(parsed)) {
+        return fallbackValue;
+      }
+      return Math.max(25, Math.min(150, Math.round(parsed)));
+    };
+    const offsetX = normalizeOffset(htmlEmbed.offsetX, 0);
+    const offsetY = normalizeOffset(htmlEmbed.offsetY, 0);
+    const scale = normalizeScale(htmlEmbed.scale, 100);
     return `
-      <div class="slide-html-embed-shell${pdfStaticClass}">
+      <div
+        class="slide-html-embed-shell${pdfStaticClass}"
+        style="--slide-html-embed-x:${offsetX}%;--slide-html-embed-y:${offsetY}%;--slide-html-embed-scale:${scale}%;"
+      >
         <iframe
           class="slide-html-embed-frame"
           data-html-embed-frame="true"

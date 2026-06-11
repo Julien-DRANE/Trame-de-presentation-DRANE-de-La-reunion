@@ -10,6 +10,22 @@
     return Math.max(85, Math.min(140, Math.round(parsed / 5) * 5));
   }
 
+  function normalizeHtmlEmbedOffset(value) {
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed)) {
+      return 0;
+    }
+    return Math.max(-100, Math.min(100, Math.round(parsed)));
+  }
+
+  function normalizeHtmlEmbedScale(value) {
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed)) {
+      return 100;
+    }
+    return Math.max(25, Math.min(150, Math.round(parsed)));
+  }
+
   function formatBytes(value) {
     const size = Number(value) || 0;
     if (size <= 0) {
@@ -277,7 +293,7 @@
     refs.slideTableEditor.hidden = !isTableMode;
     refs.slideFreeEditor.hidden = !isFreeMode;
     refs.slideVisualEditor.hidden = !isVisualMode;
-    refs.slideCanvasEditor.hidden = !isCanvasMode;
+    refs.slideCanvasEditor.hidden = !(isCanvasMode || isHtmlMode);
     refs.slideHtmlEditor.hidden = !isHtmlMode;
     refs.slideNoteEditor.hidden = false;
     refs.slidePresenterNotesEditor.hidden = false;
@@ -293,8 +309,29 @@
     refs.slideHtmlStatus.textContent = htmlEmbed.assetId
       ? "Animation prête pour la présentation web."
       : "Aucun asset HTML associé à cette slide.";
+    if (refs.slideHtmlOffsetX) {
+      refs.slideHtmlOffsetX.value = String(normalizeHtmlEmbedOffset(htmlEmbed.offsetX));
+    }
+    if (refs.slideHtmlOffsetXValue) {
+      refs.slideHtmlOffsetXValue.textContent = `${refs.slideHtmlOffsetX ? refs.slideHtmlOffsetX.value : normalizeHtmlEmbedOffset(htmlEmbed.offsetX)} %`;
+    }
+    if (refs.slideHtmlOffsetY) {
+      refs.slideHtmlOffsetY.value = String(normalizeHtmlEmbedOffset(htmlEmbed.offsetY));
+    }
+    if (refs.slideHtmlOffsetYValue) {
+      refs.slideHtmlOffsetYValue.textContent = `${refs.slideHtmlOffsetY ? refs.slideHtmlOffsetY.value : normalizeHtmlEmbedOffset(htmlEmbed.offsetY)} %`;
+    }
+    if (refs.slideHtmlScale) {
+      refs.slideHtmlScale.value = String(normalizeHtmlEmbedScale(htmlEmbed.scale));
+    }
+    if (refs.slideHtmlScaleValue) {
+      refs.slideHtmlScaleValue.textContent = `${refs.slideHtmlScale ? refs.slideHtmlScale.value : normalizeHtmlEmbedScale(htmlEmbed.scale)} %`;
+    }
     refs.slideHtmlReplace.disabled = !htmlEmbed.assetId;
     refs.slideHtmlClear.disabled = !htmlEmbed.assetId;
+    if (refs.slideHtmlReset) {
+      refs.slideHtmlReset.disabled = !htmlEmbed.assetId;
+    }
     refs.globalPanelBody.hidden = Boolean(state.uiGlobalPanelCollapsed);
     refs.toggleGlobalPanel.textContent = state.uiGlobalPanelCollapsed ? "Déplier" : "Replier";
     refs.toggleGlobalPanel.setAttribute("aria-expanded", state.uiGlobalPanelCollapsed ? "false" : "true");
@@ -302,6 +339,13 @@
     refs.slideMediaPanelBody.hidden = Boolean(state.uiMediaPanelCollapsed);
     refs.toggleMediaPanel.textContent = state.uiMediaPanelCollapsed ? "Déplier" : "Replier";
     refs.toggleMediaPanel.setAttribute("aria-expanded", state.uiMediaPanelCollapsed ? "false" : "true");
+    if (refs.pictoPanelBody) {
+      refs.pictoPanelBody.hidden = Boolean(state.uiPictoPanelCollapsed);
+    }
+    if (refs.togglePictoPanel) {
+      refs.togglePictoPanel.textContent = state.uiPictoPanelCollapsed ? "Déplier" : "Replier";
+      refs.togglePictoPanel.setAttribute("aria-expanded", state.uiPictoPanelCollapsed ? "false" : "true");
+    }
     const table = normalizeTable(selectedSlide.table);
     const isTwoColumnTable = Boolean(table[0] && table[0].length === 2);
     refs.slideTableProgressiveOrderWrap.hidden = !isTableMode || !selectedSlide.tableProgressive || !isTwoColumnTable;
@@ -325,7 +369,7 @@
       : isCanvasMode
       ? "Mode canvas : place librement textes, medias, fleches et pictos directement sur la slide."
       : isHtmlMode
-      ? "Mode HTML animé : intègre un fichier HTML autonome interactif dans la slide."
+      ? "Mode HTML animé : intègre un fichier HTML autonome interactif et ajoute des éléments canvas par-dessus."
       : "Modele : un niveau Bloom, une idee forte, trois points maximum, avec un calque libre pour les pictos et repères visuels.";
     refs.slideMediaSelection.textContent = isVisualMode
       ? getVisualMediaSelectionText(selectedSlide, state.mediaLibrary)
@@ -334,7 +378,7 @@
       : isCanvasMode
       ? getCanvasMediaSelectionText(canvasData, availableMediaItems)
       : isHtmlMode
-      ? (htmlEmbed.assetId ? `Animation HTML chargée : ${htmlEmbed.name || "animation.html"}` : "Aucune animation HTML affectée à cette slide.")
+      ? `${htmlEmbed.assetId ? `Animation HTML chargée : ${htmlEmbed.name || "animation.html"}. ` : "Aucune animation HTML affectée à cette slide. "}${getCanvasMediaSelectionText(canvasData, availableMediaItems)}`
       : (selectedSlide.mediaId || selectedSlide.secondaryMediaId)
         ? getMediaSelectionText(selectedSlide, state.mediaLibrary)
         : "Aucun média affecté à cette slide.";
@@ -762,6 +806,8 @@
     const isFreeMode = (selectedSlide.contentType || "bullets") === "free";
     const isVisualMode = (selectedSlide.contentType || "bullets") === "visual";
     const isCanvasMode = (selectedSlide.contentType || "bullets") === "canvas";
+    const isHtmlMode = (selectedSlide.contentType || "bullets") === "html";
+    const isCanvasDrivenMode = isCanvasMode || isHtmlMode;
     const freeMediaIds = Array.isArray(selectedSlide.freeMediaIds) ? selectedSlide.freeMediaIds : [];
     const visualMediaIds = selectedSlide.visualData
       ? [selectedSlide.visualData.primaryMediaId, selectedSlide.visualData.secondaryMediaId].filter(Boolean)
@@ -775,16 +821,16 @@
         const bulletMediaIds = [selectedSlide.mediaId, selectedSlide.secondaryMediaId].filter(Boolean);
         const activeClass = isVisualMode
           ? (visualMediaIds.includes(item.id) ? " is-active" : "")
-          : isCanvasMode
+          : isCanvasDrivenMode
             ? (canvasMediaIds.includes(item.id) ? " is-active" : "")
-          : isFreeMode
-            ? (freeMediaIds.includes(item.id) ? " is-active" : "")
-            : (bulletMediaIds.includes(item.id) ? " is-active" : "");
+            : isFreeMode
+              ? (freeMediaIds.includes(item.id) ? " is-active" : "")
+              : (bulletMediaIds.includes(item.id) ? " is-active" : "");
         const preview = item.kind === "video"
           ? `<video class="media-thumb-preview" src="${ns.utils.escapeHtml(mediaUrls[item.id] || "")}" muted preload="metadata"></video>`
           : `<img class="media-thumb-preview" src="${ns.utils.escapeHtml(mediaUrls[item.id] || "")}" alt="${ns.utils.escapeHtml(item.name)}" />`;
         const typeLabel = getMediaKindLabel(item);
-        const actionAttr = isCanvasMode
+        const actionAttr = isCanvasDrivenMode
           ? `data-add-canvas-media="${ns.utils.escapeHtml(item.id)}"`
           : isFreeMode
             ? `data-toggle-free-media="${ns.utils.escapeHtml(item.id)}"`

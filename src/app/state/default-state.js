@@ -52,6 +52,9 @@
       name: "",
       mimeType: "text/html",
       size: 0,
+      offsetX: 0,
+      offsetY: 0,
+      scale: 100,
     };
   }
 
@@ -150,6 +153,7 @@
       uiNightMode: false,
       uiGlobalPanelCollapsed: false,
       uiMediaPanelCollapsed: false,
+      uiPictoPanelCollapsed: false,
       uiThumbStripCollapsed: false,
       settings: {
         title: "Ingénierie de formation",

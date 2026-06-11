@@ -92,6 +92,7 @@
       uiNightMode: Boolean(input.uiNightMode),
       uiGlobalPanelCollapsed: Boolean(input.uiGlobalPanelCollapsed),
       uiMediaPanelCollapsed: Boolean(input.uiMediaPanelCollapsed),
+      uiPictoPanelCollapsed: Boolean(input.uiPictoPanelCollapsed),
       uiThumbStripCollapsed: Boolean(input.uiThumbStripCollapsed),
       settings: {
         title: utils.clampText(input.settings && input.settings.title, 60) || fallbackState.settings.title,
@@ -244,14 +245,33 @@
   function sanitizeHtmlEmbedData(input) {
     const fallback = ns.stateFactory.createDefaultHtmlEmbedData
       ? ns.stateFactory.createDefaultHtmlEmbedData()
-      : { assetId: "", name: "", mimeType: "text/html", size: 0 };
+      : { assetId: "", name: "", mimeType: "text/html", size: 0, offsetX: 0, offsetY: 0, scale: 100 };
     const raw = input && typeof input === "object" ? input : {};
+
+    const normalizeOffset = (value, fallbackValue) => {
+      const parsed = Number(value);
+      if (!Number.isFinite(parsed)) {
+        return fallbackValue;
+      }
+      return Math.max(-100, Math.min(100, Math.round(parsed)));
+    };
+
+    const normalizeScale = (value, fallbackValue) => {
+      const parsed = Number(value);
+      if (!Number.isFinite(parsed)) {
+        return fallbackValue;
+      }
+      return Math.max(25, Math.min(150, Math.round(parsed)));
+    };
 
     return {
       assetId: ns.utils.clampText(raw.assetId, 120) || fallback.assetId,
       name: ns.utils.clampText(raw.name, 180) || fallback.name,
       mimeType: ns.utils.clampText(raw.mimeType, 120) || fallback.mimeType,
       size: Number.isFinite(Number(raw.size)) ? Math.max(0, Number(raw.size)) : fallback.size,
+      offsetX: normalizeOffset(raw.offsetX, fallback.offsetX),
+      offsetY: normalizeOffset(raw.offsetY, fallback.offsetY),
+      scale: normalizeScale(raw.scale, fallback.scale),
     };
   }
 

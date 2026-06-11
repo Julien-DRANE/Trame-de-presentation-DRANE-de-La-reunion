@@ -233,20 +233,24 @@
 
 .slide-body.slide-body-html {
   display: block;
+  position: relative;
   height: 100%;
 }
 
 .slide-html-embed-shell {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  min-height: 100%;
+  position: absolute;
+  left: calc(var(--slide-html-embed-x, 0%) + ((100% - var(--slide-html-embed-scale, 100%)) / 2));
+  top: calc(var(--slide-html-embed-y, 0%) + ((100% - var(--slide-html-embed-scale, 100%)) / 2));
+  width: var(--slide-html-embed-scale, 100%);
+  height: var(--slide-html-embed-scale, 100%);
+  min-height: 0;
   margin-top: 0;
   overflow: hidden;
   border: 0;
   border-radius: 0;
   background: transparent;
   box-shadow: none;
+  z-index: 1;
 }
 
 .slide-html-embed-frame {

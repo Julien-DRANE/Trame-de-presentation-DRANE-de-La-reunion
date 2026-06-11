@@ -579,6 +579,24 @@
                     <button id="slide-html-import-trigger" class="button button-ghost" type="button">Importer un fichier HTML</button>
                     <button id="slide-html-replace" class="button button-soft" type="button">Remplacer</button>
                     <button id="slide-html-clear" class="button button-soft" type="button">Effacer</button>
+                    <button id="slide-html-reset" class="button button-ghost" type="button">RAZ</button>
+                  </div>
+                  <div class="html-embed-dimensions">
+                    <label>
+                      Décalage X
+                      <input id="slide-html-offset-x" type="range" min="-100" max="100" step="1" value="0" />
+                      <span id="slide-html-offset-x-value" class="html-embed-dimension-value">0 %</span>
+                    </label>
+                    <label>
+                      Décalage Y
+                      <input id="slide-html-offset-y" type="range" min="-100" max="100" step="1" value="0" />
+                      <span id="slide-html-offset-y-value" class="html-embed-dimension-value">0 %</span>
+                    </label>
+                    <label>
+                      Zoom
+                      <input id="slide-html-scale" type="range" min="25" max="150" step="1" value="100" />
+                      <span id="slide-html-scale-value" class="html-embed-dimension-value">100 %</span>
+                    </label>
                   </div>
                   <div class="html-embed-summary">
                     <span id="slide-html-name">Aucun fichier chargé.</span>
@@ -711,6 +729,11 @@
                         <p class="panel-kicker">Pictos</p>
                         <h3>Overlay dynamique</h3>
                       </div>
+                      <div class="slide-media-actions">
+                        <button id="toggle-picto-panel" class="button button-soft" type="button" aria-expanded="true">Replier</button>
+                      </div>
+                    </div>
+                    <div id="picto-panel-body" class="picto-panel-body">
                       <div class="picto-panel-controls">
                         <label>
                           Placement
@@ -734,9 +757,9 @@
                           </select>
                         </label>
                       </div>
+                      <p class="canvas-editor-hint">Clique un picto pour l’ajouter à la slide active, puis déplace-le librement dans l’aperçu.</p>
+                      <div id="picto-library" class="picto-library" aria-label="Bibliothèque de pictos"></div>
                     </div>
-                    <p class="canvas-editor-hint">Clique un picto pour l’ajouter à la slide active, puis déplace-le librement dans l’aperçu.</p>
-                    <div id="picto-library" class="picto-library" aria-label="Bibliothèque de pictos"></div>
                   </div>
                 </div>
               </div>
