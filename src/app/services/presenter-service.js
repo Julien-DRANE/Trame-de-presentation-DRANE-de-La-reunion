@@ -1918,13 +1918,7 @@
           });
           return;
         }
-        const currentArticle = getCurrentBufferSlide();
-        const nextRevealStep = currentArticle ? getNextRevealStep(currentArticle, currentRevealStep) : 0;
-        if (nextRevealStep) {
-          setPresenterState(currentIndex, nextRevealStep);
-          return;
-        }
-        goToSlide(currentIndex + 1);
+        advancePresentationWithoutHtmlEmbed();
       }
 
       async function rewindPresentation() {
@@ -1937,6 +1931,20 @@
           });
           return;
         }
+        rewindPresentationWithoutHtmlEmbed();
+      }
+
+      function advancePresentationWithoutHtmlEmbed() {
+        const currentArticle = getCurrentBufferSlide();
+        const nextRevealStep = currentArticle ? getNextRevealStep(currentArticle, currentRevealStep) : 0;
+        if (nextRevealStep) {
+          setPresenterState(currentIndex, nextRevealStep);
+          return;
+        }
+        goToSlide(currentIndex + 1);
+      }
+
+      function rewindPresentationWithoutHtmlEmbed() {
         const currentArticle = getCurrentBufferSlide();
         const previousRevealStep = currentArticle ? getPreviousRevealStep(currentArticle, currentRevealStep) : 0;
         if (currentRevealStep > 0) {
@@ -2017,6 +2025,34 @@
         }
       });
 
+      window.addEventListener("message", (event) => {
+        const data = event && event.data && typeof event.data === "object" ? event.data : null;
+        if (!data || data.type !== "studio-html-forward") {
+          return;
+        }
+        const frame = getCurrentBufferHtmlEmbedFrame();
+        if (!frame || event.source !== frame.contentWindow) {
+          return;
+        }
+        const command = data.command || "space";
+        if (data.consumed) {
+          if (syncBridge) {
+            syncBridge.post({
+              type: "html-embed-command",
+              origin: presenterControllerId,
+              currentIndex,
+              command,
+            });
+          }
+          return;
+        }
+        if (command === "arrow-left" || command === "arrow-up") {
+          rewindPresentationWithoutHtmlEmbed();
+          return;
+        }
+        advancePresentationWithoutHtmlEmbed();
+      });
+
       prevButton.addEventListener("click", rewindPresentation);
       revealButton.addEventListener("click", () => setPresenterState(currentIndex, getNextRevealStep(getCurrentBufferSlide(), currentRevealStep)));
       nextButton.addEventListener("click", advancePresentation);
@@ -2059,12 +2095,12 @@
         }
         if (event.key === "ArrowRight" || event.key === "PageDown" || event.key === " " || event.code === "Space") {
           event.preventDefault();
-          advancePresentation(event.key === "ArrowRight" ? "arrow-right" : "space");
+          void advancePresentation(event.key === "ArrowRight" ? "arrow-right" : "space");
           return;
         }
         if (event.key === "ArrowLeft" || event.key === "ArrowUp" || event.key === "PageUp") {
           event.preventDefault();
-          rewindPresentation();
+          void rewindPresentation();
           return;
         }
         if (String(event.key || "").toLowerCase() === "i") {

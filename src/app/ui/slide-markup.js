@@ -232,7 +232,7 @@
       return "";
     }
 
-    if (options && options.pdfMode && (media.kind === "video" || media.kind === "embed")) {
+    if (options && options.pdfMode && (media.kind === "video" || media.kind === "embed" || media.kind === "audio")) {
       return `
         <div class="slide-media-print-card">
           <img class="slide-media-image" src="${utils.escapeHtml(media.src)}" alt="${utils.escapeHtml(media.name)}" />
@@ -257,6 +257,14 @@
           <img class="slide-media-image" src="${utils.escapeHtml(media.src)}" alt="${utils.escapeHtml(media.name)}" />
           <span class="slide-media-static-badge">${utils.escapeHtml(badgeLabel)}</span>
         </div>
+      `;
+    }
+
+    if (media.kind === "audio") {
+      return `
+        <audio class="slide-media-audio"${preserveMediaAttrs} controls preload="metadata" src="${utils.escapeHtml(media.src)}">
+          <a href="${utils.escapeHtml(media.src)}" target="_blank" rel="noopener noreferrer">${utils.escapeHtml(media.name)}</a>
+        </audio>
       `;
     }
 

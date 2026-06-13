@@ -159,6 +159,10 @@
       return "image";
     }
 
+    if ((file.type || "").startsWith("audio/")) {
+      return "audio";
+    }
+
     if ((file.type || "").startsWith("video/")) {
       return "video";
     }
@@ -166,6 +170,9 @@
     const lowerName = String(file.name || "").toLowerCase();
     if (/\.(png|jpg|jpeg|gif|webp|svg)$/i.test(lowerName)) {
       return "image";
+    }
+    if (/\.(mp3|wav|m4a|aac|ogg|oga|flac|weba)$/i.test(lowerName)) {
+      return "audio";
     }
     if (/\.(mp4|mov|mkv|webm|avi)$/i.test(lowerName)) {
       return "video";
@@ -180,7 +187,7 @@
     }
 
     const utils = ns.utils;
-    const kind = ["image", "video", "embed"].includes(item.kind) ? item.kind : "image";
+    const kind = ["image", "audio", "video", "embed"].includes(item.kind) ? item.kind : "image";
 
     return {
       id: typeof item.id === "string" && item.id ? item.id : utils.createId("media"),
@@ -202,8 +209,14 @@
     if (/^data:image\//i.test(value)) {
       return "image";
     }
+    if (/^data:audio\//i.test(value)) {
+      return "audio";
+    }
     if (/^data:video\//i.test(value)) {
       return "video";
+    }
+    if (/\.(mp3|wav|m4a|aac|ogg|oga|flac|weba)(\?|#|$)/i.test(value)) {
+      return "audio";
     }
     if (/\.(mp4|mov|mkv|webm|avi)(\?|#|$)/i.test(value)) {
       return "video";
@@ -220,7 +233,7 @@
 
   function isDirectMediaUrl(url) {
     const value = normalizeMediaInput(url);
-    if (/^data:(image|video)\//i.test(value)) {
+    if (/^data:(image|audio|video)\//i.test(value)) {
       return true;
     }
 
@@ -452,7 +465,7 @@
 
   async function importFiles(fileList) {
     const files = Array.from(fileList || []).filter((file) => {
-      return detectKind(file) === "image" || detectKind(file) === "video";
+      return detectKind(file) === "image" || detectKind(file) === "audio" || detectKind(file) === "video";
     });
 
     const items = files.map((file) => {
@@ -663,6 +676,12 @@
       if (item.kind === "embed") {
         previewMap[item.id] = item.thumbnailUrl || createVideoPlaceholderDataUrl(item.name, item.embedLayout);
         linkMap[item.id] = item.externalUrl || item.embedUrl || "";
+        continue;
+      }
+
+      if (item.kind === "audio") {
+        previewMap[item.id] = createEmbedPlaceholderDataUrl(item.name || "Audio", "audio");
+        linkMap[item.id] = item.externalUrl || "";
         continue;
       }
 

@@ -106,6 +106,23 @@
       : { key: " ", code: "Space" };
   }
 
+  function commandFromKeyboardEvent(event) {
+    if (!event || !event.isTrusted) {
+      return "";
+    }
+    if (event.key === "ArrowRight" || event.key === "PageDown" || event.key === " " || event.code === "Space") {
+      return event.key === "ArrowRight"
+        ? "arrow-right"
+        : event.key === "PageDown"
+          ? "arrow-down"
+          : "space";
+    }
+    if (event.key === "ArrowLeft" || event.key === "ArrowUp" || event.key === "PageUp") {
+      return event.key === "ArrowLeft" ? "arrow-left" : "arrow-up";
+    }
+    return "";
+  }
+
   function dispatchCommand(command) {
     if (command === "click") {
       const target = document.querySelector("#stage") || document.body;
@@ -147,6 +164,26 @@
       stepIndex: typeof currentStepIndex === "number" ? currentStepIndex : 0,
     };
   }
+
+  window.addEventListener("keydown", function (event) {
+    const command = commandFromKeyboardEvent(event);
+    if (!command) {
+      return;
+    }
+    if (event.target && event.target.matches && event.target.matches("input, textarea, select, [contenteditable='true']")) {
+      return;
+    }
+    const result = handleCommand(command);
+    event.preventDefault();
+    event.stopPropagation();
+    if (window.parent && window.parent !== window) {
+      window.parent.postMessage({
+        type: "studio-html-forward",
+        command: command,
+        consumed: Boolean(result.consumed),
+      }, "*");
+    }
+  }, true);
 
   window.__studioHtmlBridge = { handleCommand: handleCommand };
 

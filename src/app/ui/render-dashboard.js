@@ -425,8 +425,11 @@
     if (!item) {
       return "Media";
     }
+    if (item.kind === "audio") {
+      return "Audio";
+    }
     if (item.kind === "video") {
-      return "Video";
+      return "Vidéo";
     }
     if (item.kind === "embed") {
       const providerLabels = {
@@ -799,7 +802,7 @@
 
   function renderMediaLibrary(mediaItems, selectedSlide) {
     if (!mediaItems || mediaItems.length === 0) {
-      return '<p class="media-empty">Importez une image, une video ou un embed pour commencer.</p>';
+      return '<p class="media-empty">Importez une image, une vidéo, un audio ou un embed pour commencer.</p>';
     }
 
     const mediaUrls = ns.services.media.getUrlMap();
@@ -826,7 +829,9 @@
             : isFreeMode
               ? (freeMediaIds.includes(item.id) ? " is-active" : "")
               : (bulletMediaIds.includes(item.id) ? " is-active" : "");
-        const preview = item.kind === "video"
+        const preview = item.kind === "audio"
+          ? `<span class="media-thumb-preview media-thumb-preview-audio" aria-hidden="true">Audio</span>`
+          : item.kind === "video"
           ? `<video class="media-thumb-preview" src="${ns.utils.escapeHtml(mediaUrls[item.id] || "")}" muted preload="metadata"></video>`
           : `<img class="media-thumb-preview" src="${ns.utils.escapeHtml(mediaUrls[item.id] || "")}" alt="${ns.utils.escapeHtml(item.name)}" />`;
         const typeLabel = getMediaKindLabel(item);

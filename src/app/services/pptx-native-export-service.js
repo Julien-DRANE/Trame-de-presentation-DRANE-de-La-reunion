@@ -1374,8 +1374,8 @@
     host.innerHTML = ns.ui.createSlideMarkup(slide, state.settings, {
       compact: false,
       logoSources: assets.logos,
-      mediaItems: getAvailableMediaItems(state.mediaLibrary || []).filter((item) => item.kind === "image"),
-      mediaUrls: assets.imagePreviewMap || {},
+      mediaItems: getAvailableMediaItems(state.mediaLibrary || []),
+      mediaUrls: assets.previewMap || {},
       mediaLinks: {},
       pdfMode: true,
     });

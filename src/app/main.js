@@ -4097,7 +4097,7 @@
         : null;
 
     if (!mediaItem) {
-      refs.mediaLinkFeedback.textContent = "Utilise un lien http/https, un code iframe, un data URL image/video, ou un lien d'embed reconnu.";
+      refs.mediaLinkFeedback.textContent = "Utilise un lien http/https, un code iframe, un data URL image/audio/video, ou un lien d'embed reconnu.";
       return;
     }
 
@@ -4107,6 +4107,8 @@
     refs.mediaLinkInput.value = "";
     refs.mediaLinkFeedback.textContent = mediaItem.kind === "embed"
       ? "Embed ajoute."
+      : mediaItem.kind === "audio"
+        ? "Audio ajouté depuis le lien."
       : "Média ajouté depuis le lien.";
     render();
     assignMediaToSelectedSlide(mediaItem.id);
@@ -4761,6 +4763,10 @@
     const resizeHandle = event.target.closest("[data-canvas-resize-handle]");
     const canvasElement = event.target.closest("[data-canvas-element-id]");
     if (!canvasElement || canvasElement.getAttribute("data-canvas-locked") === "true") {
+      return;
+    }
+    const linkTarget = event.target.closest(".canvas-element-text-content a[href], .slide-link-bubble[href]");
+    if (linkTarget) {
       return;
     }
     beginCanvasInteraction(

@@ -681,6 +681,10 @@
       .deck-slide.is-html-slide .slide-subtitle-text {
         max-width: min(96%, 48ch);
       }
+      .deck-slide.is-html-slide .slide-link-bubble {
+        position: relative;
+        z-index: 4;
+      }
       .slide-body.slide-body-html {
         display: block;
         position: relative;
@@ -3151,6 +3155,17 @@
         return true;
       }
 
+      function advanceSlideWithoutHtmlEmbed() {
+        if (revealNextItemInCurrentSlide()) {
+          return;
+        }
+        showSlide(currentIndex + 1);
+      }
+
+      function rewindSlideWithoutHtmlEmbed() {
+        showSlide(currentIndex - 1);
+      }
+
       function updateFullscreenScale() {
         if (document.fullscreenElement !== main) {
           main.style.removeProperty("--deck-fullscreen-scale");
@@ -3775,7 +3790,26 @@
       });
       window.addEventListener("message", (event) => {
         const data = event && event.data && typeof event.data === "object" ? event.data : null;
-        if (!data || data.type !== "studio-html-ready") {
+        if (!data) {
+          return;
+        }
+        if (data.type === "studio-html-forward") {
+          const frame = getActiveHtmlEmbedFrame();
+          if (!frame || event.source !== frame.contentWindow) {
+            return;
+          }
+          if (data.consumed) {
+            broadcastHtmlEmbedCommand(data.command || "space");
+            return;
+          }
+          if (data.command === "arrow-left" || data.command === "arrow-up") {
+            rewindSlideWithoutHtmlEmbed();
+            return;
+          }
+          advanceSlideWithoutHtmlEmbed();
+          return;
+        }
+        if (data.type !== "studio-html-ready") {
           return;
         }
         const frame = getActiveHtmlEmbedFrame();
@@ -3808,34 +3842,25 @@
         }
         if (event.key === "ArrowRight" || event.key === "ArrowDown" || event.key === "PageDown" || event.key === " " || event.code === "Space") {
           event.preventDefault();
-          if (await sendHtmlEmbedCommand(
-            event.key === "ArrowRight"
-              ? "arrow-right"
-              : event.key === "ArrowDown"
-                ? "arrow-down"
-                : "space"
-          )) {
-            broadcastHtmlEmbedCommand(
-              event.key === "ArrowRight"
-                ? "arrow-right"
-                : event.key === "ArrowDown"
-                  ? "arrow-down"
-                  : "space"
-            );
+          const command = event.key === "ArrowRight"
+            ? "arrow-right"
+            : event.key === "ArrowDown"
+              ? "arrow-down"
+              : "space";
+          if (await sendHtmlEmbedCommand(command)) {
+            broadcastHtmlEmbedCommand(command);
             return;
           }
-          if (revealNextItemInCurrentSlide()) {
-            return;
-          }
-          showSlide(currentIndex + 1);
+          advanceSlideWithoutHtmlEmbed();
         }
         if (event.key === "ArrowLeft" || event.key === "ArrowUp" || event.key === "PageUp") {
           event.preventDefault();
-          if (await sendHtmlEmbedCommand(event.key === "ArrowLeft" ? "arrow-left" : "arrow-up")) {
-            broadcastHtmlEmbedCommand(event.key === "ArrowLeft" ? "arrow-left" : "arrow-up");
+          const command = event.key === "ArrowLeft" ? "arrow-left" : "arrow-up";
+          if (await sendHtmlEmbedCommand(command)) {
+            broadcastHtmlEmbedCommand(command);
             return;
           }
-          showSlide(currentIndex - 1);
+          rewindSlideWithoutHtmlEmbed();
         }
       });
       if (syncBridge) {
@@ -4765,7 +4790,7 @@
 
       const mediaItem = getMediaItemById(state.mediaLibrary, slide.mediaId);
       const linkHref = buildVideoLink(mediaItem, mediaLinkMap);
-      if (mediaItem && (mediaItem.kind === "video" || mediaItem.kind === "embed") && linkHref) {
+      if (mediaItem && (mediaItem.kind === "video" || mediaItem.kind === "embed" || mediaItem.kind === "audio") && linkHref) {
         pptSlide.addText(linkHref, {
           x: 9.02,
           y: 4.92,
