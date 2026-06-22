@@ -257,8 +257,8 @@
         })}</section>`;
       })
       .join("");
-    const progressMarkup = state.slides
-      .map((slide, index) => {
+	    const progressMarkup = state.slides
+	      .map((slide, index) => {
         const slideNumber = slide.number || String(index + 1).padStart(2, "0");
         const slideTitle = slide.title || `Slide ${slideNumber}`;
         return `
@@ -271,10 +271,16 @@
           >
             <span class="deck-progress-dot"></span>
           </button>
-        `;
-      })
-      .join("");
-    const initialSlideIndex = Math.max(0, state.slides.findIndex((slide) => slide.id === startSlideId));
+	        `;
+	      })
+	      .join("");
+	    const slideCount = Array.isArray(state.slides) ? state.slides.length : 0;
+	    const progressDensityClass = slideCount > 36
+	      ? " is-ultra-compact"
+	      : slideCount > 22
+	        ? " is-compact"
+	        : "";
+	    const initialSlideIndex = Math.max(0, state.slides.findIndex((slide) => slide.id === startSlideId));
     const isPdfMode = Boolean(opts.pdfMode);
     const isPresentMode = opts.exportMode === "present" || opts.exportMode === "html";
     const bodyAttributes = isPdfMode
@@ -454,37 +460,65 @@
       body.deck-is-fullscreen .deck-topbar {
         display: none;
       }
-      .deck-progress {
-        position: fixed;
-        top: 50%;
-        right: 1.1rem;
-        z-index: 25;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 0.45rem;
-        padding: 0.7rem 0.46rem;
-        border-radius: 999px;
-        background: rgba(255, 255, 255, 0.16);
-        border: 1px solid rgba(255, 255, 255, 0.14);
-        backdrop-filter: blur(12px);
-        transform: translateY(-50%);
-        box-shadow: 0 10px 24px rgba(11, 22, 42, 0.08);
-      }
-      .deck-progress-step {
-        display: grid;
-        place-items: center;
-        width: 0.9rem;
+	      .deck-progress {
+	        position: fixed;
+	        top: 50%;
+	        right: 1.1rem;
+	        z-index: 25;
+	        display: flex;
+	        flex-direction: column;
+	        align-items: center;
+	        gap: 0.45rem;
+	        max-height: calc(100vh - 2rem);
+	        padding: 0.7rem 0.46rem;
+	        border-radius: 999px;
+	        background: rgba(255, 255, 255, 0.16);
+	        border: 1px solid rgba(255, 255, 255, 0.14);
+	        backdrop-filter: blur(12px);
+	        overflow-x: hidden;
+	        overflow-y: auto;
+	        overscroll-behavior: contain;
+	        scrollbar-width: thin;
+	        transform: translateY(-50%);
+	        box-shadow: 0 10px 24px rgba(11, 22, 42, 0.08);
+	      }
+	      .deck-progress::-webkit-scrollbar {
+	        width: 0.28rem;
+	      }
+	      .deck-progress::-webkit-scrollbar-thumb {
+	        border-radius: 999px;
+	        background: rgba(23, 71, 139, 0.26);
+	      }
+	      .deck-progress.is-compact {
+	        gap: 0.3rem;
+	        padding: 0.55rem 0.38rem;
+	      }
+	      .deck-progress.is-ultra-compact {
+	        gap: 0.18rem;
+	        padding: 0.46rem 0.32rem;
+	      }
+	      .deck-progress-step {
+	        display: grid;
+	        place-items: center;
+	        width: 0.9rem;
         height: 0.9rem;
         padding: 0;
         border: 0;
         border-radius: 999px;
-        background: transparent;
-        cursor: pointer;
-      }
-      .deck-progress-dot {
-        width: 0.38rem;
-        height: 0.38rem;
+	        background: transparent;
+	        cursor: pointer;
+	      }
+	      .deck-progress.is-compact .deck-progress-step {
+	        width: 0.78rem;
+	        height: 0.78rem;
+	      }
+	      .deck-progress.is-ultra-compact .deck-progress-step {
+	        width: 0.64rem;
+	        height: 0.64rem;
+	      }
+	      .deck-progress-dot {
+	        width: 0.38rem;
+	        height: 0.38rem;
         border-radius: 999px;
         background: rgba(23, 71, 139, 0.28);
         transition:
@@ -511,9 +545,25 @@
         width: 0.34rem;
         height: 1.5rem;
         border-radius: 999px;
-        background: linear-gradient(180deg, rgba(44, 115, 218, 0.7), rgba(44, 115, 218, 0.42));
-        transform: none;
-      }
+	        background: linear-gradient(180deg, rgba(44, 115, 218, 0.7), rgba(44, 115, 218, 0.42));
+	        transform: none;
+	      }
+	      .deck-progress.is-compact .deck-progress-step.is-active {
+	        width: 0.82rem;
+	        height: 1.7rem;
+	      }
+	      .deck-progress.is-compact .deck-progress-step.is-active .deck-progress-dot {
+	        width: 0.3rem;
+	        height: 1.1rem;
+	      }
+	      .deck-progress.is-ultra-compact .deck-progress-step.is-active {
+	        width: 0.68rem;
+	        height: 1.28rem;
+	      }
+	      .deck-progress.is-ultra-compact .deck-progress-step.is-active .deck-progress-dot {
+	        width: 0.24rem;
+	        height: 0.82rem;
+	      }
       .deck-slide::before,
       .deck-slide::after { content: ""; position: absolute; pointer-events: none; }
       .deck-slide.theme-circles::before,
@@ -712,6 +762,9 @@
         border: 0;
         background: transparent;
       }
+      .deck-slide.is-html-slide[data-html-exit-armed="true"] .slide-html-embed-frame {
+        pointer-events: none;
+      }
       .deck-slide.is-html-slide .slide-body,
       .deck-slide.is-html-slide .slide-main {
         height: 100%;
@@ -828,6 +881,31 @@
         background: transparent;
         box-shadow: none;
       }
+      .slide-overlay-canvas-surface {
+        position: absolute;
+        inset: 0;
+        display: block;
+        width: auto;
+        min-height: 0;
+        height: auto;
+        max-height: none;
+        margin-top: 0;
+        flex: none;
+        z-index: 6;
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+        box-shadow: none;
+        pointer-events: none;
+        overflow: visible;
+      }
+      .slide-overlay-canvas-surface .canvas-element,
+      .slide-overlay-canvas-surface .canvas-resize-handle,
+      .slide-overlay-canvas-surface .canvas-rotate-handle,
+      .slide-overlay-canvas-surface .slide-media-link,
+      .slide-overlay-canvas-surface .slide-media-external-link {
+        pointer-events: auto;
+      }
       .slide-canvas-empty {
         display: grid;
         place-items: center;
@@ -890,6 +968,11 @@
       }
       .canvas-element-text-content li:last-child {
         margin-bottom: 0;
+      }
+      .canvas-element-text-content a {
+        color: inherit;
+        text-decoration: underline;
+        pointer-events: auto;
       }
       .canvas-element-shape-content {
         position: relative;
@@ -2712,14 +2795,18 @@
         }
       }
       @media (max-width: 960px) {
-        .deck-progress {
-          top: auto;
-          right: 50%;
-          bottom: 0.85rem;
-          flex-direction: row;
-          padding: 0.42rem 0.7rem;
-          transform: translateX(50%);
-        }
+	        .deck-progress {
+	          top: auto;
+	          right: 50%;
+	          bottom: 0.85rem;
+	          flex-direction: row;
+	          max-width: calc(100vw - 2rem);
+	          max-height: none;
+	          padding: 0.42rem 0.7rem;
+	          overflow-x: auto;
+	          overflow-y: hidden;
+	          transform: translateX(50%);
+	        }
         .deck-progress-step.is-active {
           width: 2rem;
           height: 0.96rem;
@@ -2778,9 +2865,9 @@
           <button type="button" id="print-deck">Imprimer</button>
         </div>
       </header>`}
-      <main>
+      <main tabindex="-1">
         ${slidesMarkup}
-        ${isPdfMode ? "" : `<div class="deck-progress" id="deck-progress" aria-label="Progression de la présentation">
+	        ${isPdfMode ? "" : `<div class="deck-progress${progressDensityClass}" id="deck-progress" data-slide-count="${slideCount}" aria-label="Progression de la présentation">
           ${progressMarkup}
         </div>
         <div class="image-lightbox" id="image-lightbox" aria-hidden="true">
@@ -2824,6 +2911,7 @@
       let isTransitioning = false;
       let htmlCommandRequestCount = 0;
       let htmlReadyWaiters = [];
+      let htmlEmbedExitArmed = false;
       let activeProjectorMedia = { kind: "", index: -1 };
       let imageLightboxZoomActive = false;
       let pendingRemoteDeckState = null;
@@ -2942,6 +3030,51 @@
         return screen ? screen.querySelector("[data-html-embed-frame='true']") : null;
       }
 
+      function setHtmlEmbedExitArmed(armed) {
+        htmlEmbedExitArmed = Boolean(armed);
+        const screen = getActiveScreen();
+        const slide = screen ? screen.querySelector(".deck-slide.is-html-slide") : null;
+        if (slide) {
+          slide.toggleAttribute("data-html-exit-armed", htmlEmbedExitArmed);
+        }
+        if (htmlEmbedExitArmed) {
+          focusPresentationRoot();
+        }
+      }
+
+	      function shouldHoldHtmlEmbedExit(data) {
+	        const hasExplicitExitSignal = data && typeof data.canExit === "boolean";
+	        if (hasExplicitExitSignal && !data.canExit) {
+	          setHtmlEmbedExitArmed(false);
+	          return false;
+	        }
+	        const remaining = Number(data && data.remaining) || 0;
+	        if (!hasExplicitExitSignal && remaining > 0) {
+	          setHtmlEmbedExitArmed(false);
+	          return false;
+	        }
+        if (!htmlEmbedExitArmed) {
+          setHtmlEmbedExitArmed(true);
+          return true;
+        }
+        return false;
+      }
+
+      function focusPresentationRoot() {
+        if (!main || document.fullscreenElement && document.fullscreenElement !== main) {
+          return;
+        }
+        try {
+          const activeElement = document.activeElement;
+          if (activeElement && activeElement.matches && activeElement.matches("[data-html-embed-frame='true']")) {
+            activeElement.blur();
+          }
+          main.focus({ preventScroll: true });
+        } catch (error) {
+          return;
+        }
+      }
+
       function resetHtmlEmbedsInScreen(screen) {
         if (!screen) {
           return;
@@ -3004,11 +3137,16 @@
             if (!data || data.type !== "studio-html-command-result" || data.requestId !== requestId) {
               return;
             }
-            cleanup(Boolean(data.consumed));
+            if (data.consumed) {
+              shouldHoldHtmlEmbedExit(data);
+              cleanup(true);
+              return;
+            }
+            cleanup(shouldHoldHtmlEmbedExit(data));
           }
 
           window.addEventListener("message", handleMessage);
-          timeoutId = window.setTimeout(() => cleanup(false), 420);
+	          timeoutId = window.setTimeout(() => cleanup(false), 1400);
 
           try {
             frame.contentWindow.postMessage({
@@ -3199,15 +3337,16 @@
       }
 
       function syncProgress() {
-        progressSteps.forEach((step, index) => {
-          const isActive = index === currentIndex;
-          step.classList.toggle("is-active", isActive);
-          if (isActive) {
-            step.setAttribute("aria-current", "step");
-          } else {
-            step.removeAttribute("aria-current");
-          }
-        });
+	        progressSteps.forEach((step, index) => {
+	          const isActive = index === currentIndex;
+	          step.classList.toggle("is-active", isActive);
+	          if (isActive) {
+	            step.setAttribute("aria-current", "step");
+	            step.scrollIntoView({ block: "nearest", inline: "nearest" });
+	          } else {
+	            step.removeAttribute("aria-current");
+	          }
+	        });
       }
 
       function showSlide(nextIndex, options) {
@@ -3223,6 +3362,8 @@
         const transitionName = getTransitionName();
         const outgoingScreen = getActiveScreen();
         const incomingScreen = screens[normalizedIndex];
+        focusPresentationRoot();
+        setHtmlEmbedExitArmed(false);
         closeAllProjectorMedia();
 
         if (!outgoingScreen || transitionName === "none") {
@@ -3235,6 +3376,7 @@
           applyRevealState(getActiveScreen(), opts.revealStep);
           syncProgress();
           updateFullscreenScale();
+          focusPresentationRoot();
           if (!opts.silent) {
             broadcastDeckState();
           }
@@ -3267,10 +3409,12 @@
           clearTransitionClasses(incomingSlide);
           incomingSlide.classList.add("is-transitioning", "transition-" + transitionName + "-in", "direction-" + direction);
           updateFullscreenScale();
+          focusPresentationRoot();
 
           setTimeout(() => {
             clearTransitionClasses(incomingSlide);
             isTransitioning = false;
+            focusPresentationRoot();
             if (!opts.silent) {
               broadcastDeckState();
             }
@@ -3799,14 +3943,14 @@
             return;
           }
           if (data.consumed) {
+            shouldHoldHtmlEmbedExit(data);
             broadcastHtmlEmbedCommand(data.command || "space");
             return;
           }
-          if (data.command === "arrow-left" || data.command === "arrow-up") {
-            rewindSlideWithoutHtmlEmbed();
+          if (shouldHoldHtmlEmbedExit(data)) {
             return;
           }
-          advanceSlideWithoutHtmlEmbed();
+          focusPresentationRoot();
           return;
         }
         if (data.type !== "studio-html-ready") {

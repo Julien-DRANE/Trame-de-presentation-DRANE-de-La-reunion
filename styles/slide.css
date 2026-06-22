@@ -268,6 +268,10 @@
   background: transparent;
 }
 
+.deck-slide.is-html-slide[data-html-exit-armed="true"] .slide-html-embed-frame {
+  pointer-events: none;
+}
+
 .deck-slide.is-html-slide .slide-body,
 .deck-slide.is-html-slide .slide-main {
   height: 100%;

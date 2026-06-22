@@ -953,6 +953,7 @@
       let lastRenderedStateSignature = "";
       let previewWarmRequestId = 0;
       let previewWarmQueue = Promise.resolve();
+      let htmlEmbedExitArmed = false;
       const previewCache = new Map();
       const presenterThemeStorageKey = "studio-presenter-theme-v1";
       const presenterStagesLayoutStorageKey = "studio-presenter-stages-layout-v1";
@@ -1158,6 +1159,33 @@
         return slide ? slide.querySelector("[data-html-embed-frame='true']") : null;
       }
 
+      function setHtmlEmbedExitArmed(armed) {
+        htmlEmbedExitArmed = Boolean(armed);
+        [getCurrentStageLiveSlide(), getCurrentBufferSlide()].forEach((slide) => {
+          if (slide && slide.classList && slide.classList.contains("is-html-slide")) {
+            slide.toggleAttribute("data-html-exit-armed", htmlEmbedExitArmed);
+          }
+        });
+      }
+
+	      function shouldHoldHtmlEmbedExit(data) {
+	        const hasExplicitExitSignal = data && typeof data.canExit === "boolean";
+	        if (hasExplicitExitSignal && !data.canExit) {
+	          setHtmlEmbedExitArmed(false);
+	          return false;
+	        }
+	        const remaining = Number(data && data.remaining) || 0;
+	        if (!hasExplicitExitSignal && remaining > 0) {
+	          setHtmlEmbedExitArmed(false);
+	          return false;
+	        }
+        if (!htmlEmbedExitArmed) {
+          setHtmlEmbedExitArmed(true);
+          return true;
+        }
+        return false;
+      }
+
       function mountSlide(index, mountNode) {
         mountNode.innerHTML = "";
         const template = getTemplateByIndex(index);
@@ -1269,11 +1297,16 @@
             if (!data || data.type !== "studio-html-command-result" || data.requestId !== requestId) {
               return;
             }
-            cleanup(Boolean(data.consumed));
+            if (data.consumed) {
+              shouldHoldHtmlEmbedExit(data);
+              cleanup(true);
+              return;
+            }
+            cleanup(shouldHoldHtmlEmbedExit(data));
           }
 
           window.addEventListener("message", handleMessage);
-          timeoutId = window.setTimeout(() => cleanup(false), 450);
+	          timeoutId = window.setTimeout(() => cleanup(false), 1400);
 
           try {
             frame.contentWindow.postMessage({
@@ -1893,6 +1926,9 @@
         const nextSignature = String(normalizedIndex) + ":" + String(normalizedRevealStep);
         const stageHasRenderedContent = Boolean(currentStage.querySelector(".presenter-stage-layer"));
         const stateChanged = normalizedIndex !== currentIndex || normalizedRevealStep !== currentRevealStep;
+        if (stateChanged) {
+          setHtmlEmbedExitArmed(false);
+        }
         currentIndex = normalizedIndex;
         currentRevealStep = normalizedRevealStep;
         if (stateChanged || !stageHasRenderedContent || lastRenderedStateSignature !== nextSignature) {
@@ -2036,6 +2072,7 @@
         }
         const command = data.command || "space";
         if (data.consumed) {
+          shouldHoldHtmlEmbedExit(data);
           if (syncBridge) {
             syncBridge.post({
               type: "html-embed-command",
@@ -2046,11 +2083,9 @@
           }
           return;
         }
-        if (command === "arrow-left" || command === "arrow-up") {
-          rewindPresentationWithoutHtmlEmbed();
+        if (shouldHoldHtmlEmbedExit(data)) {
           return;
         }
-        advancePresentationWithoutHtmlEmbed();
       });
 
       prevButton.addEventListener("click", rewindPresentation);

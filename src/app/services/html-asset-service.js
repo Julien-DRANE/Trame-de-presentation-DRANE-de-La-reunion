@@ -77,13 +77,11 @@
   }
 
   function createBridgeScript() {
-    return `<script>
-(function () {
-  if (window.__studioHtmlBridge) {
-    return;
-  }
-
-  function getAnimZones() {
+	  return `<script>
+	(function () {
+		  window.__studioHtmlBridgeVersion = "2026-06-final-reveal-hold";
+	
+	  function getAnimZones() {
     return Array.from(document.querySelectorAll(".anim-zone"));
   }
 
@@ -123,9 +121,9 @@
     return "";
   }
 
-  function dispatchCommand(command) {
-    if (command === "click") {
-      const target = document.querySelector("#stage") || document.body;
+	  function dispatchCommand(command) {
+	    if (command === "click") {
+	      const target = document.querySelector("#stage") || document.body;
       if (!target) {
         return;
       }
@@ -143,27 +141,83 @@
       code: payload.code,
       bubbles: true,
       cancelable: true,
-    }));
-  }
+	    }));
+	  }
 
-  function handleCommand(command) {
-    var startedBefore = typeof started === "boolean" ? started : false;
-    var stepBefore = typeof currentStepIndex === "number" ? currentStepIndex : 0;
-    const before = countHiddenZones();
-    dispatchCommand(command);
-    const after = countHiddenZones();
-    return {
-      command: command,
-      consumed:
-        (before > 0 && after < before) ||
-        (typeof started === "boolean" && started !== startedBefore) ||
-        (typeof currentStepIndex === "number" && currentStepIndex > stepBefore),
-      remaining: after,
-      total: getAnimZones().length,
-      started: typeof started === "boolean" ? started : false,
-      stepIndex: typeof currentStepIndex === "number" ? currentStepIndex : 0,
-    };
-  }
+		  function getRuntimeStepIndex() {
+		    return typeof currentStepIndex === "number" && Number.isFinite(currentStepIndex)
+		      ? Math.max(0, currentStepIndex)
+		      : 0;
+		  }
+
+		  function getRuntimeStepTotal() {
+		    return typeof stepSchedule !== "undefined" && Array.isArray(stepSchedule) ? stepSchedule.length : 0;
+		  }
+
+		  function getRuntimeFinalComplete() {
+		    return typeof finalRevealComplete === "boolean" ? finalRevealComplete : false;
+		  }
+
+		  function getRuntimeRemaining(hiddenCount) {
+		    const totalSteps = getRuntimeStepTotal();
+		    if (totalSteps > 0) {
+		      if (getRuntimeFinalComplete()) {
+		        return 0;
+		      }
+		      return Math.max(0, totalSteps - getRuntimeStepIndex()) + 1;
+		    }
+		    return hiddenCount;
+		  }
+
+		  function getRuntimeTotal() {
+		    const totalSteps = getRuntimeStepTotal();
+		    return totalSteps > 0 ? totalSteps + 1 : getAnimZones().length;
+		  }
+
+		  function getRuntimeCanExit(hiddenCount) {
+		    return getRuntimeStepTotal() > 0 ? getRuntimeFinalComplete() : hiddenCount <= 0;
+		  }
+
+		  function buildCommandResult(command, startedBefore, stepBefore, finalBefore, before) {
+		    const after = countHiddenZones();
+		    const finalComplete = getRuntimeFinalComplete();
+		    const stepIndex = getRuntimeStepIndex();
+		    return {
+		      command: command,
+		      consumed:
+		        (before > 0 && after < before) ||
+		        (typeof started === "boolean" && started !== startedBefore) ||
+		        stepIndex > stepBefore ||
+		        finalComplete !== finalBefore,
+		      remaining: getRuntimeRemaining(after),
+		      total: getRuntimeTotal(),
+		      canExit: getRuntimeCanExit(after),
+		      finalComplete: finalComplete,
+		      hiddenZones: after,
+		      started: typeof started === "boolean" ? started : false,
+		      stepIndex: stepIndex,
+		    };
+		  }
+	
+	  function handleCommand(command) {
+	    var startedBefore = typeof started === "boolean" ? started : false;
+		    var stepBefore = getRuntimeStepIndex();
+		    var finalBefore = getRuntimeFinalComplete();
+		    const before = countHiddenZones();
+		    dispatchCommand(command);
+		    return buildCommandResult(command, startedBefore, stepBefore, finalBefore, before);
+		  }
+
+		  function handleCommandSettled(command, callback) {
+		    var startedBefore = typeof started === "boolean" ? started : false;
+		    var stepBefore = getRuntimeStepIndex();
+		    var finalBefore = getRuntimeFinalComplete();
+		    const before = countHiddenZones();
+		    dispatchCommand(command);
+		    window.setTimeout(function () {
+		      callback(buildCommandResult(command, startedBefore, stepBefore, finalBefore, before));
+		    }, 280);
+		  }
 
   window.addEventListener("keydown", function (event) {
     const command = commandFromKeyboardEvent(event);
@@ -173,19 +227,25 @@
     if (event.target && event.target.matches && event.target.matches("input, textarea, select, [contenteditable='true']")) {
       return;
     }
-    const result = handleCommand(command);
-    event.preventDefault();
-    event.stopPropagation();
-    if (window.parent && window.parent !== window) {
-      window.parent.postMessage({
-        type: "studio-html-forward",
-        command: command,
-        consumed: Boolean(result.consumed),
-      }, "*");
-    }
-  }, true);
+	    event.preventDefault();
+	    event.stopPropagation();
+	    handleCommandSettled(command, function (result) {
+	      if (window.parent && window.parent !== window) {
+	        window.parent.postMessage({
+	          type: "studio-html-forward",
+	          command: command,
+		          consumed: Boolean(result.consumed),
+		          remaining: Number(result.remaining) || 0,
+		          total: Number(result.total) || 0,
+		          canExit: Boolean(result.canExit),
+		          finalComplete: Boolean(result.finalComplete),
+		          stepIndex: Number(result.stepIndex) || 0,
+		        }, "*");
+	      }
+	    });
+	  }, true);
 
-  window.__studioHtmlBridge = { handleCommand: handleCommand };
+	  window.__studioHtmlBridge = { handleCommand: handleCommand, version: window.__studioHtmlBridgeVersion };
 
   function notifyReady() {
     if (window.parent && window.parent !== window) {
@@ -201,17 +261,21 @@
       return;
     }
 
-    const result = handleCommand(data.command);
-    if (window.parent && window.parent !== window) {
-      window.parent.postMessage({
-        type: "studio-html-command-result",
-        requestId: data.requestId || "",
-        consumed: Boolean(result.consumed),
-        remaining: Number(result.remaining) || 0,
-        total: Number(result.total) || 0,
-      }, "*");
-    }
-  });
+	    handleCommandSettled(data.command, function (result) {
+	      if (window.parent && window.parent !== window) {
+	        window.parent.postMessage({
+	          type: "studio-html-command-result",
+	          requestId: data.requestId || "",
+		          consumed: Boolean(result.consumed),
+		          remaining: Number(result.remaining) || 0,
+		          total: Number(result.total) || 0,
+		          canExit: Boolean(result.canExit),
+		          finalComplete: Boolean(result.finalComplete),
+		          stepIndex: Number(result.stepIndex) || 0,
+		        }, "*");
+	      }
+	    });
+	  });
 
   if (document.readyState === "complete") {
     notifyReady();
@@ -224,14 +288,11 @@
 
   function prepareRuntimeSource(source) {
     const raw = String(source || "");
-    if (!raw.trim()) {
-      return "";
-    }
-    if (raw.includes("window.__studioHtmlBridge")) {
-      return raw;
-    }
-
-    const bridgeScript = createBridgeScript();
+	    if (!raw.trim()) {
+	      return "";
+	    }
+	
+	    const bridgeScript = createBridgeScript();
     if (/<\/body>/i.test(raw)) {
       return raw.replace(/<\/body>/i, `${bridgeScript}\n</body>`);
     }
