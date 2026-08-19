@@ -1686,6 +1686,11 @@ select {
   color: var(--blue-deep);
 }
 
+.canvas-element-chip-html {
+  border-color: rgba(252, 186, 4, 0.32);
+  background: rgba(252, 186, 4, 0.12);
+}
+
 .canvas-element-chip.is-locked,
 .canvas-element-chip:disabled {
   opacity: 0.72;
@@ -1799,6 +1804,31 @@ select {
   padding: 0.95rem;
   border-radius: 20px;
   background: linear-gradient(145deg, rgba(44, 115, 218, 0.06), rgba(255, 255, 255, 0.78));
+}
+
+.canvas-editor-details {
+  border: 1px solid rgba(18, 32, 51, 0.1);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.68);
+}
+
+.canvas-editor-details[hidden] {
+  display: none;
+}
+
+.canvas-editor-details summary {
+  min-height: 2.25rem;
+  padding: 0.55rem 0.7rem;
+  color: #36465c;
+  font-size: 0.86rem;
+  font-weight: 800;
+  cursor: pointer;
+  user-select: none;
+}
+
+.canvas-editor-details > :not(summary) {
+  margin: 0;
+  padding: 0 0.7rem 0.7rem;
 }
 
 .canvas-element-selection-actions {

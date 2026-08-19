@@ -579,12 +579,24 @@
     if (isDataUrl(source)) {
       return source;
     }
-    if (isCrossOriginHttpUrl(source)) {
-      if (!warnedCrossOriginImageUrls.has(source)) {
-        warnedCrossOriginImageUrls.add(source);
-        console.warn("[media-export] Image externe ignoree en export (CORS):", source);
+    const embedded = ns.data && ns.data.embeddedAssetUrls;
+    if (embedded) {
+      let encodedSource = source;
+      let decodedSource = source;
+      try {
+        encodedSource = encodeURI(source);
+      } catch (error) {
+        encodedSource = source;
       }
-      return "";
+      try {
+        decodedSource = decodeURI(source);
+      } catch (error) {
+        decodedSource = source;
+      }
+      const embeddedDataUrl = embedded[source] || embedded[encodedSource] || embedded[decodedSource] || "";
+      if (embeddedDataUrl) {
+        return embeddedDataUrl;
+      }
     }
     try {
       const response = await fetch(source, { mode: "cors" });
@@ -594,6 +606,10 @@
       const blob = await response.blob();
       return await blobToDataUrl(blob);
     } catch (error) {
+      if (isCrossOriginHttpUrl(source) && !warnedCrossOriginImageUrls.has(source)) {
+        warnedCrossOriginImageUrls.add(source);
+        console.warn("[media-export] Image externe ignoree en export (CORS):", source);
+      }
       return "";
     }
   }
@@ -674,7 +690,8 @@
       }
 
       if (item.kind === "embed") {
-        previewMap[item.id] = item.thumbnailUrl || createVideoPlaceholderDataUrl(item.name, item.embedLayout);
+        const convertedThumbnail = item.thumbnailUrl ? await urlToDataUrl(item.thumbnailUrl) : "";
+        previewMap[item.id] = convertedThumbnail || createVideoPlaceholderDataUrl(item.name, item.embedLayout);
         linkMap[item.id] = item.externalUrl || item.embedUrl || "";
         continue;
       }

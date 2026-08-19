@@ -155,7 +155,32 @@
     };
   }
 
+  function getEmbeddedAssetDataUrl(src) {
+    const embedded = ns.data && ns.data.embeddedAssetUrls;
+    const source = String(src || "").trim();
+    if (!embedded || !source) {
+      return "";
+    }
+    let encodedSource = source;
+    let decodedSource = source;
+    try {
+      encodedSource = encodeURI(source);
+    } catch (error) {
+      encodedSource = source;
+    }
+    try {
+      decodedSource = decodeURI(source);
+    } catch (error) {
+      decodedSource = source;
+    }
+    return embedded[source] || embedded[encodedSource] || embedded[decodedSource] || "";
+  }
+
   function fetchAsDataUrl(src) {
+    const embeddedDataUrl = getEmbeddedAssetDataUrl(src);
+    if (embeddedDataUrl) {
+      return Promise.resolve(embeddedDataUrl);
+    }
     return fetch(src)
       .then((response) => {
         if (!response.ok) {

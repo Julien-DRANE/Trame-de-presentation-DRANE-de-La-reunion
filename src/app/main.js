@@ -2,6 +2,7 @@
   const ns = (window.StudioSlides = window.StudioSlides || {});
   const STORAGE_KEY = "studio-ingenierie-formation-v2";
   const SLIDE_CLIPBOARD_KEY = ns.services.storage.slideClipboardKey || "studio-ingenierie-slide-clipboard-v1";
+  const HTML_REVEAL_ITEM_ID = "__html_embed__";
 
   const refs = {
     appShell: document.querySelector(".app-shell"),
@@ -137,6 +138,7 @@
     canvasElementsList: document.querySelector("#canvas-elements-list"),
     canvasElementFields: document.querySelector("#canvas-element-fields"),
     canvasEmptySelection: document.querySelector("#canvas-empty-selection"),
+    canvasPositionPanel: document.querySelector("#canvas-position-panel"),
     canvasElementX: document.querySelector("#canvas-element-x"),
     canvasElementY: document.querySelector("#canvas-element-y"),
     canvasElementW: document.querySelector("#canvas-element-w"),
@@ -154,14 +156,17 @@
     canvasTextSize: document.querySelector("#canvas-text-size"),
     canvasTextSizeValue: document.querySelector("#canvas-text-size-value"),
     canvasTextFrame: document.querySelector("#canvas-text-frame"),
+    canvasImageMediaPanel: document.querySelector("#canvas-image-media-panel"),
     canvasImageMediaWrap: document.querySelector("#canvas-image-media-wrap"),
     canvasImageMedia: document.querySelector("#canvas-image-media"),
+    canvasArrowControlsPanel: document.querySelector("#canvas-arrow-controls-panel"),
     canvasArrowControls: document.querySelector("#canvas-arrow-controls"),
     canvasArrowDirection: document.querySelector("#canvas-arrow-direction"),
     canvasArrowColor: document.querySelector("#canvas-arrow-color"),
     canvasArrowRotation: document.querySelector("#canvas-arrow-rotation"),
     canvasArrowLength: document.querySelector("#canvas-arrow-length"),
     canvasArrowLengthValue: document.querySelector("#canvas-arrow-length-value"),
+    canvasShapeControlsPanel: document.querySelector("#canvas-shape-controls-panel"),
     canvasShapeControls: document.querySelector("#canvas-shape-controls"),
     canvasShapeKind: document.querySelector("#canvas-shape-kind"),
     canvasShapeColor: document.querySelector("#canvas-shape-color"),
@@ -1368,6 +1373,10 @@
     return /^[A-Z]$/.test(normalized) ? normalized : '';
   }
 
+  function normalizeRevealOrder(value, fallback) {
+    return Math.max(1, Math.min(24, Math.round(Number(value) || fallback || 1)));
+  }
+
   function normalizeCanvasElement(element, index) {
     const input = element && typeof element === "object" ? element : {};
     const type = input.type === "image" || input.type === "arrow" || input.type === "shape" ? input.type : "text";
@@ -1656,8 +1665,32 @@
     updateCanvasElementById(selectedCanvasElementId, patch, rerender);
   }
 
-  function getCanvasRevealOrderItems(elements) {
-    return (Array.isArray(elements) ? elements : [])
+  function getHtmlRevealItem(slide) {
+    if (!slide || slide.contentType !== "html") {
+      return null;
+    }
+    const htmlEmbed = Object.assign(
+      {},
+      ns.stateFactory.createDefaultHtmlEmbedData ? ns.stateFactory.createDefaultHtmlEmbedData() : {},
+      slide.htmlEmbed || {}
+    );
+    return {
+      id: HTML_REVEAL_ITEM_ID,
+      type: "html",
+      isHtmlEmbed: true,
+      name: htmlEmbed.name || "HTML animé",
+      assetId: htmlEmbed.assetId || "",
+      revealOrder: normalizeRevealOrder(htmlEmbed.revealOrder, 1),
+      revealGroup: normalizeCanvasRevealGroup(htmlEmbed.revealGroup),
+    };
+  }
+
+  function getCanvasRevealOrderItems(elements, htmlRevealItem) {
+    const items = (Array.isArray(elements) ? elements : []).slice();
+    if (htmlRevealItem) {
+      items.push(htmlRevealItem);
+    }
+    return items
       .slice()
       .sort((a, b) => {
         const orderDelta = (Number(a.revealOrder) || 0) - (Number(b.revealOrder) || 0);
@@ -1668,11 +1701,45 @@
       });
   }
 
+  function applySelectedRevealOrder(reordered) {
+    const revealOrderMap = new Map(reordered.map((item, index) => [item.id, index + 1]));
+    pushUndoSnapshot();
+    state.slides = state.slides.map((slide) => {
+      if (slide.id !== state.selectedSlideId) {
+        return slide;
+      }
+      const nextCanvasData = slide.canvasData
+        ? Object.assign({}, slide.canvasData, {
+            elements: (Array.isArray(slide.canvasData.elements) ? slide.canvasData.elements : []).map((element) => {
+              if (!revealOrderMap.has(element.id)) {
+                return element;
+              }
+              return Object.assign({}, element, { revealOrder: revealOrderMap.get(element.id) });
+            }),
+          })
+        : slide.canvasData;
+      const nextHtmlEmbed = revealOrderMap.has(HTML_REVEAL_ITEM_ID)
+        ? Object.assign(
+            {},
+            ns.stateFactory.createDefaultHtmlEmbedData ? ns.stateFactory.createDefaultHtmlEmbedData() : {},
+            slide.htmlEmbed || {},
+            { revealOrder: revealOrderMap.get(HTML_REVEAL_ITEM_ID) }
+          )
+        : slide.htmlEmbed;
+      return Object.assign({}, slide, {
+        canvasData: nextCanvasData,
+        htmlEmbed: nextHtmlEmbed,
+      });
+    });
+    render();
+  }
+
   function moveCanvasRevealOrder(elementId, direction) {
     if (!elementId || (direction !== "up" && direction !== "down")) {
       return;
     }
-    const ordered = getCanvasRevealOrderItems(getSelectedCanvasData().elements);
+    const selectedSlide = getSelectedSlide();
+    const ordered = getCanvasRevealOrderItems(getSelectedCanvasData().elements, getHtmlRevealItem(selectedSlide));
     const currentIndex = ordered.findIndex((item) => item.id === elementId);
     if (currentIndex < 0) {
       return;
@@ -1681,24 +1748,18 @@
     if (targetIndex < 0 || targetIndex >= ordered.length) {
       return;
     }
-    const currentOrder = ordered[currentIndex].revealOrder;
-    const targetOrder = ordered[targetIndex].revealOrder;
-    updateCanvasElements((elements) => elements.map((element) => {
-      if (element.id === elementId) {
-        return Object.assign({}, element, { revealOrder: targetOrder });
-      }
-      if (element.id === ordered[targetIndex].id) {
-        return Object.assign({}, element, { revealOrder: currentOrder });
-      }
-      return element;
-    }));
+    const reordered = ordered.slice();
+    const [movedItem] = reordered.splice(currentIndex, 1);
+    reordered.splice(targetIndex, 0, movedItem);
+    applySelectedRevealOrder(reordered);
   }
 
   function moveCanvasRevealToIndex(elementId, targetIndex) {
     if (!elementId || !Number.isInteger(targetIndex)) {
       return;
     }
-    const ordered = getCanvasRevealOrderItems(getSelectedCanvasData().elements);
+    const selectedSlide = getSelectedSlide();
+    const ordered = getCanvasRevealOrderItems(getSelectedCanvasData().elements, getHtmlRevealItem(selectedSlide));
     const currentIndex = ordered.findIndex((item) => item.id === elementId);
     if (currentIndex < 0 || targetIndex < 0 || targetIndex >= ordered.length || currentIndex === targetIndex) {
       return;
@@ -1706,13 +1767,7 @@
     const reordered = ordered.slice();
     const [movedItem] = reordered.splice(currentIndex, 1);
     reordered.splice(targetIndex, 0, movedItem);
-    const revealOrderMap = new Map(reordered.map((item, index) => [item.id, index + 1]));
-    updateCanvasElements((elements) => elements.map((element) => {
-      if (!revealOrderMap.has(element.id)) {
-        return element;
-      }
-      return Object.assign({}, element, { revealOrder: revealOrderMap.get(element.id) });
-    }));
+    applySelectedRevealOrder(reordered);
   }
 
   function saveCanvasTextEditorSelection() {
@@ -3586,8 +3641,13 @@
     if (!groupSelect) {
       return;
     }
+    const revealItemId = groupSelect.getAttribute("data-canvas-reveal-group-select");
+    if (revealItemId === HTML_REVEAL_ITEM_ID) {
+      updateSelectedHtmlEmbed({ revealGroup: normalizeCanvasRevealGroup(groupSelect.value) });
+      return;
+    }
     updateCanvasElementById(
-      groupSelect.getAttribute("data-canvas-reveal-group-select"),
+      revealItemId,
       { revealGroup: normalizeCanvasRevealGroup(groupSelect.value) }
     );
   });
@@ -4641,7 +4701,8 @@
 
     event.preventDefault();
     const targetId = row.getAttribute("data-canvas-reveal-row");
-    const ordered = getCanvasRevealOrderItems(getSelectedCanvasData().elements);
+    const selectedSlide = getSelectedSlide();
+    const ordered = getCanvasRevealOrderItems(getSelectedCanvasData().elements, getHtmlRevealItem(selectedSlide));
     const targetIndex = ordered.findIndex((item) => item.id === targetId);
     clearCanvasRevealDropState();
     moveCanvasRevealToIndex(draggedCanvasRevealElementId, targetIndex);

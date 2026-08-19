@@ -1102,9 +1102,10 @@
     return ns.utils.linkifyHtmlUrls(ns.utils.sanitizeRichText(value, 2000));
   }
 
-  function createCanvasRevealStepMap(elements) {
+  function createCanvasRevealStepMap(elements, extraItems) {
     const ordered = (Array.isArray(elements) ? elements : [])
       .slice()
+      .concat(Array.isArray(extraItems) ? extraItems.filter(Boolean) : [])
       .sort((a, b) => {
         const orderDelta = (Number(a.revealOrder) || 0) - (Number(b.revealOrder) || 0);
         if (orderDelta !== 0) {
@@ -1210,7 +1211,7 @@
   function createCanvasMarkup(slide, settings, options) {
     const canvasData = getCanvasData(slide);
     const opts = options || {};
-    const revealStepMap = createCanvasRevealStepMap(canvasData.elements);
+    const revealStepMap = opts.canvasRevealStepMap || createCanvasRevealStepMap(canvasData.elements);
     const elementsMarkup = canvasData.elements
       .map((element) => createCanvasElementMarkup(element, Object.assign({}, opts, {
         canvasProgressive: Boolean(canvasData.progressive) && !opts.canvasInteractive,
@@ -1240,10 +1241,14 @@
     const htmlAssetUrls = options && options.htmlAssetUrls && typeof options.htmlAssetUrls === "object" ? options.htmlAssetUrls : {};
     const source = assetId ? String(htmlSources[assetId] || "") : "";
     const runtimeUrl = assetId ? String(htmlAssetUrls[assetId] || "") : "";
+    const htmlProgressive = Boolean(options && options.htmlProgressive);
+    const htmlRevealStep = Math.max(0, Math.round(Number(options && options.htmlRevealStep) || 0));
+    const htmlRevealClass = htmlProgressive && htmlRevealStep > 0 ? " slide-reveal-item" : "";
+    const htmlRevealAttr = htmlProgressive && htmlRevealStep > 0 ? ` data-reveal-step="${htmlRevealStep}"` : "";
 
     if (!assetId || (!source && !runtimeUrl)) {
       return `
-        <div class="slide-html-empty">
+        <div class="slide-html-empty${htmlRevealClass}"${htmlRevealAttr}>
           <strong>Ajoutez un fichier HTML animé</strong>
           <span>Importez un fichier autonome pour l’intégrer comme slide interactive.</span>
         </div>
@@ -1252,7 +1257,7 @@
 
     if (options && options.pdfMode && !source) {
       return `
-        <div class="slide-html-static-card">
+        <div class="slide-html-static-card${htmlRevealClass}"${htmlRevealAttr}>
           <strong>HTML animé</strong>
           <span>${utils.escapeHtml(assetName || "Animation HTML")}</span>
           <small>Version interactive disponible dans la présentation web exportée.</small>
@@ -1283,7 +1288,8 @@
     const scale = normalizeScale(htmlEmbed.scale, 100);
     return `
       <div
-        class="slide-html-embed-shell${pdfStaticClass}"
+        class="slide-html-embed-shell${pdfStaticClass}${htmlRevealClass}"
+        ${htmlRevealAttr}
         style="--slide-html-embed-x:${offsetX}%;--slide-html-embed-y:${offsetY}%;--slide-html-embed-scale:${scale}%;"
       >
         <iframe
@@ -1329,6 +1335,17 @@
     const visualData = slide.visualData || {};
     const canvasData = getCanvasData(slide);
     const hasOverlayElements = canvasData.elements.length > 0;
+    const htmlRevealItem = isHtmlMode
+      ? {
+          id: "__html_embed__",
+          revealOrder: Math.max(1, Math.min(24, Math.round(Number(slide.htmlEmbed && slide.htmlEmbed.revealOrder) || 1))),
+          revealGroup: normalizeCanvasRevealGroup(slide.htmlEmbed && slide.htmlEmbed.revealGroup),
+        }
+      : null;
+    const htmlRevealStepMap = htmlRevealItem
+      ? createCanvasRevealStepMap(canvasData.elements, [htmlRevealItem])
+      : null;
+    const htmlProgressive = isHtmlMode && Boolean(canvasData.progressive) && !opts.compact && !opts.canvasInteractive;
     const visualShowsImages = visualData.showImages !== false;
     const visualProgressive = !opts.compact && isVisualMode && Boolean(
       (visualShowsImages && visualData.primaryMediaReveal && visualData.primaryMediaId) ||
@@ -1451,7 +1468,7 @@
     const headline = !isHtmlMode && slide.title ? `<h3 class="slide-headline">${utils.escapeHtml(slide.title)}</h3>` : "";
     const subtitle = !isHtmlMode && slide.subtitle ? `<p class="slide-subtitle-text">${utils.escapeHtml(slide.subtitle)}</p>` : "";
     const signature = !isHtmlMode && settings.footer ? `<span class="slide-signature">${utils.escapeHtml(settings.footer)}</span>` : "";
-    const note = !isHtmlMode && slide.note
+    const note = slide.note
       ? `<div class="slide-note"><span class="slide-note-content">${createLinkedTextMarkup(slide.note, { textClass: "slide-note-text", linksClass: "slide-link-bubbles slide-link-bubbles-inline slide-link-bubbles-note", linksTag: "span" })}</span></div>`
       : "";
 
@@ -1469,7 +1486,10 @@
     } else if (isVisualMode) {
       contentMarkup = createVisualMarkup(slide, opts);
     } else if (isHtmlMode) {
-      contentMarkup = createHtmlEmbedMarkup(slide, opts);
+      contentMarkup = createHtmlEmbedMarkup(slide, Object.assign({}, opts, {
+        htmlProgressive,
+        htmlRevealStep: htmlRevealStepMap ? htmlRevealStepMap.get("__html_embed__") || 0 : 0,
+      }));
     } else if (isTableMode) {
       contentMarkup = createTableMarkup(slide.table, slide.tableHighlights, {
         progressive: tableProgressive,
@@ -1525,6 +1545,7 @@
       ? createCanvasMarkup(slide, settings, Object.assign({}, opts, {
           surfaceClass: "slide-overlay-canvas-surface",
           emptyMessage: "",
+          canvasRevealStepMap: htmlRevealStepMap || undefined,
         }))
       : "";
 
@@ -1544,7 +1565,9 @@
             </div>
             ${slideMediaItems.length && (!extraBullets.length || canKeepMediaWithExtendedBullets) && !isFreeMode && !isVisualMode && !isHtmlMode && !isTableMode && !useFloatingTopRightMedia && !useInlineBulletMediaLayout ? `<aside class="slide-media-slot is-media-bare${slideMediaItems.length > 1 ? " has-media-stack" : ""}">${mediaMarkup}</aside>` : ""}
           </div>
-          ${isHtmlMode ? "" : `<div class="slide-footer">
+          ${isHtmlMode && note ? `<div class="slide-footer slide-footer-html">
+            ${note}
+          </div>` : isHtmlMode ? "" : `<div class="slide-footer">
             ${footerNoteMarkup}
             ${signature}
           </div>`}

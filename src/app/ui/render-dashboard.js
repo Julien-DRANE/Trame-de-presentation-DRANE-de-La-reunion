@@ -188,7 +188,7 @@
     refs.visualChartBars.innerHTML = renderVisualChartEditor(visualData);
     refs.visualChartAddColumn.disabled = (visualData.chartBarCount || 3) >= 6;
     refs.visualChartRemoveColumn.disabled = (visualData.chartBarCount || 3) <= 1;
-    refs.canvasElementsList.innerHTML = renderCanvasElementsList(canvasData, selectedCanvasElement && selectedCanvasElement.id, availableMediaItems);
+    refs.canvasElementsList.innerHTML = renderCanvasElementsList(canvasData, selectedCanvasElement && selectedCanvasElement.id, availableMediaItems, selectedSlide);
     refs.canvasProgressive.checked = Boolean(canvasData.progressive);
     refs.canvasImageMedia.innerHTML = renderVisualMediaOptions(availableMediaItems, "Choisir un media");
     refs.canvasElementFields.hidden = !selectedCanvasElement;
@@ -201,12 +201,24 @@
       refs.canvasElementY.max = formatCanvasMetric(Math.max(0, 100 - (Number(selectedCanvasElement.h) || 6)));
       refs.canvasElementW.value = formatCanvasMetric(selectedCanvasElement.w);
       refs.canvasElementH.value = formatCanvasMetric(selectedCanvasElement.h);
+      if (refs.canvasPositionPanel) {
+        refs.canvasPositionPanel.hidden = false;
+      }
       refs.canvasTextContentWrap.hidden = selectedCanvasElement.type !== "text";
       refs.canvasTextToolbar.hidden = selectedCanvasElement.type !== "text";
       refs.canvasTextStyleGrid.hidden = selectedCanvasElement.type !== "text";
       refs.canvasImageMediaWrap.hidden = selectedCanvasElement.type !== "image";
+      if (refs.canvasImageMediaPanel) {
+        refs.canvasImageMediaPanel.hidden = selectedCanvasElement.type !== "image";
+      }
       refs.canvasArrowControls.hidden = selectedCanvasElement.type !== "arrow";
+      if (refs.canvasArrowControlsPanel) {
+        refs.canvasArrowControlsPanel.hidden = selectedCanvasElement.type !== "arrow";
+      }
       refs.canvasShapeControls.hidden = selectedCanvasElement.type !== "shape";
+      if (refs.canvasShapeControlsPanel) {
+        refs.canvasShapeControlsPanel.hidden = selectedCanvasElement.type !== "shape";
+      }
       if (selectedCanvasElement.type === "text") {
         const sanitizedCanvasText = ns.utils.sanitizeRichText(selectedCanvasElement.text || "", 2000);
         refs.canvasTextFont.innerHTML = [
@@ -249,12 +261,24 @@
       refs.canvasElementX.max = "94";
       refs.canvasElementY.min = "-14";
       refs.canvasElementY.max = "94";
+      if (refs.canvasPositionPanel) {
+        refs.canvasPositionPanel.hidden = true;
+      }
       refs.canvasTextContentWrap.hidden = true;
       refs.canvasTextToolbar.hidden = true;
       refs.canvasTextStyleGrid.hidden = true;
       refs.canvasImageMediaWrap.hidden = true;
+      if (refs.canvasImageMediaPanel) {
+        refs.canvasImageMediaPanel.hidden = true;
+      }
       refs.canvasArrowControls.hidden = true;
+      if (refs.canvasArrowControlsPanel) {
+        refs.canvasArrowControlsPanel.hidden = true;
+      }
       refs.canvasShapeControls.hidden = true;
+      if (refs.canvasShapeControlsPanel) {
+        refs.canvasShapeControlsPanel.hidden = true;
+      }
       refs.canvasTextContent.innerHTML = "";
       refs.canvasTextContent.style.fontFamily = "";
       refs.canvasTextContent.style.fontSize = "";
@@ -690,9 +714,20 @@
       .join('');
   }
 
-  function renderCanvasElementsList(canvasData, activeId, mediaItems) {
+  function renderCanvasElementsList(canvasData, activeId, mediaItems, selectedSlide) {
     const elements = canvasData && Array.isArray(canvasData.elements) ? canvasData.elements : [];
-    if (!elements.length) {
+    const htmlRevealItem = selectedSlide && selectedSlide.contentType === "html"
+      ? {
+          id: "__html_embed__",
+          type: "html",
+          isHtmlEmbed: true,
+          name: selectedSlide.htmlEmbed && selectedSlide.htmlEmbed.name ? selectedSlide.htmlEmbed.name : "HTML animé",
+          assetId: selectedSlide.htmlEmbed && selectedSlide.htmlEmbed.assetId ? selectedSlide.htmlEmbed.assetId : "",
+          revealOrder: Math.max(1, Math.min(24, Math.round(Number(selectedSlide.htmlEmbed && selectedSlide.htmlEmbed.revealOrder) || 1))),
+          revealGroup: selectedSlide.htmlEmbed && selectedSlide.htmlEmbed.revealGroup ? String(selectedSlide.htmlEmbed.revealGroup).trim().toUpperCase() : "",
+        }
+      : null;
+    if (!elements.length && !htmlRevealItem) {
       return '<p class="extra-bullets-empty">Aucun élément sur le canvas.</p>';
     }
     const mediaUrls = ns.data.augmentMediaUrlMap ? ns.data.augmentMediaUrlMap(ns.services.media.getUrlMap()) : ns.services.media.getUrlMap();
@@ -700,10 +735,40 @@
 
     const ordered = elements
       .slice()
+      .concat(htmlRevealItem ? [htmlRevealItem] : [])
       .sort((a, b) => (Number(a.revealOrder) || 0) - (Number(b.revealOrder) || 0));
 
     return ordered
       .map((element, index) => {
+        if (element.isHtmlEmbed) {
+          return `
+            <div class="canvas-element-row is-html-reveal-event" data-canvas-reveal-row="${ns.utils.escapeHtml(element.id)}">
+              <div class="canvas-element-chip canvas-element-chip-html" role="group" aria-label="Événement de révélation HTML animé">
+                <span class="canvas-element-chip-index">${index + 1}</span>
+                <span class="canvas-element-chip-label">
+                  <span class="canvas-element-chip-text-preview">HTML animé</span>
+                </span>
+                <span class="canvas-element-chip-meta">Ordre ${index + 1}${element.revealGroup ? ' · Groupe ' + ns.utils.escapeHtml(element.revealGroup) : ''}${element.assetId ? ' · ' + ns.utils.escapeHtml(element.name) : ' · Aucun fichier'}</span>
+              </div>
+              <div class="canvas-element-chip-actions">
+                <label class="canvas-reveal-group-field" title="Révéler en même temps que les objets du même groupe">
+                  <span class="sr-only">Groupe de révélation</span>
+                  <select class="canvas-reveal-group-select" data-canvas-reveal-group-select="${ns.utils.escapeHtml(element.id)}">
+                    ${renderCanvasRevealGroupOptions(element.revealGroup)}
+                  </select>
+                </label>
+                <button
+                  class="button button-ghost canvas-order-handle"
+                  type="button"
+                  draggable="true"
+                  data-canvas-reveal-drag-handle="${ns.utils.escapeHtml(element.id)}"
+                  aria-label="Glisser pour changer l'ordre de révélation"
+                  title="Glisser pour changer l'ordre"
+                >⋮⋮</button>
+              </div>
+            </div>
+          `;
+        }
         const locked = Boolean(element.locked);
         const activeClass = element.id === activeId && !locked ? ' is-active' : '';
         const lockedClass = locked ? ' is-locked' : '';

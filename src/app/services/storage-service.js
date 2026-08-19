@@ -245,7 +245,7 @@
   function sanitizeHtmlEmbedData(input) {
     const fallback = ns.stateFactory.createDefaultHtmlEmbedData
       ? ns.stateFactory.createDefaultHtmlEmbedData()
-      : { assetId: "", name: "", mimeType: "text/html", size: 0, offsetX: 0, offsetY: 0, scale: 100 };
+      : { assetId: "", name: "", mimeType: "text/html", size: 0, offsetX: 0, offsetY: 0, scale: 100, revealOrder: 1, revealGroup: "" };
     const raw = input && typeof input === "object" ? input : {};
 
     const normalizeOffset = (value, fallbackValue) => {
@@ -272,6 +272,8 @@
       offsetX: normalizeOffset(raw.offsetX, fallback.offsetX),
       offsetY: normalizeOffset(raw.offsetY, fallback.offsetY),
       scale: normalizeScale(raw.scale, fallback.scale),
+      revealOrder: Math.max(1, Math.min(24, Math.round(Number(raw.revealOrder) || fallback.revealOrder || 1))),
+      revealGroup: normalizeCanvasRevealGroup(raw.revealGroup),
     };
   }
 

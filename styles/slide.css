@@ -238,6 +238,36 @@
   z-index: 4;
 }
 
+.deck-slide.is-html-slide .slide-footer-html {
+  position: absolute;
+  left: clamp(1rem, 2vw, 1.5rem);
+  right: clamp(4.7rem, 8vw, 6.6rem);
+  bottom: clamp(0.85rem, 1.7vw, 1.3rem);
+  z-index: 8;
+  display: flex;
+  justify-content: flex-start;
+  width: auto;
+  margin: 0;
+  padding: 0;
+  pointer-events: none;
+}
+
+.deck-slide.is-html-slide .slide-footer-html .slide-note {
+  flex: 0 1 auto;
+  width: fit-content;
+  max-width: min(100%, 72ch);
+  pointer-events: auto;
+}
+
+.deck-slide.is-html-slide .slide-footer-html .slide-note-content {
+  width: auto;
+  max-width: 100%;
+}
+
+.deck-slide.is-html-slide .slide-footer-html .slide-note-text {
+  white-space: normal;
+}
+
 .slide-body.slide-body-html {
   display: block;
   position: relative;

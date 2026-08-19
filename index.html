@@ -18,6 +18,7 @@
     <script defer src="src/app/data/color-palettes.js"></script>
     <script defer src="src/app/data/font-options.js"></script>
     <script defer src="src/app/data/picto-assets.js"></script>
+    <script defer src="src/app/data/embedded-assets.js"></script>
     <script defer src="src/app/state/default-state.js"></script>
     <script defer src="src/app/utils/helpers.js"></script>
     <script defer src="src/app/services/storage-service.js"></script>
@@ -451,24 +452,27 @@
                 <p class="canvas-editor-hint">Clique un media dans la mediathèque pour l'ajouter sur la slide, puis deplace-le directement dans l'aperçu.</p>
                 <div id="canvas-elements-list" class="canvas-elements-list"></div>
                 <div id="canvas-element-fields" class="canvas-editor-selection" hidden>
-                  <div class="canvas-editor-grid">
-                    <label>
-                      X
-                      <input id="canvas-element-x" type="number" min="0" max="100" step="0.5" />
-                    </label>
-                    <label>
-                      Y
-                      <input id="canvas-element-y" type="number" min="-14" max="100" step="0.5" />
-                    </label>
-                    <label>
-                      Largeur
-                      <input id="canvas-element-w" type="number" min="6" max="100" step="0.5" />
-                    </label>
-                    <label>
-                      Hauteur
-                      <input id="canvas-element-h" type="number" min="6" max="100" step="0.5" />
-                    </label>
-                  </div>
+                  <details id="canvas-position-panel" class="canvas-editor-details">
+                    <summary>Position et taille</summary>
+                    <div class="canvas-editor-grid">
+                      <label>
+                        X
+                        <input id="canvas-element-x" type="number" min="0" max="100" step="0.5" />
+                      </label>
+                      <label>
+                        Y
+                        <input id="canvas-element-y" type="number" min="-14" max="100" step="0.5" />
+                      </label>
+                      <label>
+                        Largeur
+                        <input id="canvas-element-w" type="number" min="6" max="100" step="0.5" />
+                      </label>
+                      <label>
+                        Hauteur
+                        <input id="canvas-element-h" type="number" min="6" max="100" step="0.5" />
+                      </label>
+                    </div>
+                  </details>
 
                   <div id="canvas-text-content-wrap" class="free-editor-field canvas-text-field">
                     <span class="free-editor-label">Texte</span>
@@ -512,52 +516,61 @@
                     </label>
                   </div>
 
-                  <label id="canvas-image-media-wrap">
-                    Media
-                    <select id="canvas-image-media"></select>
-                  </label>
+                  <details id="canvas-image-media-panel" class="canvas-editor-details">
+                    <summary>Média</summary>
+                    <label id="canvas-image-media-wrap">
+                      Media
+                      <select id="canvas-image-media"></select>
+                    </label>
+                  </details>
 
-                  <div id="canvas-arrow-controls" class="canvas-editor-grid canvas-editor-grid-tight">
-                    <label>
-                      Direction
-                      <select id="canvas-arrow-direction">
-                        <option value="right">Vers la droite</option>
-                        <option value="left">Vers la gauche</option>
-                        <option value="up">Vers le haut</option>
-                        <option value="down">Vers le bas</option>
-                      </select>
-                    </label>
-                    <label>
-                      Couleur
-                      <input id="canvas-arrow-color" type="color" value="#0a66ff" />
-                    </label>
-                    <label>
-                      Rotation
-                      <input id="canvas-arrow-rotation" type="number" min="-360" max="360" step="1" value="0" />
-                    </label>
-                    <label>
-                      Longueur
-                      <div class="range-field">
-                        <input id="canvas-arrow-length" type="range" min="40" max="800" step="1" value="100" />
-                        <span id="canvas-arrow-length-value" class="range-field-value">100 %</span>
-                      </div>
-                    </label>
-                  </div>
+                  <details id="canvas-arrow-controls-panel" class="canvas-editor-details">
+                    <summary>Flèche</summary>
+                    <div id="canvas-arrow-controls" class="canvas-editor-grid canvas-editor-grid-tight">
+                      <label>
+                        Direction
+                        <select id="canvas-arrow-direction">
+                          <option value="right">Vers la droite</option>
+                          <option value="left">Vers la gauche</option>
+                          <option value="up">Vers le haut</option>
+                          <option value="down">Vers le bas</option>
+                        </select>
+                      </label>
+                      <label>
+                        Couleur
+                        <input id="canvas-arrow-color" type="color" value="#0a66ff" />
+                      </label>
+                      <label>
+                        Rotation
+                        <input id="canvas-arrow-rotation" type="number" min="-360" max="360" step="1" value="0" />
+                      </label>
+                      <label>
+                        Longueur
+                        <div class="range-field">
+                          <input id="canvas-arrow-length" type="range" min="40" max="800" step="1" value="100" />
+                          <span id="canvas-arrow-length-value" class="range-field-value">100 %</span>
+                        </div>
+                      </label>
+                    </div>
+                  </details>
 
-                  <div id="canvas-shape-controls" class="canvas-editor-grid canvas-editor-grid-tight" hidden>
-                    <label>
-                      Forme
-                      <select id="canvas-shape-kind">
-                        <option value="circle">Cercle</option>
-                        <option value="square">Carré</option>
-                        <option value="bubble">Bulle</option>
-                      </select>
-                    </label>
-                    <label>
-                      Couleur
-                      <input id="canvas-shape-color" type="color" value="#0a66ff" />
-                    </label>
-                  </div>
+                  <details id="canvas-shape-controls-panel" class="canvas-editor-details">
+                    <summary>Forme</summary>
+                    <div id="canvas-shape-controls" class="canvas-editor-grid canvas-editor-grid-tight" hidden>
+                      <label>
+                        Forme
+                        <select id="canvas-shape-kind">
+                          <option value="circle">Cercle</option>
+                          <option value="square">Carré</option>
+                          <option value="bubble">Bulle</option>
+                        </select>
+                      </label>
+                      <label>
+                        Couleur
+                        <input id="canvas-shape-color" type="color" value="#0a66ff" />
+                      </label>
+                    </div>
+                  </details>
 
                   <div class="canvas-element-selection-actions">
                     <button id="canvas-duplicate-element" class="button button-ghost" type="button">Dupliquer l'élément sélectionné</button>

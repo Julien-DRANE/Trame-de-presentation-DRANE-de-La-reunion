@@ -55,6 +55,8 @@
       offsetX: 0,
       offsetY: 0,
       scale: 100,
+      revealOrder: 1,
+      revealGroup: "",
     };
   }
 

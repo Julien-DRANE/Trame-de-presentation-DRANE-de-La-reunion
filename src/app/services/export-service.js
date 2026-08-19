@@ -191,9 +191,35 @@
     downloadBlob(blob, fileName);
   }
 
-  async function resolveLogoAsDataUrl(src) {
+  function getEmbeddedAssetDataUrl(src) {
+    const embedded = ns.data && ns.data.embeddedAssetUrls;
+    const source = String(src || "").trim();
+    if (!embedded || !source) {
+      return "";
+    }
+    let encodedSource = source;
+    let decodedSource = source;
     try {
-      const response = await fetch(src);
+      encodedSource = encodeURI(source);
+    } catch (error) {
+      encodedSource = source;
+    }
+    try {
+      decodedSource = decodeURI(source);
+    } catch (error) {
+      decodedSource = source;
+    }
+    return embedded[source] || embedded[encodedSource] || embedded[decodedSource] || "";
+  }
+
+  async function resolveLogoAsDataUrl(src) {
+    const embeddedDataUrl = getEmbeddedAssetDataUrl(src);
+    if (embeddedDataUrl) {
+      return embeddedDataUrl;
+    }
+    const source = String(src || "").trim();
+    try {
+      const response = await fetch(source);
       if (!response.ok) {
         return src;
       }
@@ -206,6 +232,32 @@
       });
     } catch (error) {
       return src;
+    }
+  }
+
+  async function resolveAssetAsDataUrl(src) {
+    const source = String(src || "").trim();
+    if (!source || /^data:/i.test(source) || /^blob:/i.test(source)) {
+      return source;
+    }
+    const embeddedDataUrl = getEmbeddedAssetDataUrl(source);
+    if (embeddedDataUrl) {
+      return embeddedDataUrl;
+    }
+    try {
+      const response = await fetch(source);
+      if (!response.ok) {
+        return source;
+      }
+      const blob = await response.blob();
+      return await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result);
+        reader.onerror = () => reject(reader.error);
+        reader.readAsDataURL(blob);
+      });
+    } catch (error) {
+      return source;
     }
   }
 
@@ -236,11 +288,13 @@
       : await ns.services.htmlAssets.resolveExportSourceMap(state.slides || []);
 
     if (opts.exportMode === "html" && pdfMediaAssets) {
-      availableMediaItems.forEach((item) => {
-        if (item.kind === "embed") {
-          mergedMediaUrls[item.id] = pdfMediaAssets.previewMap[item.id] || mergedMediaUrls[item.id] || "";
+      await Promise.all(availableMediaItems.map(async (item) => {
+        if (item.kind === "embed" || item.isBuiltinPicto) {
+          mergedMediaUrls[item.id] = await resolveAssetAsDataUrl(
+            pdfMediaAssets.previewMap[item.id] || mergedMediaUrls[item.id] || item.thumbnailUrl || item.externalUrl || ""
+          );
         }
-      });
+      }));
     }
 
     const slidesMarkup = state.slides
@@ -734,6 +788,32 @@
       .deck-slide.is-html-slide .slide-link-bubble {
         position: relative;
         z-index: 4;
+      }
+      .deck-slide.is-html-slide .slide-footer-html {
+        position: absolute;
+        left: clamp(1rem, 2vw, 1.5rem);
+        right: clamp(4.7rem, 8vw, 6.6rem);
+        bottom: clamp(0.85rem, 1.7vw, 1.3rem);
+        z-index: 8;
+        display: flex;
+        justify-content: flex-start;
+        width: auto;
+        margin: 0;
+        padding: 0;
+        pointer-events: none;
+      }
+      .deck-slide.is-html-slide .slide-footer-html .slide-note {
+        flex: 0 1 auto;
+        width: fit-content;
+        max-width: min(100%, 72ch);
+        pointer-events: auto;
+      }
+      .deck-slide.is-html-slide .slide-footer-html .slide-note-content {
+        width: auto;
+        max-width: 100%;
+      }
+      .deck-slide.is-html-slide .slide-footer-html .slide-note-text {
+        white-space: normal;
       }
       .slide-body.slide-body-html {
         display: block;
@@ -3209,6 +3289,15 @@
           .reduce((max, step) => Math.max(max, step), 0);
       }
 
+      function isActiveHtmlEmbedRevealed() {
+        const frame = getActiveHtmlEmbedFrame();
+        if (!frame) {
+          return false;
+        }
+        const revealContainer = frame.closest("[data-reveal-step]");
+        return !revealContainer || !revealContainer.classList.contains("presentation-reveal-hidden");
+      }
+
       function broadcastDeckState() {
         if (!syncBridge) {
           return;
@@ -3298,6 +3387,17 @@
           return;
         }
         showSlide(currentIndex + 1);
+      }
+
+      async function advanceSlideWithHtmlEmbedOrder(command) {
+        if (!isActiveHtmlEmbedRevealed() && revealNextItemInCurrentSlide()) {
+          return;
+        }
+        if (await sendHtmlEmbedCommand(command)) {
+          broadcastHtmlEmbedCommand(command);
+          return;
+        }
+        advanceSlideWithoutHtmlEmbed();
       }
 
       function rewindSlideWithoutHtmlEmbed() {
@@ -3883,14 +3983,7 @@
         ) {
           return;
         }
-        if (await sendHtmlEmbedCommand("click")) {
-          broadcastHtmlEmbedCommand("click");
-          return;
-        }
-        if (revealNextItemInCurrentSlide()) {
-          return;
-        }
-        showSlide(currentIndex + 1);
+        await advanceSlideWithHtmlEmbedOrder("click");
       });
       lightbox.addEventListener("click", (event) => {
         event.stopPropagation();
@@ -3991,11 +4084,7 @@
             : event.key === "ArrowDown"
               ? "arrow-down"
               : "space";
-          if (await sendHtmlEmbedCommand(command)) {
-            broadcastHtmlEmbedCommand(command);
-            return;
-          }
-          advanceSlideWithoutHtmlEmbed();
+          await advanceSlideWithHtmlEmbedOrder(command);
         }
         if (event.key === "ArrowLeft" || event.key === "ArrowUp" || event.key === "PageUp") {
           event.preventDefault();
@@ -4090,6 +4179,8 @@
     <script defer src="src/app/data/cognitive-principles.js"></script>
     <script defer src="src/app/data/color-palettes.js"></script>
     <script defer src="src/app/data/font-options.js"></script>
+    <script defer src="src/app/data/picto-assets.js"></script>
+    <script defer src="src/app/data/embedded-assets.js"></script>
     <script defer src="src/app/state/default-state.js"></script>
     <script defer src="src/app/utils/helpers.js"></script>
     <script defer src="src/app/services/storage-service.js"></script>
@@ -4873,8 +4964,9 @@
     const quality = mimeType === "image/jpeg"
       ? Math.max(0.4, Math.min(0.95, Number(opts.quality) || 0.82))
       : undefined;
+    const imageData = canvas.toDataURL(mimeType, quality);
     unmountSlideExportNode(host);
-    return canvas.toDataURL(mimeType, quality);
+    return imageData;
   }
 
   async function exportPptx(state) {
