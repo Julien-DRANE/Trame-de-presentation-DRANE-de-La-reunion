@@ -185,6 +185,10 @@
     refs.visualChartEditor.hidden = visualData.showChart === false;
     refs.visualChartReveal.checked = Boolean(visualData.chartReveal);
     refs.visualChartTitle.value = visualData.chartTitle || "";
+    const visualChartGroupCount = Math.max(1, Math.min(3, Number(visualData.chartGroupCount) || 1));
+    refs.visualChartGroupCount.value = String(visualChartGroupCount);
+    refs.visualChartGroups.hidden = visualChartGroupCount === 1;
+    refs.visualChartGroups.innerHTML = visualChartGroupCount === 1 ? "" : renderVisualChartGroups(visualData);
     refs.visualChartBars.innerHTML = renderVisualChartEditor(visualData);
     refs.visualChartAddColumn.disabled = (visualData.chartBarCount || 3) >= 6;
     refs.visualChartRemoveColumn.disabled = (visualData.chartBarCount || 3) <= 1;
@@ -229,6 +233,7 @@
         refs.canvasTextContent.style.fontFamily = getCanvasFontOption(selectedCanvasElement.fontOptionId || (state.settings.font || "studio")).body;
         refs.canvasTextContent.style.fontSize = String(Math.round(Number(selectedCanvasElement.fontSize) || 28)) + "px";
         refs.canvasTextContent.style.lineHeight = "1.12";
+        refs.canvasTextContent.style.textAlign = selectedCanvasElement.textAlign || "left";
         if (document.activeElement !== refs.canvasTextContent || refs.canvasTextContent.innerHTML !== sanitizedCanvasText) {
           refs.canvasTextContent.innerHTML = sanitizedCanvasText;
         }
@@ -242,6 +247,7 @@
       }
       refs.canvasTextSize.value = selectedCanvasElement.type === "text" ? String(Math.round(Number(selectedCanvasElement.fontSize) || 28)) : "28";
       refs.canvasTextSizeValue.textContent = `${refs.canvasTextSize.value} px`;
+      refs.canvasTextAlign.value = selectedCanvasElement.type === "text" ? (selectedCanvasElement.textAlign || "left") : "left";
       refs.canvasTextFrame.checked = selectedCanvasElement.type === "text" ? selectedCanvasElement.showFrame !== false : true;
       refs.canvasTextBold.classList.remove("is-active");
       refs.canvasTextBold.setAttribute("aria-pressed", "false");
@@ -257,6 +263,10 @@
       refs.canvasArrowLengthValue.textContent = `${refs.canvasArrowLength.value} %`;
       refs.canvasShapeKind.value = selectedCanvasElement.type === "shape" ? (selectedCanvasElement.shapeKind || "circle") : "circle";
       refs.canvasShapeColor.value = selectedCanvasElement.type === "shape" ? (selectedCanvasElement.color || "#0a66ff") : "#0a66ff";
+      refs.canvasShapeTransparency.value = selectedCanvasElement.type === "shape" ? String(Math.max(0, Math.min(100, Number(selectedCanvasElement.transparency) || 0))) : "14";
+      refs.canvasShapeTransparencyValue.textContent = `${refs.canvasShapeTransparency.value} %`;
+      refs.canvasShapeStrokeWidth.value = selectedCanvasElement.type === "shape" ? String(Math.max(1, Math.min(30, Number(selectedCanvasElement.strokeWidth) || 3))) : "3";
+      refs.canvasShapeStrokeWidthValue.textContent = `${refs.canvasShapeStrokeWidth.value} px`;
     } else {
       refs.canvasElementX.max = "94";
       refs.canvasElementY.min = "-14";
@@ -283,6 +293,7 @@
       refs.canvasTextContent.style.fontFamily = "";
       refs.canvasTextContent.style.fontSize = "";
       refs.canvasTextContent.style.lineHeight = "";
+      refs.canvasTextContent.style.textAlign = "";
       refs.canvasTextFont.innerHTML = [
         '<option value="">Typographie du document</option>',
         ...fontOptions.map((font) => `<option value="${ns.utils.escapeHtml(font.id)}">${ns.utils.escapeHtml(font.label)}</option>`),
@@ -290,6 +301,7 @@
       refs.canvasTextFont.value = "";
       refs.canvasTextSize.value = "28";
       refs.canvasTextSizeValue.textContent = "28 px";
+      refs.canvasTextAlign.value = "left";
       refs.canvasTextFrame.checked = true;
       refs.canvasTextBold.classList.remove("is-active");
       refs.canvasTextBold.setAttribute("aria-pressed", "false");
@@ -666,7 +678,7 @@
       return "Flèche";
     }
     if (element.type === "shape") {
-      return element.shapeKind === "square" ? "Carré" : element.shapeKind === "bubble" ? "Bulle" : "Cercle";
+      return element.shapeKind === "square" ? "Carré" : element.shapeKind === "bubble" ? "Bulle" : element.shapeKind === "line" ? "Trait" : "Cercle";
     }
     return "Texte";
   }
@@ -1112,9 +1124,10 @@
 
   function renderVisualChartEditor(visualData) {
     const chartBarCount = Math.max(1, Math.min(6, Number(visualData.chartBarCount) || 3));
+    const chartGroupCount = Math.max(1, Math.min(3, Number(visualData.chartGroupCount) || 1));
     const chartBars = Array.isArray(visualData.chartBars) ? visualData.chartBars.slice(0, chartBarCount) : [];
     return chartBars.map((bar, index) => `
-      <div class="visual-chart-bar-row bullet-editor-row" data-visual-chart-row="${index}">
+      <div class="visual-chart-bar-row bullet-editor-row${chartGroupCount === 1 ? " is-single-series" : ""}" data-visual-chart-row="${index}">
         <button
           class="bullet-drag-handle"
           type="button"
@@ -1133,23 +1146,31 @@
           data-visual-chart-index="${index}"
           placeholder="Libellé ${index + 1}"
         />
-        <input
-          type="number"
-          min="0"
-          max="100"
-          step="1"
-          value="${ns.utils.escapeHtml(String((bar && bar.value) ?? 0))}"
-          data-visual-chart-field="value"
-          data-visual-chart-index="${index}"
-          placeholder="0-100"
-        />
-        <input
-          type="color"
-          value="${ns.utils.escapeHtml((bar && bar.color) || "#60b2e5")}"
-          data-visual-chart-field="color"
-          data-visual-chart-index="${index}"
-          aria-label="Couleur de l'indicateur ${index + 1}"
-        />
+        <div class="visual-chart-values">
+          ${Array.from({ length: chartGroupCount }, (_, groupIndex) => `
+            <input
+              type="number"
+              min="0"
+              max="100"
+              step="1"
+              value="${ns.utils.escapeHtml(String(Array.isArray(bar && bar.values) && bar.values[groupIndex] !== undefined ? bar.values[groupIndex] : ((bar && bar.value) ?? 0)))}"
+              data-visual-chart-field="value"
+              data-visual-chart-index="${index}"
+              data-visual-chart-group-index="${groupIndex}"
+              aria-label="Valeur ${groupIndex + 1} de l'indicateur ${index + 1}"
+              placeholder="0-100"
+            />
+          `).join("")}
+        </div>
+        ${chartGroupCount === 1 ? `
+          <input
+            type="color"
+            value="${ns.utils.escapeHtml((bar && bar.color) || "#60b2e5")}"
+            data-visual-chart-field="color"
+            data-visual-chart-index="${index}"
+            aria-label="Couleur de l'indicateur ${index + 1}"
+          />
+        ` : ""}
         <button
           class="icon-button icon-button-danger"
           type="button"
@@ -1160,6 +1181,20 @@
         </button>
       </div>
     `).join("");
+  }
+
+  function renderVisualChartGroups(visualData) {
+    const count = Math.max(1, Math.min(3, Number(visualData.chartGroupCount) || 1));
+    const groups = Array.isArray(visualData.chartGroups) ? visualData.chartGroups : [];
+    return Array.from({ length: count }, (_, index) => {
+      const group = groups[index] || {};
+      return `
+        <div class="visual-chart-group-row">
+          <input type="color" value="${ns.utils.escapeHtml(group.color || "#60b2e5")}" data-visual-chart-group-field="color" data-visual-chart-group-index="${index}" aria-label="Couleur du sous-groupe ${index + 1}" />
+          <input type="text" maxlength="18" value="${ns.utils.escapeHtml(group.label || "")}" data-visual-chart-group-field="label" data-visual-chart-group-index="${index}" placeholder="Sous-groupe ${index + 1}" aria-label="Nom du sous-groupe ${index + 1}" />
+        </div>
+      `;
+    }).join("");
   }
 
   function normalizeTable(tableInput) {

@@ -134,6 +134,7 @@
     canvasAddCircle: document.querySelector("#canvas-add-circle"),
     canvasAddSquare: document.querySelector("#canvas-add-square"),
     canvasAddBubble: document.querySelector("#canvas-add-bubble"),
+    canvasAddLine: document.querySelector("#canvas-add-line"),
     canvasProgressive: document.querySelector("#canvas-progressive"),
     canvasElementsList: document.querySelector("#canvas-elements-list"),
     canvasElementFields: document.querySelector("#canvas-element-fields"),
@@ -155,6 +156,7 @@
     canvasTextFont: document.querySelector("#canvas-text-font"),
     canvasTextSize: document.querySelector("#canvas-text-size"),
     canvasTextSizeValue: document.querySelector("#canvas-text-size-value"),
+    canvasTextAlign: document.querySelector("#canvas-text-align"),
     canvasTextFrame: document.querySelector("#canvas-text-frame"),
     canvasImageMediaPanel: document.querySelector("#canvas-image-media-panel"),
     canvasImageMediaWrap: document.querySelector("#canvas-image-media-wrap"),
@@ -170,6 +172,10 @@
     canvasShapeControls: document.querySelector("#canvas-shape-controls"),
     canvasShapeKind: document.querySelector("#canvas-shape-kind"),
     canvasShapeColor: document.querySelector("#canvas-shape-color"),
+    canvasShapeTransparency: document.querySelector("#canvas-shape-transparency"),
+    canvasShapeTransparencyValue: document.querySelector("#canvas-shape-transparency-value"),
+    canvasShapeStrokeWidth: document.querySelector("#canvas-shape-stroke-width"),
+    canvasShapeStrokeWidthValue: document.querySelector("#canvas-shape-stroke-width-value"),
     canvasDuplicateElement: document.querySelector("#canvas-duplicate-element"),
     canvasDeleteElement: document.querySelector("#canvas-delete-element"),
     slideHtmlFileInput: document.querySelector("#slide-html-file-input"),
@@ -202,6 +208,8 @@
     visualChartEditor: document.querySelector("#visual-chart-editor"),
     visualChartReveal: document.querySelector("#visual-chart-reveal"),
     visualChartTitle: document.querySelector("#visual-chart-title"),
+    visualChartGroupCount: document.querySelector("#visual-chart-group-count"),
+    visualChartGroups: document.querySelector("#visual-chart-groups"),
     visualChartBars: document.querySelector("#visual-chart-bars"),
     visualChartAddColumn: document.querySelector("#visual-chart-add-column"),
     visualChartRemoveColumn: document.querySelector("#visual-chart-remove-column"),
@@ -736,10 +744,23 @@
         label: ns.utils.clampText(bar && bar.label, 18) || "Point",
         value: clampVisualBarValue(bar && bar.value),
         color: normalizeVisualArrowColor(bar && bar.color),
+        values: Array.isArray(bar && bar.values) ? bar.values.slice(0, 3) : [],
       }));
     } catch (error) {
       return [];
     }
+  }
+
+  function getChartLightboxGroupLegend(chartCard) {
+    return Array.from(chartCard ? chartCard.querySelectorAll(".slide-visual-chart-legend span") : [])
+      .map((item) => {
+        const swatch = item.querySelector("i");
+        return {
+          label: ns.utils.clampText(item.textContent, 18),
+          color: (swatch && swatch.style.background) || "#60b2e5",
+        };
+      })
+      .filter((item) => item.label);
   }
 
   function decorateChartCloneForLightbox(chartClone) {
@@ -804,7 +825,21 @@
 
   function createChartLightboxMarkup(chartCard, chartClone) {
     const chartBars = getChartLightboxBars(chartCard);
-    const legendMarkup = chartBars.length ? `
+    const groupLegend = getChartLightboxGroupLegend(chartCard);
+    const isComparison = groupLegend.length > 1 || chartBars.some((bar) => bar.values.length > 1);
+    const legendMarkup = isComparison && groupLegend.length ? `
+      <section class="chart-lightbox-panel chart-lightbox-comparison-legend">
+        <p class="chart-lightbox-kicker">Légende des sous-groupes</p>
+        <ul class="chart-lightbox-legend">
+          ${groupLegend.map((group) => `
+            <li class="chart-lightbox-legend-item">
+              <span class="chart-lightbox-swatch" style="background:${ns.utils.escapeHtml(group.color)};"></span>
+              <span class="chart-lightbox-legend-label">${ns.utils.escapeHtml(group.label)}</span>
+            </li>
+          `).join("")}
+        </ul>
+      </section>
+    ` : chartBars.length ? `
       <section class="chart-lightbox-panel">
         <p class="chart-lightbox-kicker">Legende</p>
         <ul class="chart-lightbox-legend">
@@ -1214,6 +1249,12 @@
     updateSelectedVisualData({ chartBars: nextBars }, rerender);
   }
 
+  function updateSelectedVisualChartGroup(index, patch, rerender = true) {
+    const current = getSelectedVisualData();
+    const nextGroups = current.chartGroups.map((group, groupIndex) => groupIndex === index ? Object.assign({}, group, patch) : group);
+    updateSelectedVisualData({ chartGroups: nextGroups }, rerender);
+  }
+
   function getDefaultVisualChartBar(index) {
     const defaults = getDefaultVisualData().chartBars || [];
     return ns.utils.clone(defaults[index] || defaults[defaults.length - 1] || {
@@ -1228,6 +1269,11 @@
       label: ns.utils.clampText(bar && bar.label, 18) || "",
       value: clampVisualBarValue(bar && bar.value),
       color: normalizeVisualArrowColor(bar && bar.color),
+      values: Array.from({ length: 3 }, (_, groupIndex) => clampVisualBarValue(
+        Array.isArray(bar && bar.values) && bar.values[groupIndex] !== undefined
+          ? bar.values[groupIndex]
+          : bar && bar.value
+      )),
     })) : [];
 
     while (normalized.length < 6) {
@@ -1365,7 +1411,20 @@
   }
 
   function normalizeCanvasShapeKind(value) {
-    return value === "square" || value === "bubble" ? value : "circle";
+    return value === "square" || value === "bubble" || value === "line" ? value : "circle";
+  }
+
+  function normalizeCanvasShapeTransparency(value) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? Math.max(0, Math.min(100, Math.round(parsed))) : 14;
+  }
+
+  function normalizeCanvasShapeStrokeWidth(value) {
+    return Math.max(1, Math.min(30, Math.round(Number(value) || 3)));
+  }
+
+  function normalizeCanvasTextAlign(value) {
+    return value === "center" || value === "right" ? value : "left";
   }
 
   function normalizeCanvasRevealGroup(value) {
@@ -1411,6 +1470,8 @@
     if (type === "shape") {
       normalized.shapeKind = normalizeCanvasShapeKind(input.shapeKind);
       normalized.color = normalizeCanvasColor(input.color, "#0a66ff");
+      normalized.transparency = normalizeCanvasShapeTransparency(input.transparency);
+      normalized.strokeWidth = normalizeCanvasShapeStrokeWidth(input.strokeWidth);
       return normalized;
     }
 
@@ -1419,6 +1480,7 @@
     normalized.fontSize = clampCanvasMetric(input.fontSize, 28, 16, 72);
     normalized.fontOptionId = normalizeCanvasFontOptionId(input.fontOptionId);
     normalized.color = normalizeCanvasColor(input.color, "#1d1917");
+    normalized.textAlign = normalizeCanvasTextAlign(input.textAlign);
     normalized.showFrame = input.showFrame !== false;
     normalized.bold = Boolean(input.bold);
     normalized.italic = Boolean(input.italic);
@@ -1458,6 +1520,7 @@
         fontSize: 28,
         fontOptionId: "",
         color: "#1d1917",
+        textAlign: "left",
         showFrame: true,
         bold: false,
         italic: false,
@@ -1502,6 +1565,8 @@
         revealGroup: "",
         shapeKind: "circle",
         color: "#0a66ff",
+        transparency: 14,
+        strokeWidth: 3,
         locked: false,
       },
     };
@@ -3633,6 +3698,7 @@
   refs.canvasAddCircle.addEventListener("click", () => addCanvasElement("shape", { shapeKind: "circle" }));
   refs.canvasAddSquare.addEventListener("click", () => addCanvasElement("shape", { shapeKind: "square" }));
   refs.canvasAddBubble.addEventListener("click", () => addCanvasElement("shape", { shapeKind: "bubble" }));
+  refs.canvasAddLine.addEventListener("click", () => addCanvasElement("shape", { shapeKind: "line", w: 28, h: 6 }));
   refs.canvasProgressive.addEventListener("change", (event) => updateSelectedCanvasData({
     progressive: Boolean(event.target.checked),
   }));
@@ -3795,6 +3861,11 @@
       fontOptionId: nextFontOptionId,
     }, false);
   });
+  refs.canvasTextAlign.addEventListener("change", (event) => {
+    const textAlign = normalizeCanvasTextAlign(event.target.value);
+    refs.canvasTextContent.style.textAlign = textAlign;
+    updateSelectedCanvasElement({ textAlign }, false);
+  });
   refs.canvasTextSize.addEventListener("mousedown", () => {
     markCanvasTextEditorToolbarInteraction();
     saveCanvasTextEditorSelection();
@@ -3848,6 +3919,16 @@
   refs.canvasShapeColor.addEventListener("input", (event) => updateSelectedCanvasElement({
     color: normalizeCanvasColor(event.target.value, "#0a66ff"),
   }, false));
+  refs.canvasShapeTransparency.addEventListener("input", (event) => {
+    const transparency = normalizeCanvasShapeTransparency(event.target.value);
+    refs.canvasShapeTransparencyValue.textContent = `${transparency} %`;
+    updateSelectedCanvasElement({ transparency }, false);
+  });
+  refs.canvasShapeStrokeWidth.addEventListener("input", (event) => {
+    const strokeWidth = normalizeCanvasShapeStrokeWidth(event.target.value);
+    refs.canvasShapeStrokeWidthValue.textContent = `${strokeWidth} px`;
+    updateSelectedCanvasElement({ strokeWidth }, false);
+  });
   refs.freeLinksList.addEventListener("input", (event) => {
     const labelInput = event.target.closest("[data-free-link-label]");
     if (labelInput) {
@@ -3928,6 +4009,30 @@
       chartTitle: ns.utils.clampText(event.target.value, 48),
     }, false);
   });
+  refs.visualChartGroupCount.addEventListener("change", (event) => {
+    const chartGroupCount = Math.max(1, Math.min(3, Number(event.target.value) || 1));
+    const current = getSelectedVisualData();
+    const chartBars = normalizeVisualChartBars(current.chartBars).map((bar) => ({
+      ...bar,
+      values: Array.from({ length: 3 }, (_, index) => clampVisualBarValue(
+        Array.isArray(bar.values) && bar.values[index] !== undefined ? bar.values[index] : bar.value
+      )),
+    }));
+    updateSelectedVisualData({ chartGroupCount, chartBars });
+  });
+  function updateVisualChartGroupFromInput(event) {
+    const input = event.target.closest("[data-visual-chart-group-field]");
+    if (!input) {
+      return;
+    }
+    const index = Number(input.getAttribute("data-visual-chart-group-index"));
+    const field = input.getAttribute("data-visual-chart-group-field");
+    updateSelectedVisualChartGroup(index, {
+      [field]: field === "label" ? ns.utils.clampText(input.value, 18) : normalizeVisualArrowColor(input.value),
+    }, false);
+  }
+  refs.visualChartGroups.addEventListener("input", updateVisualChartGroupFromInput);
+  refs.visualChartGroups.addEventListener("change", updateVisualChartGroupFromInput);
   refs.visualChartBars.addEventListener("input", (event) => {
     const input = event.target.closest("[data-visual-chart-field]");
     if (!input) {
@@ -3948,7 +4053,14 @@
     }
     if (field === "value") {
       updateSelectedVisualChartBar(index, {
-        value: clampVisualBarValue(input.value),
+        values: (() => {
+          const values = Array.isArray(getSelectedVisualData().chartBars[index].values)
+            ? getSelectedVisualData().chartBars[index].values.slice(0, 3)
+            : [getSelectedVisualData().chartBars[index].value, 0, 0];
+          const groupIndex = Number(input.getAttribute("data-visual-chart-group-index"));
+          values[groupIndex] = clampVisualBarValue(input.value);
+          return values;
+        })(),
       }, false);
     }
   });

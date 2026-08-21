@@ -46,7 +46,20 @@
   }
 
   function normalizeCanvasShapeKind(value) {
-    return value === "square" || value === "bubble" ? value : "circle";
+    return value === "square" || value === "bubble" || value === "line" ? value : "circle";
+  }
+
+  function normalizeCanvasShapeTransparency(value) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? Math.max(0, Math.min(100, Math.round(parsed))) : 14;
+  }
+
+  function normalizeCanvasShapeStrokeWidth(value) {
+    return Math.max(1, Math.min(30, Math.round(Number(value) || 3)));
+  }
+
+  function normalizeCanvasTextAlign(value) {
+    return value === "center" || value === "right" ? value : "left";
   }
 
   function safeRead(key) {
@@ -207,14 +220,37 @@
     const utils = ns.utils;
     const fallback = ns.stateFactory.createDefaultVisualData();
     const raw = input && typeof input === "object" ? input : {};
+    const chartGroupCount = Math.max(1, Math.min(3, Number(raw.chartGroupCount) || fallback.chartGroupCount || 1));
+    const chartGroupsInput = Array.isArray(raw.chartGroups) ? raw.chartGroups.slice(0, 3) : [];
+    const chartGroups = chartGroupsInput.map((item, index) => {
+      const fallbackGroup = fallback.chartGroups[index] || fallback.chartGroups[0];
+      return {
+        label: utils.clampText(item && item.label, 18) || fallbackGroup.label,
+        color: normalizeHexColor(item && item.color, fallbackGroup.color),
+      };
+    });
+    while (chartGroups.length < 3) {
+      chartGroups.push(utils.clone(fallback.chartGroups[chartGroups.length] || fallback.chartGroups[0]));
+    }
     const chartBarsInput = Array.isArray(raw.chartBars) ? raw.chartBars.slice(0, 6) : [];
     const chartBars = chartBarsInput.map((item, index) => {
       const fallbackBar = fallback.chartBars[index] || fallback.chartBars[0];
       const value = Number(item && item.value);
+      const rawValues = Array.isArray(item && item.values) ? item.values.slice(0, 3) : [];
+      const values = rawValues.map((entry, groupIndex) => {
+        const parsed = Number(entry);
+        return Number.isFinite(parsed) ? Math.max(0, Math.min(100, Math.round(parsed))) : fallbackBar.values[groupIndex];
+      });
+      while (values.length < 3) {
+        values.push(Number.isFinite(value)
+          ? Math.max(0, Math.min(100, Math.round(value)))
+          : fallbackBar.values[values.length]);
+      }
       return {
         label: utils.clampText(item && item.label, 18) || fallbackBar.label,
         value: Number.isFinite(value) ? Math.max(0, Math.min(100, Math.round(value))) : fallbackBar.value,
         color: normalizeHexColor(item && item.color, fallbackBar.color),
+        values,
       };
     });
 
@@ -237,6 +273,8 @@
       showChart: raw.showChart !== false,
       chartReveal: Boolean(raw.chartReveal),
       chartBarCount: Math.max(1, Math.min(6, Number(raw.chartBarCount) || fallback.chartBarCount || 3)),
+      chartGroupCount,
+      chartGroups,
       chartTitle: typeof raw.chartTitle === "string" ? utils.clampText(raw.chartTitle, 48) : fallback.chartTitle,
       chartBars,
     };
@@ -338,6 +376,8 @@
       return Object.assign(base, {
         shapeKind: normalizeCanvasShapeKind(input.shapeKind),
         color: normalizeHexColor(input.color, "#0a66ff"),
+        transparency: normalizeCanvasShapeTransparency(input.transparency),
+        strokeWidth: normalizeCanvasShapeStrokeWidth(input.strokeWidth),
       });
     }
 
@@ -346,6 +386,7 @@
       fontSize: clampCanvasMetric(input.fontSize, 28, 16, 72),
       fontOptionId: fontOptions.includes(input.fontOptionId) ? input.fontOptionId : "",
       color: normalizeHexColor(input.color, "#1d1917"),
+      textAlign: normalizeCanvasTextAlign(input.textAlign),
       showFrame: input.showFrame !== false,
       bold: Boolean(input.bold),
       italic: Boolean(input.italic),

@@ -28,13 +28,19 @@
       chartReveal: false,
       chartTitle: "Indicateurs clés",
       chartBarCount: 3,
+      chartGroupCount: 1,
+      chartGroups: [
+        { label: "Valeur", color: "#60b2e5" },
+        { label: "Groupe B", color: "#fcba04" },
+        { label: "Groupe C", color: "#294c60" },
+      ],
       chartBars: [
-        { label: "Usage", value: 72, color: "#60b2e5" },
-        { label: "Impact", value: 54, color: "#294c60" },
-        { label: "Suivi", value: 38, color: "#fcba04" },
-        { label: "Adoption", value: 46, color: "#083d77" },
-        { label: "Portee", value: 61, color: "#ff6978" },
-        { label: "Qualite", value: 49, color: "#71a2b6" },
+        { label: "Usage", value: 72, color: "#60b2e5", values: [72, 58, 45] },
+        { label: "Impact", value: 54, color: "#294c60", values: [54, 68, 49] },
+        { label: "Suivi", value: 38, color: "#fcba04", values: [38, 42, 55] },
+        { label: "Adoption", value: 46, color: "#083d77", values: [46, 51, 39] },
+        { label: "Portee", value: 61, color: "#ff6978", values: [61, 57, 64] },
+        { label: "Qualite", value: 49, color: "#71a2b6", values: [49, 53, 44] },
       ],
     };
   }

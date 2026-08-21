@@ -1058,7 +1058,7 @@
         position: relative;
         width: 100%;
         height: 100%;
-        border: clamp(0.14rem, 0.28vw, 0.22rem) solid var(--canvas-shape-color, #0a66ff);
+        border: var(--canvas-shape-stroke-width, clamp(0.14rem, 0.28vw, 0.22rem)) solid var(--canvas-shape-color, #0a66ff);
         background: var(--canvas-shape-fill, rgba(10, 102, 255, 0.14));
         box-shadow: 0 8px 20px rgba(18, 32, 51, 0.08);
       }
@@ -1071,14 +1071,24 @@
       .canvas-element-shape-content.is-bubble {
         border-radius: 22px;
       }
+      .canvas-element-shape-content.is-line {
+        position: relative;
+        top: 50%;
+        height: var(--canvas-shape-stroke-width, 3px);
+        border: 0;
+        border-radius: 999px;
+        background: var(--canvas-shape-color, #0a66ff);
+        box-shadow: none;
+        transform: translateY(-50%);
+      }
       .canvas-shape-bubble-tail {
         position: absolute;
         left: clamp(0.8rem, 18%, 1.4rem);
         bottom: calc(-1 * clamp(0.42rem, 10%, 0.7rem));
         width: clamp(0.95rem, 18%, 1.4rem);
         height: clamp(0.95rem, 18%, 1.4rem);
-        border-right: clamp(0.14rem, 0.28vw, 0.22rem) solid var(--canvas-shape-color, #0a66ff);
-        border-bottom: clamp(0.14rem, 0.28vw, 0.22rem) solid var(--canvas-shape-color, #0a66ff);
+        border-right: var(--canvas-shape-stroke-width, clamp(0.14rem, 0.28vw, 0.22rem)) solid var(--canvas-shape-color, #0a66ff);
+        border-bottom: var(--canvas-shape-stroke-width, clamp(0.14rem, 0.28vw, 0.22rem)) solid var(--canvas-shape-color, #0a66ff);
         background: var(--canvas-shape-fill, rgba(10, 102, 255, 0.14));
         transform: rotate(40deg);
         border-bottom-right-radius: 0.3rem;
@@ -1699,6 +1709,10 @@
       }
       .slide-visual-support-column.has-chart {
         grid-template-rows: auto auto minmax(0, 1fr);
+        align-self: stretch;
+      }
+      .slide-visual-support-column.has-chart .slide-visual-chart-card {
+        min-height: clamp(13rem, 32vh, 20rem);
       }
       .slide-visual-layout.is-media-hidden {
         grid-template-columns: minmax(0, 1fr);
@@ -1888,10 +1902,14 @@
       }
       .slide-visual-chart-card {
         display: grid;
+        grid-template-rows: auto minmax(0, 1fr);
         gap: 0.6rem;
         min-height: 0;
         cursor: zoom-in;
         transition: transform 180ms ease, box-shadow 180ms ease;
+      }
+      .slide-visual-chart-card:has(.slide-visual-chart-legend) {
+        grid-template-rows: auto auto minmax(0, 1fr);
       }
       .slide-visual-chart-card:hover {
         transform: translateY(-0.08rem);
@@ -1908,22 +1926,46 @@
         display: grid;
         grid-template-columns: repeat(3, minmax(0, 1fr));
         gap: 0.55rem;
-        align-items: end;
+        align-items: stretch;
         min-height: 0;
         height: 100%;
+        align-self: stretch;
       }
       .slide-visual-chart-grid.is-dense {
         gap: 0.38rem;
       }
+      .slide-visual-chart-legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.3rem 0.7rem;
+        margin-top: -0.2rem;
+        font-size: calc(0.62rem * var(--slide-content-font-scale));
+        font-weight: 700;
+        color: var(--slide-text-muted);
+      }
+      .slide-visual-chart-legend span { display: inline-flex; align-items: center; gap: 0.28rem; }
+      .slide-visual-chart-legend i { inline-size: 0.62rem; block-size: 0.62rem; border-radius: 50%; }
       .slide-visual-chart-bar-card {
         display: grid;
+        grid-template-rows: minmax(0, 1fr) auto;
         gap: 0.4rem;
         min-height: 0;
+        height: 100%;
+      }
+      .slide-visual-chart-bar-cluster {
+        display: flex;
+        align-items: stretch;
+        gap: 0.16rem;
+        min-height: 0;
+        height: 100%;
       }
       .slide-visual-chart-bar-shell {
+        position: relative;
         display: flex;
+        flex: 1 1 0;
         align-items: end;
-        min-height: clamp(4.6rem, 7vw, 6rem);
+        min-width: 0;
+        min-height: 100%;
         padding: 0.24rem;
         border-radius: 16px;
         background:
@@ -1936,6 +1978,18 @@
           ),
           linear-gradient(180deg, rgba(255,255,255,0.78), rgba(255,255,255,0.58));
         box-shadow: inset 0 0 0 1px rgba(23,71,139,0.08);
+      }
+      .slide-visual-chart-column-value {
+        position: absolute;
+        left: 50%;
+        z-index: 1;
+        transform: translateX(-50%);
+        font-size: calc(0.62rem * var(--slide-content-font-scale));
+        font-weight: 800;
+        color: var(--slide-text);
+        line-height: 1;
+        white-space: nowrap;
+        pointer-events: none;
       }
       .slide-visual-chart-bar-fill {
         width: 100%;
@@ -2515,6 +2569,12 @@
       }
       .chart-lightbox-main {
         min-width: 0;
+        padding: 1.1rem;
+        border-radius: 28px;
+        background:
+          radial-gradient(circle at top right, rgba(137,195,255,0.42), transparent 42%),
+          linear-gradient(145deg, #0c4f9d, #0a66c2 58%, #083d77);
+        box-shadow: inset 0 0 0 1px rgba(255,255,255,0.26), 0 22px 50px rgba(7,45,94,0.3);
       }
       .chart-lightbox-side {
         display: grid;
@@ -3576,10 +3636,23 @@
             label: typeof (bar && bar.label) === "string" && bar.label.trim() ? bar.label.trim().slice(0, 18) : "Point",
             value: clampChartBarValue(bar && bar.value),
             color: normalizeChartHexColor(bar && bar.color),
+            values: Array.isArray(bar && bar.values) ? bar.values.slice(0, 3) : [],
           }));
         } catch (error) {
           return [];
         }
+      }
+
+      function getChartLightboxGroupLegend(chartCard) {
+        return Array.from(chartCard ? chartCard.querySelectorAll(".slide-visual-chart-legend span") : [])
+          .map((item) => {
+            const swatch = item.querySelector("i");
+            return {
+              label: String(item.textContent || "").trim().slice(0, 18),
+              color: (swatch && swatch.style.background) || "#60b2e5",
+            };
+          })
+          .filter((item) => item.label);
       }
 
       function decorateChartCloneForLightbox(chartClone) {
@@ -3665,29 +3738,47 @@
         sideColumn.className = "chart-lightbox-side";
 
         const chartBars = getChartLightboxBars(chartCard);
-        if (chartBars.length) {
+        const groupLegend = getChartLightboxGroupLegend(chartCard);
+        const isComparison = groupLegend.length > 1 || chartBars.some((bar) => bar.values.length > 1);
+        if (isComparison && groupLegend.length) {
+          const legendPanel = createChartLightboxPanel("Légende des sous-groupes");
+          const legend = document.createElement("ul");
+          legend.className = "chart-lightbox-legend";
+          groupLegend.forEach((group) => {
+            const item = document.createElement("li");
+            item.className = "chart-lightbox-legend-item";
+
+            const swatch = document.createElement("span");
+            swatch.className = "chart-lightbox-swatch";
+            swatch.style.background = group.color;
+
+            const label = document.createElement("span");
+            label.className = "chart-lightbox-legend-label";
+            label.textContent = group.label;
+
+            item.appendChild(swatch);
+            item.appendChild(label);
+            legend.appendChild(item);
+          });
+          legendPanel.appendChild(legend);
+          sideColumn.appendChild(legendPanel);
+        } else if (chartBars.length) {
           const legendPanel = createChartLightboxPanel("Legende");
           const legend = document.createElement("ul");
           legend.className = "chart-lightbox-legend";
           chartBars.forEach((bar) => {
             const item = document.createElement("li");
             item.className = "chart-lightbox-legend-item";
-
             const swatch = document.createElement("span");
             swatch.className = "chart-lightbox-swatch";
             swatch.style.background = bar.color;
-
             const label = document.createElement("span");
             label.className = "chart-lightbox-legend-label";
             label.textContent = bar.label;
-
             const value = document.createElement("strong");
             value.className = "chart-lightbox-legend-value";
             value.textContent = String(bar.value) + "%";
-
-            item.appendChild(swatch);
-            item.appendChild(label);
-            item.appendChild(value);
+            item.append(swatch, label, value);
             legend.appendChild(item);
           });
           legendPanel.appendChild(legend);
@@ -4059,6 +4150,11 @@
       window.addEventListener("resize", () => {
         updateFullscreenScale();
         updateWindowScale();
+      });
+      window.addEventListener("storage", (event) => {
+        if (event.key === "studio-ingenierie-formation-v2") {
+          window.location.reload();
+        }
       });
       printButton.addEventListener("click", () => window.print());
       document.addEventListener("keydown", async (event) => {

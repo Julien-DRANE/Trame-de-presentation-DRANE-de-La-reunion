@@ -473,6 +473,15 @@
       };
     }
 
+    if (bullets.length === 3) {
+      return {
+        mainBullets: bullets.slice(0, 2),
+        extraBullets: bullets.slice(2),
+        mainWeight: weights.slice(0, 2).reduce((sum, value) => sum + value, 0),
+        extraWeight: weights[2] || 0,
+      };
+    }
+
     let bestSplitIndex = -1;
     let bestScore = Number.POSITIVE_INFINITY;
     let runningWeight = 0;
@@ -830,9 +839,20 @@
           arrowDirection: "right",
           arrowColor: "#60b2e5",
           chartTitle: "",
+          chartGroupCount: 1,
+          chartGroups: [{ label: "Valeur", color: "#60b2e5" }],
           chartBars: [],
         };
     const raw = slide && slide.visualData && typeof slide.visualData === "object" ? slide.visualData : {};
+    const chartGroupCount = Math.max(1, Math.min(3, Number(raw.chartGroupCount) || fallback.chartGroupCount || 1));
+    const chartGroups = Array.from({ length: 3 }, (_, index) => {
+      const rawGroup = Array.isArray(raw.chartGroups) ? raw.chartGroups[index] : null;
+      const fallbackGroup = (fallback.chartGroups && fallback.chartGroups[index]) || (fallback.chartGroups && fallback.chartGroups[0]) || { label: `Groupe ${index + 1}`, color: "#60b2e5" };
+      return {
+        label: (rawGroup && rawGroup.label) || fallbackGroup.label,
+        color: /^#[0-9a-fA-F]{6}$/.test(rawGroup && rawGroup.color) ? rawGroup.color : fallbackGroup.color,
+      };
+    });
     const chartBars = Array.isArray(raw.chartBars) ? raw.chartBars.slice(0, 6) : [];
 
     while (chartBars.length < 6) {
@@ -854,11 +874,22 @@
       showChart: raw.showChart !== false,
       chartReveal: Boolean(raw.chartReveal),
       chartBarCount: Math.max(1, Math.min(6, Number(raw.chartBarCount) || fallback.chartBarCount || 3)),
+      chartGroupCount,
+      chartGroups,
       chartTitle: typeof raw.chartTitle === "string" ? raw.chartTitle : fallback.chartTitle,
       chartBars: chartBars.map((bar, index) => ({
         label: (bar && bar.label) || (fallback.chartBars[index] ? fallback.chartBars[index].label : ""),
         value: Number.isFinite(Number(bar && bar.value)) ? Math.max(0, Math.min(100, Number(bar.value))) : (fallback.chartBars[index] ? fallback.chartBars[index].value : 0),
         color: /^#[0-9a-fA-F]{6}$/.test(bar && bar.color) ? bar.color : (fallback.chartBars[index] ? fallback.chartBars[index].color : "#60b2e5"),
+        values: Array.from({ length: 3 }, (_, groupIndex) => {
+          const rawValue = Array.isArray(bar && bar.values) ? bar.values[groupIndex] : undefined;
+          const legacyValue = Number(bar && bar.value);
+          const fallbackValue = fallback.chartBars[index] && Array.isArray(fallback.chartBars[index].values)
+            ? fallback.chartBars[index].values[groupIndex]
+            : fallback.chartBars[index] ? fallback.chartBars[index].value : 0;
+          const value = Number.isFinite(Number(rawValue)) ? Number(rawValue) : Number.isFinite(legacyValue) ? legacyValue : fallbackValue;
+          return Math.max(0, Math.min(100, value));
+        }),
       })),
     };
   }
@@ -934,24 +965,37 @@
     const chartTitle = visualData.chartTitle || "";
     const chartBars = visualData.chartBars
       .slice(0, Math.max(1, Math.min(6, Number(visualData.chartBarCount) || 3)));
+    const chartGroupCount = Math.max(1, Math.min(3, Number(visualData.chartGroupCount) || 1));
+    const chartGroups = Array.from({ length: chartGroupCount }, (_, index) => {
+      const group = (visualData.chartGroups || [])[index] || {};
+      return {
+        label: group.label || `Groupe ${index + 1}`,
+        color: group.color || visualData.arrowColor,
+      };
+    });
     const chartBarsData = ns.utils.escapeHtml(JSON.stringify(
       chartBars.map((bar) => ({
         label: bar.label || "Point",
         value: Math.round(Number(bar.value) || 0),
         color: bar.color || visualData.arrowColor,
+        values: chartGroups.map((group, index) => Math.round(Number(Array.isArray(bar.values) && bar.values[index] !== undefined ? bar.values[index] : bar.value) || 0)),
       }))
     ));
     const chartBarsMarkup = chartBars
       .map((bar) => {
-        const height = Math.max(6, Math.round(Math.max(0, Math.min(100, Number(bar.value) || 0))));
         return `
           <div class="slide-visual-chart-bar-card">
-            <div class="slide-visual-chart-bar-shell">
-              <div class="slide-visual-chart-bar-fill" style="height:${height}%; background:${ns.utils.escapeHtml(bar.color || visualData.arrowColor)};"></div>
+            <div class="slide-visual-chart-bar-cluster">
+              ${chartGroups.map((group, index) => {
+                const value = Math.round(Math.max(0, Math.min(100, Number(Array.isArray(bar.values) && bar.values[index] !== undefined ? bar.values[index] : bar.value) || 0)));
+                const height = Math.max(6, value);
+                const color = chartGroupCount === 1 ? (bar.color || visualData.arrowColor) : group.color;
+                const valuePosition = Math.min(91, height);
+                return `<div class="slide-visual-chart-bar-shell" title="${ns.utils.escapeHtml(`${group.label} : ${value}%`)}"><div class="slide-visual-chart-bar-fill" style="height:${height}%; background:${ns.utils.escapeHtml(color)};"></div><span class="slide-visual-chart-column-value" style="bottom:calc(${valuePosition}% + 0.16rem);">${value}%</span></div>`;
+              }).join("")}
             </div>
             <div class="slide-visual-chart-meta">
               <span class="slide-visual-chart-label">${ns.utils.escapeHtml(bar.label || "Point")}</span>
-              <strong class="slide-visual-chart-value">${Math.round(Number(bar.value) || 0)}%</strong>
             </div>
           </div>
         `;
@@ -989,6 +1033,7 @@
           ${visualData.showChart ? `
             <div class="slide-visual-chart-card${chartRevealStep ? " slide-reveal-item" : ""}"${chartRevealStep ? ` data-reveal-step="${chartRevealStep}"` : ""} data-chart-title="${ns.utils.escapeHtml(chartTitle)}" data-chart-body="${ns.utils.escapeHtml(showBodyBlock ? (visualData.body || "") : "")}" data-chart-callout="${ns.utils.escapeHtml(showCalloutBlock ? (visualData.callout || "") : "")}" data-chart-bars="${chartBarsData}">
               ${chartTitle ? `<p class="slide-visual-chart-title">${ns.utils.escapeHtml(chartTitle)}</p>` : ""}
+              ${chartGroupCount > 1 ? `<div class="slide-visual-chart-legend">${chartGroups.map((group) => `<span><i style="background:${ns.utils.escapeHtml(group.color)};"></i>${ns.utils.escapeHtml(group.label)}</span>`).join("")}</div>` : ""}
               <div class="slide-visual-chart-grid${chartBars.length > 4 ? " is-dense" : ""}" data-chart-count="${chartBars.length}" style="grid-template-columns: repeat(${chartBars.length}, minmax(0, 1fr));">
                 ${chartBarsMarkup}
               </div>
@@ -1021,7 +1066,20 @@
   }
 
   function normalizeCanvasShapeKind(value) {
-    return value === "square" || value === "bubble" ? value : "circle";
+    return value === "square" || value === "bubble" || value === "line" ? value : "circle";
+  }
+
+  function normalizeCanvasShapeTransparency(value) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? Math.max(0, Math.min(100, Math.round(parsed))) : 14;
+  }
+
+  function normalizeCanvasShapeStrokeWidth(value) {
+    return Math.max(1, Math.min(30, Math.round(Number(value) || 3)));
+  }
+
+  function normalizeCanvasTextAlign(value) {
+    return value === "center" || value === "right" ? value : "left";
   }
 
   function canvasHexToRgba(value, alpha) {
@@ -1075,6 +1133,8 @@
     if (type === "shape") {
       normalized.shapeKind = normalizeCanvasShapeKind(input.shapeKind);
       normalized.color = /^#[0-9a-fA-F]{6}$/.test(input.color || "") ? input.color : "#0a66ff";
+      normalized.transparency = normalizeCanvasShapeTransparency(input.transparency);
+      normalized.strokeWidth = normalizeCanvasShapeStrokeWidth(input.strokeWidth);
       return normalized;
     }
 
@@ -1083,6 +1143,7 @@
     normalized.fontSize = clampCanvasMetric(input.fontSize, 28, 16, 72);
     normalized.fontOptionId = normalizeCanvasFontOptionId(input.fontOptionId);
     normalized.color = /^#[0-9a-fA-F]{6}$/.test(input.color || "") ? input.color : "#1d1917";
+    normalized.textAlign = normalizeCanvasTextAlign(input.textAlign);
     normalized.showFrame = input.showFrame !== false;
     normalized.bold = Boolean(input.bold);
     normalized.italic = Boolean(input.italic);
@@ -1189,7 +1250,7 @@
       const shapeTailMarkup = shapeKind === 'bubble' ? '<span class="canvas-shape-bubble-tail" aria-hidden="true"></span>' : '';
       return `
         <div ${baseAttrs}${revealAttrs}>
-          <div class="canvas-element-content canvas-element-shape-content is-${ns.utils.escapeHtml(shapeKind)}" style="--canvas-shape-color:${ns.utils.escapeHtml(element.color || '#0a66ff')}; --canvas-shape-fill:${ns.utils.escapeHtml(canvasHexToRgba(element.color || '#0a66ff', 0.14))};">
+          <div class="canvas-element-content canvas-element-shape-content is-${ns.utils.escapeHtml(shapeKind)}" style="--canvas-shape-color:${ns.utils.escapeHtml(canvasHexToRgba(element.color || '#0a66ff', 1 - (normalizeCanvasShapeTransparency(element.transparency) / 100)))}; --canvas-shape-fill:${ns.utils.escapeHtml(canvasHexToRgba(element.color || '#0a66ff', 1 - (normalizeCanvasShapeTransparency(element.transparency) / 100)))}; --canvas-shape-stroke-width:${normalizeCanvasShapeStrokeWidth(element.strokeWidth)}px;">
             ${shapeTailMarkup}
           </div>
           ${interactive && !locked ? '<button class="canvas-resize-handle" type="button" data-canvas-resize-handle="true" aria-label="Redimensionner l’élément"></button>' : ''}
@@ -1198,9 +1259,11 @@
     }
 
     const textFont = getFontOption(element.fontOptionId || opts.deckFontId || 'studio');
+    const textAlign = normalizeCanvasTextAlign(element.textAlign);
+    const textAlignmentLayout = textAlign === "left" ? "" : " width:100%; align-items:stretch;";
     return `
       <div ${baseAttrs}${revealAttrs}>
-        <div class="canvas-element-content canvas-element-text-content${element.showFrame === false ? ' is-frameless' : ''}" style="font-family:${ns.utils.escapeHtml(textFont.body)}; font-size:${element.fontSize}px; color:${ns.utils.escapeHtml(element.color)};">
+        <div class="canvas-element-content canvas-element-text-content${element.showFrame === false ? ' is-frameless' : ''}" style="font-family:${ns.utils.escapeHtml(textFont.body)}; font-size:${element.fontSize}px; color:${ns.utils.escapeHtml(element.color)}; text-align:${textAlign};${textAlignmentLayout}">
           ${createCanvasTextMarkup(element.text)}
         </div>
         ${interactive && !locked ? '<button class="canvas-resize-handle" type="button" data-canvas-resize-handle="true" aria-label="Redimensionner l’élément"></button>' : ''}

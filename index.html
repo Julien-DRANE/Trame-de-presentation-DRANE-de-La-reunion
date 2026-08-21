@@ -444,6 +444,7 @@
                   <button id="canvas-add-circle" class="button button-ghost" type="button">Cercle</button>
                   <button id="canvas-add-square" class="button button-ghost" type="button">Carré</button>
                   <button id="canvas-add-bubble" class="button button-ghost" type="button">Bulle</button>
+                  <button id="canvas-add-line" class="button button-ghost" type="button">Trait</button>
                 </div>
                 <label class="checkbox-field">
                   <input id="canvas-progressive" type="checkbox" />
@@ -485,6 +486,7 @@
                         <div id="canvas-text-color-palette" class="canvas-text-color-palette" aria-label="Couleur du texte sélectionné">
                           <span class="canvas-text-color-label">Couleur</span>
                           <button class="canvas-text-color-swatch is-active" type="button" data-canvas-text-color-value="#1d1917" aria-label="Noir doux" title="Noir doux" style="--swatch-color:#1d1917;"></button>
+                          <button class="canvas-text-color-swatch" type="button" data-canvas-text-color-value="#ffffff" aria-label="Blanc" title="Blanc" style="--swatch-color:#ffffff;"></button>
                           <button class="canvas-text-color-swatch" type="button" data-canvas-text-color-value="#0a66ff" aria-label="Bleu vif" title="Bleu vif" style="--swatch-color:#0a66ff;"></button>
                           <button class="canvas-text-color-swatch" type="button" data-canvas-text-color-value="#0c6291" aria-label="Bleu profond" title="Bleu profond" style="--swatch-color:#0c6291;"></button>
                           <button class="canvas-text-color-swatch" type="button" data-canvas-text-color-value="#b42318" aria-label="Rouge" title="Rouge" style="--swatch-color:#b42318;"></button>
@@ -509,6 +511,14 @@
                         <input id="canvas-text-size" type="range" min="16" max="72" step="1" value="28" />
                         <span id="canvas-text-size-value" class="range-field-value">28 px</span>
                       </div>
+                    </label>
+                    <label>
+                      Alignement
+                      <select id="canvas-text-align">
+                        <option value="left">À gauche</option>
+                        <option value="center">Centrer</option>
+                        <option value="right">À droite</option>
+                      </select>
                     </label>
                     <label class="checkbox-field">
                       <input id="canvas-text-frame" type="checkbox" checked />
@@ -563,11 +573,26 @@
                           <option value="circle">Cercle</option>
                           <option value="square">Carré</option>
                           <option value="bubble">Bulle</option>
+                          <option value="line">Trait</option>
                         </select>
                       </label>
                       <label>
                         Couleur
                         <input id="canvas-shape-color" type="color" value="#0a66ff" />
+                      </label>
+                      <label>
+                        Transparence
+                        <div class="range-field">
+                          <input id="canvas-shape-transparency" type="range" min="0" max="100" step="1" value="14" />
+                          <span id="canvas-shape-transparency-value" class="range-field-value">14 %</span>
+                        </div>
+                      </label>
+                      <label>
+                        Épaisseur du trait
+                        <div class="range-field">
+                          <input id="canvas-shape-stroke-width" type="range" min="1" max="30" step="1" value="3" />
+                          <span id="canvas-shape-stroke-width-value" class="range-field-value">3 px</span>
+                        </div>
                       </label>
                     </div>
                   </details>
@@ -618,41 +643,44 @@
               </div>
 
               <div id="slide-visual-editor" class="slide-content-mode" hidden>
-                <div class="visual-editor-grid">
-                  <label>
-                    Media principal
-                    <select id="visual-primary-media"></select>
-                  </label>
-                  <label>
-                    Media secondaire
-                    <select id="visual-secondary-media"></select>
-                  </label>
-                </div>
+                <details class="canvas-editor-details visual-editor-details">
+                  <summary>Médias et texte d'accompagnement</summary>
+                  <div class="visual-editor-grid">
+                    <label>
+                      Media principal
+                      <select id="visual-primary-media"></select>
+                    </label>
+                    <label>
+                      Media secondaire
+                      <select id="visual-secondary-media"></select>
+                    </label>
+                  </div>
 
-                <div class="visual-editor-grid visual-editor-grid-tight">
-                  <label class="checkbox-field">
-                    <input id="visual-show-images" type="checkbox" checked />
-                    <span>Afficher les medias</span>
-                  </label>
-                  <label class="checkbox-field">
-                    <input id="visual-primary-media-reveal" type="checkbox" />
-                    <span>Reveler le media principal</span>
-                  </label>
-                  <label class="checkbox-field">
-                    <input id="visual-secondary-media-reveal" type="checkbox" />
-                    <span>Reveler le media secondaire</span>
-                  </label>
-                </div>
+                  <div class="visual-editor-grid visual-editor-grid-tight">
+                    <label class="checkbox-field">
+                      <input id="visual-show-images" type="checkbox" checked />
+                      <span>Afficher les medias</span>
+                    </label>
+                    <label class="checkbox-field">
+                      <input id="visual-primary-media-reveal" type="checkbox" />
+                      <span>Reveler le media principal</span>
+                    </label>
+                    <label class="checkbox-field">
+                      <input id="visual-secondary-media-reveal" type="checkbox" />
+                      <span>Reveler le media secondaire</span>
+                    </label>
+                  </div>
 
-                <label class="checkbox-field">
-                  <input id="visual-show-body" type="checkbox" checked />
-                  <span>Afficher le texte d'accompagnement</span>
-                </label>
-                <label>
-                  Texte d'accompagnement
-                  <textarea id="visual-body" rows="4" maxlength="320"></textarea>
-                  <span id="visual-body-meta" class="field-meta"></span>
-                </label>
+                  <label class="checkbox-field">
+                    <input id="visual-show-body" type="checkbox" checked />
+                    <span>Afficher le texte d'accompagnement</span>
+                  </label>
+                  <label>
+                    Texte d'accompagnement
+                    <textarea id="visual-body" rows="4" maxlength="320"></textarea>
+                    <span id="visual-body-meta" class="field-meta"></span>
+                  </label>
+                </details>
                 <label class="checkbox-field">
                   <input id="visual-show-callout" type="checkbox" checked />
                   <span>Afficher le texte mis en évidence</span>
@@ -682,6 +710,17 @@
                     Titre du graphe
                     <input id="visual-chart-title" type="text" maxlength="48" />
                   </label>
+
+                  <label>
+                    Colonnes par indicateur
+                    <select id="visual-chart-group-count">
+                      <option value="1">1 colonne</option>
+                      <option value="2">2 colonnes</option>
+                      <option value="3">3 colonnes</option>
+                    </select>
+                  </label>
+
+                  <div id="visual-chart-groups" class="visual-chart-groups"></div>
 
                   <div id="visual-chart-bars" class="visual-chart-bars"></div>
                   <div class="visual-chart-actions">
