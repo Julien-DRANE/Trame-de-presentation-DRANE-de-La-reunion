@@ -1150,14 +1150,16 @@
       const rowColor = tableHighlights.rows ? tableHighlights.rows[String(rowIndex)] : "";
       const columnColor = tableHighlights.columns ? tableHighlights.columns[String(colIndex)] : "";
       const fillColor = cellColor || rowColor || columnColor;
+      const textStyle = (slide.cellTextStyles || {})[`${rowIndex}-${colIndex}`] || {};
       const isHeader = rowIndex === 0 || (row.length > 2 && colIndex === 0);
       return {
         text: flattenLinkedText(cell || ""),
         options: {
           bold: isHeader,
-          color: palette.text,
+          color: /^#[0-9a-fA-F]{6}$/.test(textStyle.color || "") ? stripHex(textStyle.color) : palette.text,
+          fontSize: Number(textStyle.fontSize) ? Math.max(10, Math.min(48, Number(textStyle.fontSize))) : undefined,
           valign: "mid",
-          align: colIndex === 0 ? "left" : "center",
+          align: textStyle.align === "center" || textStyle.align === "right" ? textStyle.align : (colIndex === 0 ? "left" : "center"),
           fill: fillColor ? stripHex(lightenHex(fillColor, 0.75)) : stripHex(palette.surface),
           margin: { left: 0.06, right: 0.06, top: 0.05, bottom: 0.05 },
         },

@@ -120,6 +120,7 @@
         ),
         transition: transitionOptions.includes(input.settings && input.settings.transition) ? input.settings.transition : fallbackState.settings.transition,
         frameShadow: Boolean(input.settings && input.settings.frameShadow),
+        tableTextColors: sanitizeTableTextColors(input.settings && input.settings.tableTextColors, fallbackState.settings.tableTextColors),
       },
       mediaLibrary: Array.isArray(input.mediaLibrary)
         ? input.mediaLibrary.map((item) => ns.services.media.sanitizeMediaItem(item)).filter(Boolean)
@@ -141,12 +142,15 @@
     }
     const table = sanitizeTable(slide.table);
     const tableHighlights = sanitizeTableHighlights(slide.tableHighlights, table);
+    const cellTextStyles = sanitizeTableCellTextStyles(slide.cellTextStyles, table);
+    const cellComments = sanitizeTableCellComments(slide.cellComments, table);
     const freeLinks = sanitizeFreeLinks(slide.freeLinks);
     const freeMediaIds = sanitizeFreeMediaIds(slide.freeMediaIds);
     const visualData = sanitizeVisualData(slide.visualData);
     const canvasData = sanitizeCanvasData(slide.canvasData);
     const htmlEmbed = sanitizeHtmlEmbedData(slide.htmlEmbed);
     const subBullets = sanitizeSubBullets(slide.subBullets);
+    const bulletStyles = sanitizeBulletStyles(slide.bulletStyles);
 
     const principleIds = utils.uniqueStrings(slide.principleIds || []).filter((id) => allowedPrincipleIds.includes(id));
 
@@ -168,12 +172,17 @@
       bulletsNumbered: Boolean(slide.bulletsNumbered),
       bulletsProgressive: Boolean(slide.bulletsProgressive),
       bulletsSubProgressive: Boolean(slide.bulletsSubProgressive),
+      bulletsSingleColumn: Boolean(slide.bulletsSingleColumn),
+      bulletStyles,
       tableProgressive: Boolean(slide.tableProgressive),
       tableProgressiveOrder: slide.tableProgressiveOrder === "column" ? "column" : "row",
+      disabled: Boolean(slide.disabled),
       paletteOverride: paletteOptions.includes(slide.paletteOverride) ? slide.paletteOverride : "",
       decorativeAccentOverride: decorativeAccentOptions.includes(slide.decorativeAccentOverride) ? slide.decorativeAccentOverride : "clay",
       decorativeAccentSolid: slide.decorativeAccentSolid === undefined ? true : Boolean(slide.decorativeAccentSolid),
       tableHighlights,
+      cellTextStyles,
+      cellComments,
       table,
       freeBody: utils.sanitizeRichText(slide.freeBody, 3200),
       freeLinks,
@@ -326,6 +335,8 @@
 
     return {
       progressive: Boolean(raw.progressive),
+      showGrid: Boolean(raw.showGrid),
+      snapToGrid: Boolean(raw.snapToGrid),
       elements: elements.length ? elements : fallback.elements.slice(),
     };
   }
@@ -351,6 +362,7 @@
       h: clampCanvasMetric(input.h, type === "arrow" ? 10 : type === "image" ? 28 : type === "shape" ? 22 : 18, 6, 100),
       revealOrder: Math.max(1, Math.min(24, Math.round(Number(input.revealOrder) || (index + 1)))),
       revealGroup: normalizeCanvasRevealGroup(input.revealGroup),
+      appearAtStart: Boolean(input.appearAtStart),
       locked: Boolean(input.locked),
     };
 
@@ -383,11 +395,13 @@
 
     return Object.assign(base, {
       text: typeof input.text === "string" ? utils.sanitizeRichText(input.text, 2000) : utils.plainTextToRichHtml("Zone de texte", 2000),
-      fontSize: clampCanvasMetric(input.fontSize, 28, 16, 72),
+      fontSize: clampCanvasMetric(input.fontSize, 28, 10, 72),
       fontOptionId: fontOptions.includes(input.fontOptionId) ? input.fontOptionId : "",
       color: normalizeHexColor(input.color, "#1d1917"),
       textAlign: normalizeCanvasTextAlign(input.textAlign),
-      showFrame: input.showFrame !== false,
+      showFrame: Boolean(input.showFrame),
+      frameColor: normalizeHexColor(input.frameColor, "#ffffff"),
+      frameTransparency: normalizeCanvasShapeTransparency(input.frameTransparency),
       bold: Boolean(input.bold),
       italic: Boolean(input.italic),
       underline: Boolean(input.underline),
@@ -447,6 +461,43 @@
     };
   }
 
+  function sanitizeTableTextColors(input, fallback) {
+    const defaults = Array.isArray(fallback) ? fallback : ["#1d1917", "#0a66ff", "#0c6291", "#b42318", "#027a48", "#7a5af8"];
+    const colors = (Array.isArray(input) ? input : defaults)
+      .map((color) => /^#[0-9a-fA-F]{6}$/.test(color || "") ? color.toLowerCase() : "")
+      .filter(Boolean)
+      .filter((color, index, all) => all.indexOf(color) === index)
+      .slice(0, 6);
+    return colors.length >= 6 ? colors : [...colors, ...defaults.filter((color) => !colors.includes(color))].slice(0, 6);
+  }
+
+  function sanitizeTableCellTextStyles(input, table) {
+    const result = {};
+    const rows = table.length;
+    const cols = table[0] ? table[0].length : 0;
+    Object.keys(input && typeof input === "object" ? input : {}).forEach((key) => {
+      const match = key.match(/^(\d+)-(\d+)$/);
+      const value = input[key] || {};
+      if (!match || Number(match[1]) >= rows || Number(match[2]) >= cols) return;
+      result[key] = { fontSize: Math.max(10, Math.min(48, Math.round(Number(value.fontSize) || 16))), color: normalizeHexColor(value.color, "#1d1917"), align: value.align === "center" || value.align === "right" ? value.align : "left" };
+    });
+    return result;
+  }
+
+  function sanitizeTableCellComments(input, table) {
+    const result = {};
+    const utils = ns.utils;
+    const rows = table.length;
+    const cols = table[0] ? table[0].length : 0;
+    Object.keys(input && typeof input === "object" ? input : {}).forEach((key) => {
+      const match = key.match(/^(\d+)-(\d+)$/);
+      if (!match || Number(match[1]) >= rows || Number(match[2]) >= cols) return;
+      const comment = utils.clampText(input[key], 500);
+      if (comment) result[key] = comment;
+    });
+    return result;
+  }
+
   function sanitizeSubBullets(input) {
     const utils = ns.utils;
     const result = {};
@@ -466,6 +517,26 @@
       }
     });
 
+    return result;
+  }
+
+  function sanitizeBulletStyles(input) {
+    const result = {};
+    if (!input || typeof input !== "object") {
+      return result;
+    }
+    Object.keys(input).forEach((key) => {
+      const index = Number(key);
+      const style = input[key];
+      if (!Number.isInteger(index) || index < 0 || index > 11 || !style || typeof style !== "object") {
+        return;
+      }
+      const color = /^#[0-9a-fA-F]{6}$/.test(style.color || "") ? style.color : "";
+      const bold = Boolean(style.bold);
+      if (color || bold) {
+        result[String(index)] = { color, bold };
+      }
+    });
     return result;
   }
 

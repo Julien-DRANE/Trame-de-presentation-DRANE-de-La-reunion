@@ -55,6 +55,9 @@ h2 {
   gap: 0.5rem;
 }
 
+.panel-heading-actions #toggle-canvas-preview-fullscreen { order: 10; margin-left: auto; }
+.panel-heading-actions #toggle-canvas-snap.is-active { background: #dcecff; border-color: #60b2e5; color: #17478b; }
+
 .add-slide-group {
   position: relative;
 }
@@ -183,6 +186,12 @@ h2 {
   border-color: rgba(23, 71, 139, 0.14);
   background: rgba(255, 255, 255, 0.84);
   color: var(--ink);
+}
+
+#slide-bullets-single-column.button-soft.is-active {
+  border-color: #60b2e5;
+  background: #dcecff;
+  color: #17478b;
 }
 
 #toggle-night-mode.button-soft {
@@ -498,6 +507,7 @@ select {
   border-color: rgba(44, 115, 218, 0.28);
   background: linear-gradient(145deg, rgba(44, 115, 218, 0.12), rgba(255, 255, 255, 0.88));
 }
+.slide-item.is-disabled { opacity: 0.42; filter: grayscale(0.8); }
 
 .slide-item.is-dragging {
   opacity: 0.55;
@@ -829,6 +839,29 @@ select {
   grid-template-columns: auto minmax(0, 1fr) auto;
   gap: 0.6rem;
   align-items: center;
+}
+
+.bullet-style-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.bullet-style-controls input[type="color"] {
+  width: 2.2rem;
+  height: 1.85rem;
+  padding: 0.12rem;
+}
+
+.bullet-style-controls label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  white-space: nowrap;
+}
+
+.extra-bullet-row .bullet-style-controls {
+  grid-column: 2 / -1;
 }
 
 .extra-bullet-subpoints {
@@ -1471,9 +1504,51 @@ select {
   font-weight: 800;
 }
 
+.table-cell-format-panel {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0.75rem 0;
+}
+
+.table-cell-format-controls {
+  display: grid;
+  grid-template-columns: 7.5rem 7.5rem minmax(13rem, 1fr);
+  gap: 0.55rem;
+  align-items: end;
+}
+
+.table-cell-format-controls label { display: grid; gap: 0.28rem; font-size: 0.82rem; font-weight: 700; }
+.table-cell-format-controls input, .table-cell-format-controls textarea { width: 100%; }
+.table-cell-comment-label { min-width: 0; }
+.table-editor-cell.has-comment { box-shadow: inset 0 -3px 0 #fcba04; }
+
+.table-cell-color-palette {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.38rem;
+}
+
+.table-cell-color-label { margin-right: 0.12rem; font-size: 0.8rem; font-weight: 700; }
+.table-cell-color-swatch {
+  width: 1.35rem;
+  height: 1.35rem;
+  padding: 0;
+  border: 2px solid rgba(18, 32, 51, 0.16);
+  border-radius: 999px;
+  background: var(--swatch-color);
+  cursor: pointer;
+}
+.table-cell-color-swatch.is-active { border-color: rgba(44, 115, 218, 0.9); box-shadow: 0 0 0 2px rgba(44, 115, 218, 0.18); }
+
 .free-editor-field {
   display: grid;
   gap: 0.45rem;
+}
+
+.free-editor,
+.canvas-text-editor {
+  background: #eef2f6;
 }
 
 .free-editor-label {
@@ -1615,6 +1690,7 @@ select {
 .canvas-text-editor {
   min-height: 9rem;
   line-height: 1.12;
+  background: #eef2f6;
 }
 
 .canvas-text-editor p {

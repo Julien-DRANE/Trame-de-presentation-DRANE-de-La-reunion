@@ -55,6 +55,8 @@
     presentationProgress: document.querySelector("#presentation-progress"),
     slideHint: document.querySelector("#slide-hint"),
     toggleCanvasPreviewFullscreen: document.querySelector("#toggle-canvas-preview-fullscreen"),
+    toggleCanvasGrid: document.querySelector("#toggle-canvas-grid"),
+    toggleCanvasSnap: document.querySelector("#toggle-canvas-snap"),
     densityBadge: document.querySelector("#density-badge"),
     thumbStrip: document.querySelector("#thumb-strip"),
     globalPanelBody: document.querySelector("#global-panel-body"),
@@ -97,12 +99,15 @@
     slideBulletsNumbered: document.querySelector("#slide-bullets-numbered"),
     slideBulletsProgressive: document.querySelector("#slide-bullets-progressive"),
     slideBulletsSubProgressive: document.querySelector("#slide-bullets-sub-progressive"),
+    slideBulletsSingleColumn: document.querySelector("#slide-bullets-single-column"),
     slideTableProgressive: document.querySelector("#slide-table-progressive"),
     slideTableProgressiveOrderWrap: document.querySelector("#slide-table-progressive-order-wrap"),
     slideTableProgressiveOrder: document.querySelector("#slide-table-progressive-order"),
     slideBullet1: document.querySelector("#slide-bullet-1"),
     slideBullet2: document.querySelector("#slide-bullet-2"),
     slideBullet3: document.querySelector("#slide-bullet-3"),
+    bulletColorInputs: [0, 1, 2].map((index) => document.querySelector(`#slide-bullet-color-${index + 1}`)),
+    bulletBoldInputs: [0, 1, 2].map((index) => document.querySelector(`#slide-bullet-bold-${index + 1}`)),
     subBulletLists: [
       document.querySelector("#sub-bullets-0"),
       document.querySelector("#sub-bullets-1"),
@@ -120,6 +125,11 @@
     addTableFill: document.querySelector("#add-table-fill"),
     tableFillList: document.querySelector("#table-fill-list"),
     tableEditorGrid: document.querySelector("#table-editor-grid"),
+    tableCellTextSize: document.querySelector("#table-cell-text-size"),
+    tableCellTextColor: document.querySelector("#table-cell-text-color"),
+    tableCellTextAlign: document.querySelector("#table-cell-text-align"),
+    tableCellComment: document.querySelector("#table-cell-comment"),
+    tableCellColorPalette: document.querySelector("#table-cell-color-palette"),
     slideFreeBody: document.querySelector("#slide-free-body"),
     freeTextBullets: document.querySelector("#free-text-bullets"),
     freeTextColor: document.querySelector("#free-text-color"),
@@ -156,8 +166,12 @@
     canvasTextFont: document.querySelector("#canvas-text-font"),
     canvasTextSize: document.querySelector("#canvas-text-size"),
     canvasTextSizeValue: document.querySelector("#canvas-text-size-value"),
+    canvasTextScale: document.querySelector("#canvas-text-scale"),
+    canvasTextScaleValue: document.querySelector("#canvas-text-scale-value"),
     canvasTextAlign: document.querySelector("#canvas-text-align"),
     canvasTextFrame: document.querySelector("#canvas-text-frame"),
+    canvasTextFrameColor: document.querySelector("#canvas-text-frame-color"),
+    canvasTextFrameTransparency: document.querySelector("#canvas-text-frame-transparency"),
     canvasImageMediaPanel: document.querySelector("#canvas-image-media-panel"),
     canvasImageMediaWrap: document.querySelector("#canvas-image-media-wrap"),
     canvasImageMedia: document.querySelector("#canvas-image-media"),
@@ -247,8 +261,10 @@
   let suppressFreeEditorBlur = false;
   let canvasTextEditorRange = null;
   let canvasTextSelectionBookmark = null;
+  let canvasTextScaleReference = 100;
   let suppressCanvasTextEditorBlur = false;
   let selectedCanvasElementId = null;
+  let selectedCanvasElementIds = new Set();
   let activeCanvasInteraction = null;
   let suppressCanvasClickUntil = 0;
   let isPptxExportRunning = false;
@@ -351,6 +367,7 @@
     clearUndoEditSession();
     state = ns.services.storage.sanitizeState(ns.utils.clone(previous.state));
     selectedCanvasElementId = null;
+    selectedCanvasElementIds = new Set();
     activeCanvasInteraction = null;
     pendingBulletFocus = null;
     pendingSubBulletFocus = null;
@@ -373,6 +390,7 @@
       htmlAssetUrls: ns.services.htmlAssets ? ns.services.htmlAssets.getUrlMap() : {},
       canvasInteractive: true,
       selectedCanvasElementId: selectedCanvasElementId || "",
+      selectedCanvasElementIds: Array.from(selectedCanvasElementIds),
     };
   }
 
@@ -1040,6 +1058,8 @@
       refs.toggleCanvasPreviewFullscreen.textContent = active ? "Quitter le plein écran" : "Éditer en plein écran";
       refs.toggleCanvasPreviewFullscreen.setAttribute("aria-pressed", active ? "true" : "false");
     }
+    refs.toggleCanvasGrid.hidden = !active;
+    refs.toggleCanvasSnap.hidden = !active;
     if (active) {
       refs.previewPanel.focus();
       window.requestAnimationFrame(syncCanvasPreviewFullscreenScale);
@@ -1205,6 +1225,38 @@
     render();
   }
 
+  function updateSelectedTableCellMeta(rowIndex, columnIndex, patch, rerender = true) {
+    const key = serializeTableCellKey(rowIndex, columnIndex);
+    pushUndoSnapshot();
+    state.slides = state.slides.map((slide) => {
+      if (slide.id !== state.selectedSlideId) {
+        return slide;
+      }
+      const cellTextStyles = Object.assign({}, slide.cellTextStyles || {});
+      const cellComments = Object.assign({}, slide.cellComments || {});
+      if (patch.fontSize || patch.color || patch.align) {
+        cellTextStyles[key] = Object.assign({}, cellTextStyles[key] || {}, patch.fontSize ? { fontSize: patch.fontSize } : {}, patch.color ? { color: patch.color } : {}, patch.align ? { align: patch.align } : {});
+      }
+      if (patch.color) {
+        const colors = Array.isArray(state.settings.tableTextColors) ? state.settings.tableTextColors : [];
+        state.settings.tableTextColors = [patch.color, ...colors.filter((color) => color !== patch.color)].slice(0, 6);
+      }
+      if (patch.comment !== undefined) {
+        if (patch.comment) {
+          cellComments[key] = patch.comment;
+        } else {
+          delete cellComments[key];
+        }
+      }
+      return Object.assign({}, slide, { cellTextStyles, cellComments });
+    });
+    if (rerender === false) {
+      refreshStageOnly();
+      return;
+    }
+    render();
+  }
+
   function resizeSelectedTable(nextRows, nextCols) {
     pushUndoSnapshot({ editKey: "" });
     state.slides = state.slides.map((slide) => {
@@ -1213,7 +1265,9 @@
       }
       const table = normalizeTable(slide.table, nextRows, nextCols);
       const tableHighlights = sanitizeTableHighlightsForSize(slide.tableHighlights, table.length, table[0] ? table[0].length : 0);
-      return Object.assign({}, slide, { table, tableHighlights });
+      const cellTextStyles = sanitizeTableCellMapForSize(slide.cellTextStyles, table.length, table[0] ? table[0].length : 0);
+      const cellComments = sanitizeTableCellMapForSize(slide.cellComments, table.length, table[0] ? table[0].length : 0);
+      return Object.assign({}, slide, { table, tableHighlights, cellTextStyles, cellComments });
     });
     getSafeSelectedTableCell(getSelectedSlide());
     render();
@@ -1448,6 +1502,7 @@
       h: clampCanvasMetric(input.h, type === "arrow" ? 10 : type === "image" ? 30 : type === "shape" ? 22 : 18, 6, 100),
       revealOrder: Math.max(1, Math.min(24, Math.round(Number(input.revealOrder) || (index + 1)))),
       revealGroup: normalizeCanvasRevealGroup(input.revealGroup),
+      appearAtStart: Boolean(input.appearAtStart),
       locked: Boolean(input.locked),
     };
 
@@ -1477,11 +1532,13 @@
 
     const fallbackText = ns.utils.plainTextToRichHtml("Zone de texte", 2000);
     normalized.text = typeof input.text === "string" ? ns.utils.sanitizeRichText(input.text, 2000) : fallbackText;
-    normalized.fontSize = clampCanvasMetric(input.fontSize, 28, 16, 72);
+    normalized.fontSize = clampCanvasMetric(input.fontSize, 28, 10, 72);
     normalized.fontOptionId = normalizeCanvasFontOptionId(input.fontOptionId);
     normalized.color = normalizeCanvasColor(input.color, "#1d1917");
     normalized.textAlign = normalizeCanvasTextAlign(input.textAlign);
-    normalized.showFrame = input.showFrame !== false;
+    normalized.showFrame = Boolean(input.showFrame);
+    normalized.frameColor = normalizeCanvasColor(input.frameColor, "#ffffff");
+    normalized.frameTransparency = normalizeCanvasShapeTransparency(input.frameTransparency);
     normalized.bold = Boolean(input.bold);
     normalized.italic = Boolean(input.italic);
     normalized.underline = Boolean(input.underline);
@@ -1516,12 +1573,15 @@
         h: 18,
         revealOrder: 1,
         revealGroup: "",
+        appearAtStart: false,
         text: ns.utils.plainTextToRichHtml("Nouvelle zone de texte", 2000),
         fontSize: 28,
         fontOptionId: "",
         color: "#1d1917",
         textAlign: "left",
-        showFrame: true,
+        showFrame: false,
+        frameColor: "#ffffff",
+        frameTransparency: 20,
         bold: false,
         italic: false,
         underline: false,
@@ -1536,6 +1596,7 @@
         h: 30,
         revealOrder: 1,
         revealGroup: "",
+        appearAtStart: false,
         mediaId: "",
         locked: false,
       },
@@ -1548,6 +1609,7 @@
         h: 10,
         revealOrder: 1,
         revealGroup: "",
+        appearAtStart: false,
         direction: "right",
         color: "#0a66ff",
         rotation: 0,
@@ -1563,6 +1625,7 @@
         h: 20,
         revealOrder: 1,
         revealGroup: "",
+        appearAtStart: false,
         shapeKind: "circle",
         color: "#0a66ff",
         transparency: 14,
@@ -1582,6 +1645,7 @@
       revealOrder: nextRevealOrder,
     }, patch));
     selectedCanvasElementId = nextElement.id;
+    selectedCanvasElementIds = new Set([nextElement.id]);
     updateCanvasElements((elements) => elements.concat(nextElement));
   }
 
@@ -1605,6 +1669,7 @@
     if (selectedCanvasElementId === elementId) {
       selectedCanvasElementId = null;
     }
+    selectedCanvasElementIds.delete(elementId);
   }
 
   function removeSelectedCanvasElement() {
@@ -1627,6 +1692,7 @@
       locked: false,
     }), current.elements.length);
     selectedCanvasElementId = duplicated.id;
+    selectedCanvasElementIds = new Set([duplicated.id]);
     updateCanvasElements((elements) => elements.concat(duplicated));
   }
 
@@ -1640,7 +1706,18 @@
     if (nextLocked && selectedCanvasElementId === elementId) {
       selectedCanvasElementId = null;
     }
+    if (nextLocked) {
+      selectedCanvasElementIds.delete(elementId);
+    }
     updateCanvasElementById(elementId, { locked: nextLocked });
+  }
+
+  function toggleCanvasElementAppearAtStart(elementId) {
+    const current = getSelectedCanvasData();
+    const target = (current.elements || []).find((element) => element.id === elementId);
+    if (target) {
+      updateCanvasElementById(elementId, { appearAtStart: !Boolean(target.appearAtStart) });
+    }
   }
 
   function moveCanvasLayer(elementId, direction) {
@@ -2035,6 +2112,27 @@
     parent.removeChild(element);
   }
 
+  function getCanvasTextEditorSelectionFontSize(range, fallbackSize) {
+    let current = range && range.startContainer;
+    if (current && current.nodeType !== Node.ELEMENT_NODE) {
+      current = current.parentNode;
+    }
+    while (current && current !== refs.canvasTextContent) {
+      const declaredSize = Number.parseFloat(current.style && current.style.fontSize);
+      if (Number.isFinite(declaredSize)) {
+        return Math.round(clampCanvasMetric(declaredSize, fallbackSize, 10, 72));
+      }
+      current = current.parentNode;
+    }
+    return Math.round(clampCanvasMetric(fallbackSize, 28, 10, 72));
+  }
+
+  function syncCanvasTextSizeControlFromSelection(range, fallbackSize) {
+    const size = getCanvasTextEditorSelectionFontSize(range, fallbackSize);
+    refs.canvasTextSize.value = String(size);
+    refs.canvasTextSizeValue.textContent = `${size} px`;
+  }
+
   function updateCanvasTextToolbarState() {
     let activeBold = false;
     let activeItalic = false;
@@ -2053,6 +2151,7 @@
         activeItalic = Boolean(findCanvasTextEditorFormatAncestor(range, "em"));
         activeUnderline = Boolean(findCanvasTextEditorFormatAncestor(range, "u"));
         activeBullets = Boolean(findCanvasTextEditorFormatAncestor(range, "ul") || findCanvasTextEditorFormatAncestor(range, "li"));
+        syncCanvasTextSizeControlFromSelection(range, selectedElement && selectedElement.type === "text" ? selectedElement.fontSize : 28);
       }
     }
 
@@ -2118,7 +2217,7 @@
   }
 
   function syncCanvasTextEditorBaseFontSize(size) {
-    const normalizedSize = Math.round(clampCanvasMetric(size, 28, 16, 72));
+    const normalizedSize = Math.round(clampCanvasMetric(size, 28, 10, 72));
     clearCanvasTextEditorFontSizeStyles();
     refs.canvasTextContent.style.fontSize = normalizedSize + "px";
     refs.canvasTextSizeValue.textContent = normalizedSize + " px";
@@ -2129,7 +2228,7 @@
   }
 
   function applyCanvasTextEditorFontSize(size) {
-    const normalizedSize = Math.round(clampCanvasMetric(size, 28, 16, 72));
+    const normalizedSize = Math.round(clampCanvasMetric(size, 28, 10, 72));
     const selectionData = getCanvasTextEditorSelection();
     if (!selectionData || selectionData.selection.isCollapsed || selectionCoversCanvasText(selectionData.range)) {
       syncCanvasTextEditorBaseFontSize(normalizedSize);
@@ -2153,6 +2252,33 @@
     } catch (error) {
       return;
     }
+  }
+
+  function scaleCanvasTextEditorFontSizes(scale) {
+    const selectedElement = getCanvasSelectedElement(getSelectedCanvasData().elements);
+    if (!selectedElement || selectedElement.type !== "text") {
+      return;
+    }
+    const normalizedScale = Math.max(50, Math.min(150, Math.round(Number(scale) || 100)));
+    const ratio = normalizedScale / canvasTextScaleReference;
+    if (!Number.isFinite(ratio) || ratio === 1) {
+      return;
+    }
+    const currentBaseSize = Number.parseFloat(refs.canvasTextContent.style.fontSize) || Number(selectedElement.fontSize) || 28;
+    const nextBaseSize = Math.round(clampCanvasMetric(currentBaseSize * ratio, currentBaseSize, 10, 72));
+    refs.canvasTextContent.querySelectorAll("span[style]").forEach((span) => {
+      const currentSize = Number.parseFloat(span.style.fontSize);
+      if (Number.isFinite(currentSize)) {
+        span.style.fontSize = `${Math.max(10, Math.min(144, Math.round(currentSize * ratio)))}px`;
+      }
+    });
+    refs.canvasTextContent.style.fontSize = `${nextBaseSize}px`;
+    canvasTextScaleReference = normalizedScale;
+    updateSelectedCanvasElement({
+      fontSize: nextBaseSize,
+      text: ns.utils.sanitizeRichText(refs.canvasTextContent.innerHTML, 2000),
+    }, false);
+    updateCanvasTextToolbarState();
   }
 
 
@@ -2286,10 +2412,11 @@
 
   function updateStageCanvasSelection(elementId) {
     selectedCanvasElementId = elementId || null;
+    selectedCanvasElementIds = elementId ? new Set([elementId]) : new Set();
     canvasTextEditorRange = null;
     clearCanvasTextSelectionBookmark();
     refs.stage.querySelectorAll("[data-canvas-element-id]").forEach((node) => {
-      node.classList.toggle("is-selected", node.getAttribute("data-canvas-element-id") === selectedCanvasElementId);
+      node.classList.toggle("is-selected", selectedCanvasElementIds.has(node.getAttribute("data-canvas-element-id")));
     });
     updateCanvasTextToolbarState();
   }
@@ -2323,7 +2450,10 @@
 
     event.preventDefault();
     pushUndoSnapshot({ editKey: "" });
-    updateStageCanvasSelection(elementId);
+    const isGroupDrag = mode === "drag" && selectedCanvasElementIds.has(elementId) && selectedCanvasElementIds.size > 1;
+    if (!isGroupDrag) {
+      updateStageCanvasSelection(elementId);
+    }
     const elementRect = elementNode.getBoundingClientRect();
     const elementCenterX = elementRect.left + (elementRect.width / 2);
     const elementCenterY = elementRect.top + (elementRect.height / 2);
@@ -2332,6 +2462,7 @@
       pointerId: event.pointerId,
       mode,
       elementId,
+      elementIds: isGroupDrag ? Array.from(selectedCanvasElementIds) : [elementId],
       startClientX: event.clientX,
       startClientY: event.clientY,
       startRect: {
@@ -2348,6 +2479,7 @@
       surfaceRect: surfaceData.rect,
       moved: false,
       livePatch: null,
+      livePatches: null,
     };
     if (typeof surfaceData.surface.setPointerCapture === "function") {
       try {
@@ -2359,7 +2491,17 @@
   }
 
   function updateCanvasInteractionPreview() {
-    if (!activeCanvasInteraction || !activeCanvasInteraction.livePatch) {
+    if (!activeCanvasInteraction || (!activeCanvasInteraction.livePatch && !activeCanvasInteraction.livePatches)) {
+      return;
+    }
+    if (activeCanvasInteraction.livePatches) {
+      activeCanvasInteraction.livePatches.forEach((item) => {
+        const node = refs.stage.querySelector(`[data-canvas-element-id="${item.id}"]`);
+        if (node) {
+          node.style.left = `${item.patch.x}%`;
+          node.style.top = `${item.patch.y}%`;
+        }
+      });
       return;
     }
     const node = refs.stage.querySelector(`[data-canvas-element-id="${activeCanvasInteraction.elementId}"]`);
@@ -2388,11 +2530,48 @@
     }
   }
 
+  function beginCanvasMarqueeSelection(event, surface) {
+    if (!isCanvasPreviewFullscreen || event.button !== 0 || !surface) {
+      return;
+    }
+    event.preventDefault();
+    const marquee = document.createElement("div");
+    marquee.className = "canvas-selection-marquee";
+    document.body.appendChild(marquee);
+    activeCanvasInteraction = {
+      mode: "marquee",
+      pointerId: event.pointerId,
+      startClientX: event.clientX,
+      startClientY: event.clientY,
+      marquee,
+      moved: false,
+    };
+    if (typeof surface.setPointerCapture === "function") {
+      try {
+        surface.setPointerCapture(event.pointerId);
+      } catch (error) {
+        // La sélection reste utilisable même si le navigateur refuse la capture.
+      }
+    }
+  }
+
   function handleCanvasPointerMove(event) {
     if (!activeCanvasInteraction || event.pointerId !== activeCanvasInteraction.pointerId) {
       return;
     }
     const interaction = activeCanvasInteraction;
+    if (interaction.mode === "marquee") {
+      const left = Math.min(interaction.startClientX, event.clientX);
+      const top = Math.min(interaction.startClientY, event.clientY);
+      const width = Math.abs(event.clientX - interaction.startClientX);
+      const height = Math.abs(event.clientY - interaction.startClientY);
+      interaction.marquee.style.left = `${left}px`;
+      interaction.marquee.style.top = `${top}px`;
+      interaction.marquee.style.width = `${width}px`;
+      interaction.marquee.style.height = `${height}px`;
+      interaction.moved = width > 4 || height > 4;
+      return;
+    }
     const dxPercent = ((event.clientX - interaction.startClientX) / Math.max(1, interaction.surfaceRect.width)) * 100;
     const dyPercent = ((event.clientY - interaction.startClientY) / Math.max(1, interaction.surfaceRect.height)) * 100;
     let patch;
@@ -2409,13 +2588,30 @@
         rotation: normalizeCanvasRotation(interaction.startRotation + deltaDegrees, interaction.startRotation),
       };
     } else {
-      patch = {
-        x: clampCanvasMetric(interaction.startRect.x + dxPercent, interaction.startRect.x, 0, 100 - interaction.startRect.w),
-        y: clampCanvasMetric(interaction.startRect.y + dyPercent, interaction.startRect.y, -14, 100 - interaction.startRect.h),
-      };
+      if (interaction.elementIds.length > 1) {
+        const elements = getSelectedCanvasData().elements;
+        interaction.livePatches = interaction.elementIds.map((id) => {
+          const item = elements.find((candidate) => candidate.id === id);
+          return {
+            id,
+            patch: {
+              x: clampCanvasMetric((Number(item && item.x) || 0) + dxPercent, Number(item && item.x) || 0, 0, 100 - (Number(item && item.w) || 6)),
+              y: clampCanvasMetric((Number(item && item.y) || 0) + dyPercent, Number(item && item.y) || 0, -14, 100 - (Number(item && item.h) || 6)),
+            },
+          };
+        });
+        interaction.livePatch = null;
+      } else {
+        patch = {
+          x: clampCanvasMetric(interaction.startRect.x + dxPercent, interaction.startRect.x, 0, 100 - interaction.startRect.w),
+          y: clampCanvasMetric(interaction.startRect.y + dyPercent, interaction.startRect.y, -14, 100 - interaction.startRect.h),
+        };
+      }
     }
 
-    interaction.livePatch = patch;
+    if (patch) {
+      interaction.livePatch = patch;
+    }
     interaction.moved = true;
     updateCanvasInteractionPreview();
   }
@@ -2426,6 +2622,33 @@
     }
     const interaction = activeCanvasInteraction;
     activeCanvasInteraction = null;
+    if (interaction.mode === "marquee") {
+      const marqueeRect = interaction.marquee.getBoundingClientRect();
+      interaction.marquee.remove();
+      if (interaction.moved) {
+        const selectedIds = Array.from(refs.stage.querySelectorAll("[data-canvas-element-id]"))
+          .filter((node) => node.getAttribute("data-canvas-locked") !== "true")
+          .filter((node) => {
+            const rect = node.getBoundingClientRect();
+            return rect.left < marqueeRect.right && rect.right > marqueeRect.left && rect.top < marqueeRect.bottom && rect.bottom > marqueeRect.top;
+          })
+          .map((node) => node.getAttribute("data-canvas-element-id"));
+        selectedCanvasElementIds = new Set(selectedIds);
+        selectedCanvasElementId = selectedIds[0] || null;
+        suppressCanvasClickUntil = Date.now() + 120;
+        render();
+      }
+      return;
+    }
+    if (interaction.moved && interaction.livePatches) {
+      suppressCanvasClickUntil = Date.now() + 120;
+      const patches = new Map(interaction.livePatches.map((item) => [item.id, item.patch]));
+      state.slides = state.slides.map((slide) => slide.id === state.selectedSlideId
+        ? Object.assign({}, slide, { canvasData: Object.assign({}, slide.canvasData || {}, { elements: (slide.canvasData && slide.canvasData.elements || []).map((item) => patches.has(item.id) ? Object.assign({}, item, patches.get(item.id)) : item) }) })
+        : slide);
+      render();
+      return;
+    }
     if (interaction.moved && interaction.livePatch) {
       suppressCanvasClickUntil = Date.now() + 120;
       updateCanvasElementById(interaction.elementId, interaction.livePatch);
@@ -2499,6 +2722,16 @@
     };
   }
 
+  function sanitizeTableCellMapForSize(input, rowCount, colCount) {
+    const result = {};
+    if (!input || typeof input !== "object") return result;
+    Object.keys(input).forEach((key) => {
+      const cell = parseTableCellKey(key);
+      if (cell && cell.row < rowCount && cell.column < colCount) result[key] = input[key];
+    });
+    return result;
+  }
+
   function serializeTableCellKey(rowIndex, columnIndex) {
     return `${rowIndex}-${columnIndex}`;
   }
@@ -2522,6 +2755,17 @@
     const column = Math.max(0, Math.min(maxColumn, Number(selectedTableCell && selectedTableCell.column) || 0));
     selectedTableCell = { row, column };
     return selectedTableCell;
+  }
+
+  function syncTableCellFormatControls() {
+    const slide = getSelectedSlide();
+    const cell = getSafeSelectedTableCell(slide);
+    const key = serializeTableCellKey(cell.row, cell.column);
+    const style = (slide.cellTextStyles || {})[key] || {};
+    refs.tableCellTextSize.value = Math.max(10, Math.min(48, Number(style.fontSize) || 16));
+    refs.tableCellTextColor.value = /^#[0-9a-fA-F]{6}$/.test(style.color || "") ? style.color : "#1d1917";
+    refs.tableCellTextAlign.value = style.align === "center" || style.align === "right" ? style.align : "left";
+    refs.tableCellComment.value = (slide.cellComments || {})[key] || "";
   }
 
   function isEditableTarget(target) {
@@ -2676,6 +2920,29 @@
     render();
   }
 
+  function updateSelectedBulletStyle(index, patch, rerender = false) {
+    pushUndoSnapshot();
+    state.slides = state.slides.map((slide) => {
+      if (slide.id !== state.selectedSlideId) {
+        return slide;
+      }
+      const bulletStyles = Object.assign({}, slide.bulletStyles || {});
+      const previous = bulletStyles[index] || {};
+      const next = Object.assign({}, previous, patch);
+      if (!next.color && !next.bold) {
+        delete bulletStyles[index];
+      } else {
+        bulletStyles[index] = next;
+      }
+      return Object.assign({}, slide, { bulletStyles });
+    });
+    if (rerender) {
+      render();
+    } else {
+      refreshStageOnly();
+    }
+  }
+
   function addSelectedBullet() {
     pushUndoSnapshot({ editKey: "" });
     state.slides = state.slides.map((slide) => {
@@ -2763,7 +3030,9 @@
         bullets.push("");
       }
       const subBullets = Object.assign({}, slide.subBullets || {});
+      const bulletStyles = Object.assign({}, slide.bulletStyles || {});
       delete subBullets[index];
+      delete bulletStyles[index];
       Object.keys(subBullets)
         .map(Number)
         .sort((a, b) => a - b)
@@ -2771,9 +3040,15 @@
           if (key > index) {
             subBullets[key - 1] = subBullets[key];
             delete subBullets[key];
-          }
-        });
-      return Object.assign({}, slide, { bullets, subBullets });
+        }
+      });
+      Object.keys(bulletStyles).map(Number).sort((a, b) => a - b).forEach((key) => {
+        if (key > index) {
+          bulletStyles[key - 1] = bulletStyles[key];
+          delete bulletStyles[key];
+        }
+      });
+      return Object.assign({}, slide, { bullets, subBullets, bulletStyles });
     });
     render();
   }
@@ -3247,14 +3522,19 @@
       bullets.splice(toIndex, 0, moved);
       origins.splice(toIndex, 0, movedOrigin);
       const sourceSubBullets = Object.assign({}, slide.subBullets || {});
+      const sourceBulletStyles = Object.assign({}, slide.bulletStyles || {});
       const reorderedSubBullets = {};
+      const reorderedBulletStyles = {};
       origins.forEach((originIndex, index) => {
         const items = sourceSubBullets[originIndex];
         if (Array.isArray(items) && items.length) {
           reorderedSubBullets[index] = items.slice();
         }
+        if (sourceBulletStyles[originIndex]) {
+          reorderedBulletStyles[index] = Object.assign({}, sourceBulletStyles[originIndex]);
+        }
       });
-      return Object.assign({}, slide, { bullets, subBullets: reorderedSubBullets });
+      return Object.assign({}, slide, { bullets, subBullets: reorderedSubBullets, bulletStyles: reorderedBulletStyles });
     });
     render();
   }
@@ -3533,6 +3813,8 @@
       return;
     }
     state.selectedSlideId = id;
+    selectedCanvasElementId = null;
+    selectedCanvasElementIds = new Set();
     if (opts.focusPreviewPanel) {
       pendingPreviewPanelFocus = true;
     }
@@ -3622,6 +3904,12 @@
   refs.slideBulletsSubProgressive.addEventListener("change", (event) => updateSelectedSlide({
     bulletsSubProgressive: Boolean(event.target.checked),
   }));
+  refs.slideBulletsSingleColumn.addEventListener("click", () => {
+    const selectedSlide = getSelectedSlide();
+    updateSelectedSlide({
+      bulletsSingleColumn: !Boolean(selectedSlide && selectedSlide.bulletsSingleColumn),
+    });
+  });
   refs.slideTableProgressive.addEventListener("change", (event) => updateSelectedSlide({
     tableProgressive: Boolean(event.target.checked),
   }));
@@ -3631,6 +3919,8 @@
   refs.slideBullet1.addEventListener("input", (event) => updateSelectedBullet(0, ns.utils.clampText(event.target.value, 220), false));
   refs.slideBullet2.addEventListener("input", (event) => updateSelectedBullet(1, ns.utils.clampText(event.target.value, 220), false));
   refs.slideBullet3.addEventListener("input", (event) => updateSelectedBullet(2, ns.utils.clampText(event.target.value, 220), false));
+  refs.bulletColorInputs.forEach((input, index) => input.addEventListener("input", (event) => updateSelectedBulletStyle(index, { color: event.target.value }, false)));
+  refs.bulletBoldInputs.forEach((input, index) => input.addEventListener("change", (event) => updateSelectedBulletStyle(index, { bold: Boolean(event.target.checked) }, false)));
   refs.addBullet.addEventListener("click", addSelectedBullet);
   refs.slideFreeBody.addEventListener("input", () => {
     saveFreeEditorSelection();
@@ -3790,19 +4080,44 @@
     if (!pastedText) {
       return;
     }
-    restoreCanvasTextEditorSelection();
     const selection = window.getSelection();
-    if (!selection || selection.rangeCount === 0) {
+    if (!selection) {
       return;
     }
-    const range = selection.getRangeAt(0);
+    let range = selection.rangeCount > 0 ? selection.getRangeAt(0) : null;
+    if (!range || !refs.canvasTextContent.contains(range.commonAncestorContainer)) {
+      if (!restoreCanvasTextEditorSelection() || selection.rangeCount === 0) {
+        return;
+      }
+      range = selection.getRangeAt(0);
+    }
     if (!refs.canvasTextContent.contains(range.commonAncestorContainer)) {
       return;
     }
+    const precedingRange = document.createRange();
+    precedingRange.selectNodeContents(refs.canvasTextContent);
+    precedingRange.setEnd(range.startContainer, range.startOffset);
+    const startsOnNewLine = !String(precedingRange.toString() || "").trim();
+    const replacesWholeText = selectionCoversCanvasText(range);
     range.deleteContents();
-    const textNode = document.createTextNode(pastedText);
-    range.insertNode(textNode);
-    range.setStartAfter(textNode);
+    const fragment = document.createDocumentFragment();
+    let lastNode = null;
+    if (!startsOnNewLine && !replacesWholeText && String(refs.canvasTextContent.textContent || "").trim()) {
+      lastNode = document.createElement("br");
+      fragment.appendChild(lastNode);
+    }
+    const pastedLines = pastedText.replace(/\r\n?/g, "\n").split("\n");
+    pastedLines.forEach((line, index) => {
+      const textNode = document.createTextNode(line);
+      fragment.appendChild(textNode);
+      lastNode = textNode;
+      if (index < pastedLines.length - 1) {
+        lastNode = document.createElement("br");
+        fragment.appendChild(lastNode);
+      }
+    });
+    range.insertNode(fragment);
+    range.setStartAfter(lastNode);
     range.collapse(true);
     selection.removeAllRanges();
     selection.addRange(range);
@@ -3850,7 +4165,7 @@
     event.preventDefault();
   });
   refs.canvasTextSize.addEventListener("input", (event) => {
-    const nextValue = String(Math.round(clampCanvasMetric(event.target.value, 28, 16, 72)));
+    const nextValue = String(Math.round(clampCanvasMetric(event.target.value, 28, 10, 72)));
     refs.canvasTextSizeValue.textContent = `${nextValue} px`;
     applyCanvasTextEditorFontSize(nextValue);
   });
@@ -3871,9 +4186,25 @@
     saveCanvasTextEditorSelection();
     createCanvasTextSelectionBookmark();
   });
+  refs.canvasTextScale.addEventListener("mousedown", () => {
+    markCanvasTextEditorToolbarInteraction();
+  });
+  refs.canvasTextScale.addEventListener("input", (event) => {
+    const nextScale = Math.max(50, Math.min(150, Math.round(Number(event.target.value) || 100)));
+    refs.canvasTextScaleValue.textContent = `${nextScale} %`;
+    scaleCanvasTextEditorFontSizes(nextScale);
+  });
+  refs.canvasTextScale.addEventListener("change", () => {
+    canvasTextScaleReference = 100;
+    refs.canvasTextScale.value = "100";
+    refs.canvasTextScaleValue.textContent = "100 %";
+  });
   refs.canvasTextFrame.addEventListener("change", (event) => updateSelectedCanvasElement({
     showFrame: Boolean(event.target.checked),
   }, false));
+  refs.canvasTextFrameColor.addEventListener("change", (event) => updateSelectedCanvasElement({ frameColor: normalizeCanvasColor(event.target.value, "#ffffff") }));
+  refs.canvasTextFrameTransparency.addEventListener("input", (event) => updateSelectedCanvasElement({ frameTransparency: normalizeCanvasShapeTransparency(event.target.value) }, false));
+  refs.canvasTextFrameTransparency.addEventListener("change", (event) => updateSelectedCanvasElement({ frameTransparency: normalizeCanvasShapeTransparency(event.target.value) }));
   if (refs.canvasTextColorPalette) {
     refs.canvasTextColorPalette.addEventListener("mousedown", (event) => {
       const swatch = event.target.closest("[data-canvas-text-color-value]");
@@ -4089,6 +4420,11 @@
   refs.slideNote.addEventListener("input", (event) => updateSelectedSlide({ note: ns.utils.clampText(event.target.value, 180) }, false));
   refs.slidePresenterNotes.addEventListener("input", (event) => updateSelectedSlide({ presenterNotes: ns.utils.clampText(event.target.value, 2000) }, false));
   refs.extraBulletsList.addEventListener("input", (event) => {
+    const colorInput = event.target.closest("[data-bullet-style-color]");
+    if (colorInput) {
+      updateSelectedBulletStyle(Number(colorInput.getAttribute("data-bullet-style-color")), { color: colorInput.value }, false);
+      return;
+    }
     const input = event.target.closest("[data-extra-bullet-index]");
     if (!input) {
       return;
@@ -4098,6 +4434,12 @@
       caret: input.selectionStart || 0,
     };
     updateSelectedBullet(Number(input.getAttribute("data-extra-bullet-index")), ns.utils.clampText(input.value, 220), false);
+  });
+  refs.extraBulletsList.addEventListener("change", (event) => {
+    const boldInput = event.target.closest("[data-bullet-style-bold]");
+    if (boldInput) {
+      updateSelectedBulletStyle(Number(boldInput.getAttribute("data-bullet-style-bold")), { bold: Boolean(boldInput.checked) }, false);
+    }
   });
   refs.slideBulletsEditor.addEventListener("input", (event) => {
     const input = event.target.closest("[data-sub-bullet-index]");
@@ -4129,9 +4471,32 @@
     }
     const [rowIndex, columnIndex] = input.getAttribute("data-table-cell").split("-").map(Number);
     selectedTableCell = { row: rowIndex, column: columnIndex };
-    if (refs.tableFillTarget.value === "cell") {
-      syncTableFillControls();
-    }
+    syncTableFillControls();
+    syncTableCellFormatControls();
+  });
+  refs.tableCellTextSize.addEventListener("change", (event) => {
+    const cell = getSafeSelectedTableCell(getSelectedSlide());
+    updateSelectedTableCellMeta(cell.row, cell.column, { fontSize: Math.max(10, Math.min(48, Number(event.target.value) || 16)) });
+  });
+  refs.tableCellTextColor.addEventListener("change", (event) => {
+    const cell = getSafeSelectedTableCell(getSelectedSlide());
+    updateSelectedTableCellMeta(cell.row, cell.column, { color: normalizeHexColor(event.target.value) });
+  });
+  refs.tableCellTextAlign.addEventListener("change", (event) => {
+    const cell = getSafeSelectedTableCell(getSelectedSlide());
+    updateSelectedTableCellMeta(cell.row, cell.column, { align: event.target.value === "center" || event.target.value === "right" ? event.target.value : "left" });
+  });
+  refs.tableCellColorPalette.addEventListener("click", (event) => {
+    const swatch = event.target.closest("[data-table-cell-text-color-value]");
+    if (!swatch) return;
+    const cell = getSafeSelectedTableCell(getSelectedSlide());
+    const color = normalizeHexColor(swatch.getAttribute("data-table-cell-text-color-value"));
+    refs.tableCellTextColor.value = color;
+    updateSelectedTableCellMeta(cell.row, cell.column, { color });
+  });
+  refs.tableCellComment.addEventListener("input", (event) => {
+    const cell = getSafeSelectedTableCell(getSelectedSlide());
+    updateSelectedTableCellMeta(cell.row, cell.column, { comment: ns.utils.clampText(event.target.value, 500) }, false);
   });
   refs.tableFillTarget.addEventListener("change", () => syncTableFillControls());
   refs.tableFillIndex.addEventListener("change", () => {
@@ -4171,7 +4536,9 @@
   }
   refs.toggleThumbStrip.addEventListener("click", toggleThumbStrip);
   if (refs.toggleCanvasPreviewFullscreen) {
-    refs.toggleCanvasPreviewFullscreen.addEventListener("click", toggleCanvasPreviewFullscreen);
+  refs.toggleCanvasPreviewFullscreen.addEventListener("click", toggleCanvasPreviewFullscreen);
+  refs.toggleCanvasGrid.addEventListener("click", () => { const enabled = !getSelectedCanvasData().showGrid; updateSelectedCanvasData({ showGrid: enabled }); refs.toggleCanvasGrid.classList.toggle("is-active", enabled); });
+  refs.toggleCanvasSnap.addEventListener("click", () => { const enabled = !getSelectedCanvasData().snapToGrid; updateSelectedCanvasData({ snapToGrid: enabled }); refs.toggleCanvasSnap.classList.toggle("is-active", enabled); });
   }
   refs.importJsonInput.addEventListener("change", async (event) => {
     const file = event.target.files && event.target.files[0];
@@ -4471,10 +4838,12 @@
     const addCanvasMediaTrigger = event.target.closest("[data-add-canvas-media]");
     const addPictoTrigger = event.target.closest("[data-add-picto]");
     const toggleCanvasLockTrigger = event.target.closest("[data-toggle-canvas-lock]");
+    const toggleCanvasAppearAtStartTrigger = event.target.closest("[data-toggle-canvas-appear-at-start]");
     const moveCanvasLayerTrigger = event.target.closest("[data-canvas-layer-move]");
     const selectCanvasElementTrigger = event.target.closest("[data-select-canvas-element]");
     const addSlideTrigger = event.target.closest("[data-add-slide-bloom]");
     const bloomTrigger = event.target.closest("[data-set-bloom]");
+    const toggleSlideDisabledTrigger = event.target.closest("[data-toggle-slide-disabled]");
 
     if (!event.target.closest(".add-slide-group") && isAddSlideMenuOpen) {
       closeAddSlideMenu();
@@ -4482,6 +4851,19 @@
 
     if (toggleCanvasLockTrigger) {
       toggleCanvasElementLock(toggleCanvasLockTrigger.getAttribute("data-toggle-canvas-lock"));
+      return;
+    }
+
+    if (toggleCanvasAppearAtStartTrigger) {
+      toggleCanvasElementAppearAtStart(toggleCanvasAppearAtStartTrigger.getAttribute("data-toggle-canvas-appear-at-start"));
+      return;
+    }
+
+    if (toggleSlideDisabledTrigger) {
+      const id = toggleSlideDisabledTrigger.getAttribute("data-toggle-slide-disabled");
+      pushUndoSnapshot();
+      state.slides = state.slides.map((slide) => slide.id === id ? Object.assign({}, slide, { disabled: !slide.disabled }) : slide);
+      render();
       return;
     }
 
@@ -4495,6 +4877,7 @@
 
     if (selectCanvasElementTrigger) {
       selectedCanvasElementId = selectCanvasElementTrigger.getAttribute("data-select-canvas-element");
+      selectedCanvasElementIds = new Set([selectedCanvasElementId]);
       render();
       return;
     }
@@ -4935,11 +5318,31 @@
     const rotateHandle = event.target.closest("[data-canvas-rotate-handle]");
     const resizeHandle = event.target.closest("[data-canvas-resize-handle]");
     const canvasElement = event.target.closest("[data-canvas-element-id]");
-    if (!canvasElement || canvasElement.getAttribute("data-canvas-locked") === "true") {
+    const canvasSurface = event.target.closest("[data-canvas-surface]");
+    if (!canvasElement) {
+      beginCanvasMarqueeSelection(event, canvasSurface);
+      return;
+    }
+    if (canvasElement.getAttribute("data-canvas-locked") === "true") {
       return;
     }
     const linkTarget = event.target.closest(".canvas-element-text-content a[href], .slide-link-bubble[href]");
     if (linkTarget) {
+      return;
+    }
+    if (event.shiftKey && !rotateHandle && !resizeHandle) {
+      event.preventDefault();
+      const elementId = canvasElement.getAttribute("data-canvas-element-id");
+      if (selectedCanvasElementIds.has(elementId)) {
+        selectedCanvasElementIds.delete(elementId);
+      } else {
+        selectedCanvasElementIds.add(elementId);
+      }
+      selectedCanvasElementId = selectedCanvasElementIds.values().next().value || null;
+      refs.stage.querySelectorAll("[data-canvas-element-id]").forEach((node) => {
+        node.classList.toggle("is-selected", selectedCanvasElementIds.has(node.getAttribute("data-canvas-element-id")));
+      });
+      suppressCanvasClickUntil = Date.now() + 120;
       return;
     }
     beginCanvasInteraction(
@@ -4960,11 +5363,13 @@
         return;
       }
       selectedCanvasElementId = canvasElement.getAttribute("data-canvas-element-id");
+      selectedCanvasElementIds = new Set([selectedCanvasElementId]);
       render();
       return;
     }
     if (canvasSurface && selectedCanvasElementId) {
       selectedCanvasElementId = null;
+      selectedCanvasElementIds = new Set();
       render();
       return;
     }
@@ -4980,6 +5385,7 @@
     }
     if (selectedCanvasElementId) {
       selectedCanvasElementId = null;
+      selectedCanvasElementIds = new Set();
       render();
     }
   });

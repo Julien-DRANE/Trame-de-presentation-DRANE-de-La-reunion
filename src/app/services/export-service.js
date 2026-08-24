@@ -297,7 +297,8 @@
       }));
     }
 
-    const slidesMarkup = state.slides
+    const presentationSlides = state.slides.filter((slide) => !slide.disabled);
+    const slidesMarkup = presentationSlides
       .map((slide) => {
         return `<section class="slide-screen">${ns.ui.createSlideMarkup(slide, state.settings, {
           compact: false,
@@ -311,7 +312,7 @@
         })}</section>`;
       })
       .join("");
-	    const progressMarkup = state.slides
+	    const progressMarkup = presentationSlides
 	      .map((slide, index) => {
         const slideNumber = slide.number || String(index + 1).padStart(2, "0");
         const slideTitle = slide.title || `Slide ${slideNumber}`;
@@ -328,13 +329,13 @@
 	        `;
 	      })
 	      .join("");
-	    const slideCount = Array.isArray(state.slides) ? state.slides.length : 0;
+	    const slideCount = presentationSlides.length;
 	    const progressDensityClass = slideCount > 36
 	      ? " is-ultra-compact"
 	      : slideCount > 22
 	        ? " is-compact"
 	        : "";
-	    const initialSlideIndex = Math.max(0, state.slides.findIndex((slide) => slide.id === startSlideId));
+	    const initialSlideIndex = Math.max(0, presentationSlides.findIndex((slide) => slide.id === startSlideId));
     const isPdfMode = Boolean(opts.pdfMode);
     const isPresentMode = opts.exportMode === "present" || opts.exportMode === "html";
     const bodyAttributes = isPdfMode
@@ -672,8 +673,8 @@
       .slide-logo-region {
         top: clamp(0.9rem, 1.8vw, 1.5rem);
         left: clamp(1rem, 2vw, 1.7rem);
-        width: clamp(8.075rem, 15.2vw, 10.925rem);
-        max-width: 22.8%;
+        width: clamp(6.8rem, 12.2vw, 8.7rem);
+        max-width: 18.5%;
       }
       .slide-logo-drane {
         right: clamp(1rem, 2vw, 1.5rem);
@@ -875,15 +876,15 @@
         line-height: 1.35;
       }
       .slide-headline {
-        margin-top: calc(0.88rem + 1cm);
+        margin-top: calc(0.5rem + 0.7cm);
         margin-bottom: 0.22rem;
-        max-width: min(86%, 38ch);
+        max-width: min(96%, 56ch);
         font-family: var(--slide-font-heading);
-        font-size: clamp(1.56rem, 2.82vw, 2.56rem);
+        font-size: clamp(1.48rem, 2.65vw, 2.4rem);
         line-height: 0.98;
       }
       .slide-body-no-media .slide-headline {
-        max-width: min(92%, 40ch);
+        max-width: min(98%, 58ch);
       }
       .slide-body {
         display: grid;
@@ -1016,16 +1017,16 @@
         max-width: 100%;
         min-height: 0;
         height: auto;
-        padding: 0.55rem 0.7rem;
+        padding: 1.2rem 1.35rem;
         border-radius: 18px;
-        background: rgba(255, 255, 255, 0.66);
+        background: var(--canvas-text-frame, rgba(255, 255, 255, 0.66));
         line-height: 1.12;
         overflow-wrap: anywhere;
         white-space: normal;
         box-shadow: 0 10px 24px rgba(18, 32, 51, 0.10);
       }
       .canvas-element-text-content.is-frameless {
-        padding: 0;
+        padding: 0.9rem 1.05rem;
         border-radius: 0;
         background: transparent;
         box-shadow: none;
@@ -1222,6 +1223,10 @@
       .slide-main > .slide-headline:last-of-type + .slide-bullets-row {
         margin-top: 2.62rem;
       }
+      .slide-subtitle-text + .slide-bullets,
+      .slide-subtitle-text + .slide-bullets-row {
+        margin-top: clamp(1.8rem, 4.5vh, 3.1rem);
+      }
       .slide-bullets li {
         display: grid;
         grid-template-columns: auto minmax(0, 1fr);
@@ -1346,12 +1351,20 @@
       .slide-bullet-text {
         min-width: 0;
       }
+      .deck-slide,
+      .deck-slide *,
+      .deck-slide *::before,
+      .deck-slide *::after {
+        box-sizing: border-box;
+      }
       .slide-table {
         display: grid;
         gap: 0;
         margin-top: 1.3rem;
         margin-inline: auto;
         width: min(100%, 64rem);
+        max-width: 100%;
+        min-width: 0;
         border: 1px solid var(--slide-line);
         border-radius: 8px;
         overflow: hidden;
@@ -1364,12 +1377,15 @@
         display: grid;
         grid-template-rows: auto minmax(0, 1fr) auto;
         padding-right: clamp(1.2rem, 2.4vw, 1.9rem);
+        min-width: 0;
       }
       .deck-slide.is-table-slide .slide-body {
         grid-template-columns: minmax(0, 1fr);
         align-self: stretch;
         height: 100%;
         min-height: 0;
+        min-width: 0;
+        width: 100%;
       }
       .deck-slide.is-table-slide .slide-main {
         display: flex;
@@ -1378,10 +1394,12 @@
         height: 100%;
         min-height: 0;
         overflow: hidden;
+        width: 100%;
         gap: 0.18rem;
       }
       .deck-slide.is-table-slide .slide-headline {
-        max-width: 24ch;
+        max-width: min(98%, 58ch);
+        font-size: clamp(1.4rem, 2.5vw, 2.28rem);
         line-height: 1.04;
       }
       .deck-slide.is-table-slide .slide-subtitle-text {
@@ -1392,18 +1410,25 @@
       }
       .deck-slide.is-table-slide .slide-table {
         width: 100%;
-        max-width: none;
+        max-width: 100%;
+        min-width: 0;
         margin-top: 0.42rem;
         margin-bottom: 0.92rem;
         flex: 1 1 auto;
         min-height: 0;
         max-height: none;
         height: auto;
-        grid-template-rows: repeat(var(--table-row-count, 1), minmax(0, 1fr));
+        grid-template-rows: repeat(var(--table-row-count, 1), minmax(min-content, 1fr));
         align-content: stretch;
+        align-self: stretch;
       }
       .deck-slide.is-table-slide .slide-table-row {
         min-height: 0;
+        width: 100%;
+        max-width: 100%;
+      }
+      .deck-slide.is-table-slide .slide-table[data-column-count="6"] .slide-table-row {
+        grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
       }
       .deck-slide.is-table-slide .slide-table-cell {
         min-height: 0;
@@ -1413,6 +1438,20 @@
         display: flex;
         flex-direction: column;
         justify-content: center;
+        overflow: visible;
+      }
+      .deck-slide.is-table-slide .slide-table-cell:has(.slide-table-cell-comment) {
+        justify-content: flex-start;
+        padding-block: 0.78rem;
+      }
+      .deck-slide.is-table-slide .slide-table[data-column-count="5"] .slide-table-cell {
+        padding-inline: 0.58rem;
+        font-size: clamp(0.92rem, 1.36vw, 1.12rem);
+      }
+      .deck-slide.is-table-slide .slide-table[data-column-count="6"] .slide-table-cell {
+        padding-inline: 0.38rem;
+        font-size: clamp(0.76rem, 1.02vw, 0.92rem);
+        line-height: 1.08;
       }
       .deck-slide.is-table-slide .slide-table.slide-table-dense-1 .slide-table-cell {
         padding: 0.74rem 0.86rem;
@@ -1467,6 +1506,9 @@
         display: grid;
         gap: 0;
         min-width: 0;
+        width: 100%;
+        max-width: 100%;
+        overflow: hidden;
       }
       .slide-table-cell {
         min-height: 3rem;
@@ -1478,6 +1520,23 @@
         line-height: 1.4;
         overflow-wrap: anywhere;
       }
+      .slide-table-cell-comment {
+        margin-top: 0.32rem;
+        padding-top: 0.26rem;
+        border-top: 1px solid rgba(18, 32, 51, 0.2);
+        color: var(--slide-text-muted);
+        font-size: 0.62em;
+        font-style: italic;
+        line-height: 1.25;
+        opacity: 0.78;
+        overflow-wrap: anywhere;
+      }
+      .slide-table-cell-comment.is-long {
+        font-size: 0.5em;
+        line-height: 1.18;
+      }
+      .slide-table-row { overflow: hidden; }
+      .slide-table-cell { overflow: visible; }
       .slide-table-row .slide-table-cell:last-child {
         border-right: 0;
       }
@@ -2876,6 +2935,14 @@
         min-width: 0;
         white-space: nowrap;
       }
+      .slide-note.is-long {
+        font-size: calc(0.82rem * var(--slide-content-font-scale));
+        line-height: 1.28;
+      }
+      .slide-note.is-long .slide-note-text {
+        white-space: normal;
+        overflow-wrap: anywhere;
+      }
       .slide-note-content .slide-link-bubble {
         align-self: center;
         position: relative;
@@ -2885,6 +2952,7 @@
         color: var(--slide-accent-strong);
         text-decoration: underline;
         overflow-wrap: anywhere;
+        overflow: hidden;
       }
       .slide-signature {
         font-size: calc(0.8rem * var(--slide-content-font-scale));

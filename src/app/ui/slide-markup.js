@@ -360,7 +360,7 @@
     const textMarkup = hasText
       ? (opts.multiline
         ? utils.plainTextToRichHtml(linked.text, opts.limit)
-        : `<span class="${opts.textClass || "slide-linked-text"}">${utils.escapeHtml(linked.text)}</span>`)
+        : `<span class="${opts.textClass || "slide-linked-text"}"${opts.textStyle ? ` style="${opts.textStyle}"` : ""}>${utils.escapeHtml(linked.text)}</span>`)
       : "";
     const linkMarkup = createLinkBubbleListMarkup(linked.links, opts.linksClass, opts.linksTag);
     return `${textMarkup}${linkMarkup}`;
@@ -389,6 +389,9 @@
             const revealAttrs = revealStep
               ? ` data-reveal-step="${revealStep}" class="slide-reveal-item"`
               : "";
+            const bulletStyle = bulletItem.style && typeof bulletItem.style === "object" ? bulletItem.style : {};
+            const bulletColor = /^#[0-9a-fA-F]{6}$/.test(bulletStyle.color || "") ? bulletStyle.color : "";
+            const bulletTextStyle = [bulletColor ? `color: ${bulletColor}` : "", bulletStyle.bold ? "font-weight: 800" : ""].filter(Boolean).join("; ");
             const childrenMarkup = Array.isArray(bulletItem.children) && bulletItem.children.length
               ? `
                 <ul class="slide-sub-bullets">
@@ -402,7 +405,7 @@
                 </ul>
               `
               : "";
-            return `<li${revealAttrs}>${marker}<div class="slide-bullet-text">${createLinkedTextMarkup(bulletItem.text || "", { textClass: "slide-bullet-text-content", linksClass: "slide-link-bubbles slide-link-bubbles-bullet" })}${childrenMarkup}</div></li>`;
+            return `<li${revealAttrs}>${marker}<div class="slide-bullet-text">${createLinkedTextMarkup(bulletItem.text || "", { textClass: "slide-bullet-text-content", textStyle: bulletTextStyle, linksClass: "slide-link-bubbles slide-link-bubbles-bullet" })}${childrenMarkup}</div></li>`;
           })
           .join("")}
       </ul>
@@ -410,17 +413,21 @@
   }
 
   function buildBulletItems(slide) {
-    const bullets = Array.isArray(slide && slide.bullets)
-      ? slide.bullets.filter((item) => item && item.trim())
-      : [];
+    const bullets = Array.isArray(slide && slide.bullets) ? slide.bullets : [];
     const subBullets = slide && slide.subBullets && typeof slide.subBullets === "object"
       ? slide.subBullets
       : {};
+    const bulletStyles = slide && slide.bulletStyles && typeof slide.bulletStyles === "object"
+      ? slide.bulletStyles
+      : {};
 
-    return bullets.map((text, index) => ({
-      text,
-      children: Array.isArray(subBullets[index]) ? subBullets[index].filter((item) => item && item.trim()) : [],
-    }));
+    return bullets
+      .map((text, index) => ({
+        text,
+        style: bulletStyles[index] || {},
+        children: Array.isArray(subBullets[index]) ? subBullets[index].filter((item) => item && item.trim()) : [],
+      }))
+      .filter((item) => item.text && item.text.trim());
   }
 
   function countBulletRevealSteps(items, options) {
@@ -661,32 +668,59 @@
     const rowCount = table.length;
     const columnCount = table[0] ? table[0].length : 0;
     const opts = options || {};
+    const cellTextStyles = opts.cellTextStyles || {};
+    const cellComments = opts.cellComments || {};
     const progressive = Boolean(opts.progressive);
     const progressiveOrder = opts.progressiveOrder === "column" ? "column" : "row";
+    const revealStepOffset = Math.max(0, Math.round(Number(opts.revealStepOffset) || 0));
     const bodyRowCount = Math.max(0, table.length - 1);
     const densityLevel = computeTableDensityLevel(table, opts);
     const densityClass = densityLevel > 0 ? ` slide-table-dense-${densityLevel}` : "";
+    const columnWeights = Array.from({ length: columnCount }, (unused, columnIndex) => {
+      const longest = Math.max(...table.map((row) => String(row[columnIndex] || "").replace(/<[^>]*>/g, "").length));
+      return Math.max(1, Math.min(4, Math.ceil(Math.sqrt(longest + 1))));
+    });
+    const weightTotal = columnWeights.reduce((total, weight) => total + weight, 0) || 1;
+    const columnTemplate = columnWeights.map((weight) => `${((weight / weightTotal) * 100).toFixed(3)}%`).join(" ");
     return `
-      <div class="slide-table${densityClass}" data-table-lightbox="true" data-row-count="${rowCount}" data-column-count="${columnCount}" style="--table-row-count:${rowCount};">
+      <div class="slide-table${densityClass}" data-table-lightbox="true" data-row-count="${rowCount}" data-column-count="${columnCount}" style="--table-row-count:${rowCount};--table-column-count:${columnCount};">
         ${table.map((row, rowIndex) => `
-          <div class="slide-table-row${progressive && progressiveOrder === "row" && rowIndex > 0 && columnCount > 2 ? " slide-reveal-item" : ""}" style="grid-template-columns: repeat(${row.length}, minmax(0, 1fr));"${progressive && progressiveOrder === "row" && rowIndex > 0 && columnCount > 2 ? ` data-reveal-step="${rowIndex}"` : ""}>
+          <div class="slide-table-row${progressive && progressiveOrder === "row" && rowIndex > 0 && columnCount > 2 ? " slide-reveal-item" : ""}" style="grid-template-columns:${columnTemplate};"${progressive && progressiveOrder === "row" && rowIndex > 0 && columnCount > 2 ? ` data-reveal-step="${revealStepOffset + rowIndex}"` : ""}>
             ${row.map((cell, columnIndex) => {
               const isHeaderCell = rowIndex === 0 || (columnCount > 2 && columnIndex === 0);
               const headerClass = isHeaderCell ? " slide-table-cell-header" : "";
               const fillStyle = getTableCellFillStyle(tableHighlights, rowIndex, columnIndex);
-              const revealStep = progressiveOrder === "column"
+              const key = `${rowIndex}-${columnIndex}`;
+              const textStyle = cellTextStyles[key] || {};
+              const textStyleAttr = [textStyle.fontSize ? `font-size:${Number(textStyle.fontSize)}px` : "", /^#[0-9a-fA-F]{6}$/.test(textStyle.color || "") ? `color:${textStyle.color}` : "", textStyle.align ? `text-align:${textStyle.align}` : ""].filter(Boolean).join(";");
+              const comment = cellComments[key] || "";
+              const revealStep = revealStepOffset + (progressiveOrder === "column"
                 ? (columnIndex * bodyRowCount) + rowIndex
-                : ((rowIndex - 1) * columnCount) + columnIndex + 1;
+                : ((rowIndex - 1) * columnCount) + columnIndex + 1);
               const shouldRevealCell = progressive && rowIndex > 0 && (columnCount <= 2 || progressiveOrder === "column");
               const revealAttrs = shouldRevealCell
                 ? ` class="slide-table-cell${headerClass} slide-reveal-item" data-reveal-step="${revealStep}"`
                 : ` class="slide-table-cell${headerClass}"`;
-              return `<div${revealAttrs}${fillStyle ? ` style="${fillStyle}"` : ""}>${createLinkedTextMarkup(cell || "", { textClass: "slide-table-cell-text", linksClass: "slide-link-bubbles slide-link-bubbles-table" })}</div>`;
+              return `<div${revealAttrs}${fillStyle ? ` style="${fillStyle}"` : ""}>${createLinkedTextMarkup(cell || "", { textClass: "slide-table-cell-text", linksClass: "slide-link-bubbles slide-link-bubbles-table", textStyle: textStyleAttr })}${comment ? `<div class="slide-table-cell-comment${comment.length > 120 ? " is-long" : ""}">${ns.utils.escapeHtml(comment)}</div>` : ""}</div>`;
             }).join("")}
           </div>
         `).join("")}
       </div>
     `;
+  }
+
+  function getTableProgressiveStepCount(tableInput, progressiveOrder) {
+    const table = normalizeTable(tableInput);
+    const rowCount = table.length;
+    const columnCount = table[0] ? table[0].length : 0;
+    const bodyRowCount = Math.max(0, rowCount - 1);
+    if (!bodyRowCount || !columnCount) {
+      return 0;
+    }
+    if (progressiveOrder === "row" && columnCount > 2) {
+      return bodyRowCount;
+    }
+    return bodyRowCount * columnCount;
   }
 
   function createFreeMarkup(slide, options) {
@@ -1111,6 +1145,7 @@
       h: clampCanvasMetric(input.h, type === "arrow" ? 10 : type === "image" ? 30 : type === "shape" ? 22 : 18, 6, 100),
       revealOrder: Math.max(1, Math.min(24, Math.round(Number(input.revealOrder) || (index + 1)))),
       revealGroup: normalizeCanvasRevealGroup(input.revealGroup),
+      appearAtStart: Boolean(input.appearAtStart),
       locked: Boolean(input.locked),
     };
 
@@ -1140,11 +1175,13 @@
 
     const fallbackText = ns.utils.plainTextToRichHtml("Zone de texte", 2000);
     normalized.text = typeof input.text === "string" ? ns.utils.sanitizeRichText(input.text, 2000) : fallbackText;
-    normalized.fontSize = clampCanvasMetric(input.fontSize, 28, 16, 72);
+    normalized.fontSize = clampCanvasMetric(input.fontSize, 28, 10, 72);
     normalized.fontOptionId = normalizeCanvasFontOptionId(input.fontOptionId);
     normalized.color = /^#[0-9a-fA-F]{6}$/.test(input.color || "") ? input.color : "#1d1917";
     normalized.textAlign = normalizeCanvasTextAlign(input.textAlign);
     normalized.showFrame = input.showFrame !== false;
+    normalized.frameColor = /^#[0-9a-fA-F]{6}$/.test(input.frameColor || '') ? input.frameColor : '#ffffff';
+    normalized.frameTransparency = normalizeCanvasShapeTransparency(input.frameTransparency);
     normalized.bold = Boolean(input.bold);
     normalized.italic = Boolean(input.italic);
     normalized.underline = Boolean(input.underline);
@@ -1155,6 +1192,8 @@
     const raw = slide && slide.canvasData && typeof slide.canvasData === "object" ? slide.canvasData : {};
     return {
       progressive: Boolean(raw.progressive),
+      showGrid: Boolean(raw.showGrid),
+      snapToGrid: Boolean(raw.snapToGrid),
       elements: Array.isArray(raw.elements) ? raw.elements.slice(0, 24).map(normalizeCanvasElement).filter(Boolean) : [],
     };
   }
@@ -1163,7 +1202,7 @@
     return ns.utils.linkifyHtmlUrls(ns.utils.sanitizeRichText(value, 2000));
   }
 
-  function createCanvasRevealStepMap(elements, extraItems) {
+  function createCanvasRevealStepMap(elements, extraItems, startAt) {
     const ordered = (Array.isArray(elements) ? elements : [])
       .slice()
       .concat(Array.isArray(extraItems) ? extraItems.filter(Boolean) : [])
@@ -1176,7 +1215,7 @@
       });
     const stepMap = new Map();
     const groupStepMap = new Map();
-    let nextStep = 1;
+    let nextStep = Math.max(1, Math.round(Number(startAt) || 0) + 1);
     ordered.forEach((element) => {
       const group = normalizeCanvasRevealGroup(element && element.revealGroup);
       if (group) {
@@ -1198,12 +1237,13 @@
     const interactive = Boolean(opts.canvasInteractive);
     const revealStep = Number(opts.canvasRevealStep) || 0;
     const locked = Boolean(element.locked);
-    const selected = interactive && !locked && opts.selectedCanvasElementId === element.id;
+    const selectedIds = Array.isArray(opts.selectedCanvasElementIds) ? opts.selectedCanvasElementIds : [];
+    const selected = interactive && !locked && (opts.selectedCanvasElementId === element.id || selectedIds.includes(element.id));
     const selectionClass = selected ? ' is-selected' : '';
     const interactiveClass = interactive && !locked ? ' is-interactive' : '';
     const lockedClass = locked ? ' is-locked' : '';
-    const revealClass = opts.canvasProgressive && revealStep > 0 ? ' slide-reveal-item' : '';
-    const revealAttrs = opts.canvasProgressive && revealStep > 0
+    const revealClass = opts.canvasProgressive && !element.appearAtStart && revealStep > 0 ? ' slide-reveal-item' : '';
+    const revealAttrs = opts.canvasProgressive && !element.appearAtStart && revealStep > 0
       ? ` data-reveal-step="${revealStep}"`
       : '';
     const baseAttrs = `
@@ -1263,7 +1303,7 @@
     const textAlignmentLayout = textAlign === "left" ? "" : " width:100%; align-items:stretch;";
     return `
       <div ${baseAttrs}${revealAttrs}>
-        <div class="canvas-element-content canvas-element-text-content${element.showFrame === false ? ' is-frameless' : ''}" style="font-family:${ns.utils.escapeHtml(textFont.body)}; font-size:${element.fontSize}px; color:${ns.utils.escapeHtml(element.color)}; text-align:${textAlign};${textAlignmentLayout}">
+        <div class="canvas-element-content canvas-element-text-content${element.showFrame === false ? ' is-frameless' : ''}" style="font-family:${ns.utils.escapeHtml(textFont.body)}; font-size:${element.fontSize}px; color:${ns.utils.escapeHtml(element.color)}; text-align:${textAlign}; --canvas-text-frame:${ns.utils.escapeHtml(canvasHexToRgba(element.frameColor || '#ffffff', 1 - (Number(element.frameTransparency) || 0) / 100))};${textAlignmentLayout}">
           ${createCanvasTextMarkup(element.text)}
         </div>
         ${interactive && !locked ? '<button class="canvas-resize-handle" type="button" data-canvas-resize-handle="true" aria-label="Redimensionner l’élément"></button>' : ''}
@@ -1277,7 +1317,7 @@
     const revealStepMap = opts.canvasRevealStepMap || createCanvasRevealStepMap(canvasData.elements);
     const elementsMarkup = canvasData.elements
       .map((element) => createCanvasElementMarkup(element, Object.assign({}, opts, {
-        canvasProgressive: Boolean(canvasData.progressive) && !opts.canvasInteractive,
+        canvasProgressive: (opts.canvasProgressive === undefined ? Boolean(canvasData.progressive) : Boolean(opts.canvasProgressive)) && !opts.canvasInteractive,
         canvasRevealStep: revealStepMap.get(element.id) || 0,
         deckFontId: (settings && settings.font) || "studio",
       })))
@@ -1289,7 +1329,7 @@
     const fallbackMarkup = emptyMessage ? `<div class="slide-canvas-empty">${ns.utils.escapeHtml(emptyMessage)}</div>` : "";
 
     return `
-      <div class="${ns.utils.escapeHtml(surfaceClass)}" data-canvas-surface="true">
+      <div class="${ns.utils.escapeHtml(surfaceClass)}${canvasData.showGrid ? " is-grid-visible" : ""}" data-canvas-surface="true">
         ${elementsMarkup || fallbackMarkup}
       </div>
     `;
@@ -1391,12 +1431,22 @@
       return sum + (Array.isArray(bulletItem.children) ? bulletItem.children.length : 0);
     }, 0);
     const bulletsNumbered = Boolean(slide.bulletsNumbered);
+    const bulletsSingleColumn = Boolean(slide.bulletsSingleColumn);
     const bulletsProgressive = Boolean(slide.bulletsProgressive) && !opts.compact && !isFreeMode && !isTableMode && !isVisualMode && !isCanvasMode && !isHtmlMode;
     const bulletsSubProgressive = bulletsProgressive && Boolean(slide.bulletsSubProgressive);
     const tableProgressive = Boolean(slide.tableProgressive) && !opts.compact && isTableMode;
     const tableProgressiveOrder = slide.tableProgressiveOrder === "column" ? "column" : "row";
     const visualData = slide.visualData || {};
     const canvasData = getCanvasData(slide);
+    const tableRevealStepCount = tableProgressive ? getTableProgressiveStepCount(slide.table, tableProgressiveOrder) : 0;
+    const bulletRevealStepCount = bulletsProgressive
+      ? countBulletRevealSteps(allBullets, { progressive: true, progressiveChildren: bulletsSubProgressive })
+      : 0;
+    const overlayCanvasRevealStepOffset = tableProgressive ? tableRevealStepCount : bulletRevealStepCount;
+    const overlayCanvasProgressive = tableProgressive || bulletsProgressive || Boolean(canvasData.progressive);
+    const overlayCanvasRevealStepMap = overlayCanvasRevealStepOffset > 0
+      ? createCanvasRevealStepMap(canvasData.elements, null, overlayCanvasRevealStepOffset)
+      : null;
     const hasOverlayElements = canvasData.elements.length > 0;
     const htmlRevealItem = isHtmlMode
       ? {
@@ -1532,7 +1582,7 @@
     const subtitle = !isHtmlMode && slide.subtitle ? `<p class="slide-subtitle-text">${utils.escapeHtml(slide.subtitle)}</p>` : "";
     const signature = !isHtmlMode && settings.footer ? `<span class="slide-signature">${utils.escapeHtml(settings.footer)}</span>` : "";
     const note = slide.note
-      ? `<div class="slide-note"><span class="slide-note-content">${createLinkedTextMarkup(slide.note, { textClass: "slide-note-text", linksClass: "slide-link-bubbles slide-link-bubbles-inline slide-link-bubbles-note", linksTag: "span" })}</span></div>`
+      ? `<div class="slide-note${String(slide.note).length > 110 ? " is-long" : ""}"><span class="slide-note-content">${createLinkedTextMarkup(slide.note, { textClass: "slide-note-text", linksClass: "slide-link-bubbles slide-link-bubbles-inline slide-link-bubbles-note", linksTag: "span" })}</span></div>`
       : "";
 
     let contentMarkup = "";
@@ -1555,11 +1605,16 @@
       }));
     } else if (isTableMode) {
       contentMarkup = createTableMarkup(slide.table, slide.tableHighlights, {
+        cellTextStyles: slide.cellTextStyles,
+        cellComments: slide.cellComments,
         progressive: tableProgressive,
         progressiveOrder: tableProgressiveOrder,
+        revealStepOffset: 0,
         titleLength: (slide.title || "").length,
         subtitleLength: (slide.subtitle || "").length,
       });
+    } else if (bulletsSingleColumn) {
+      contentMarkup = extendedBulletMarkup;
     } else if (useSecondBulletSideLayout) {
       contentMarkup = `
         <div class="slide-bullets-row slide-bullets-row-extra slide-bullets-row-second-heavy">
@@ -1608,7 +1663,8 @@
       ? createCanvasMarkup(slide, settings, Object.assign({}, opts, {
           surfaceClass: "slide-overlay-canvas-surface",
           emptyMessage: "",
-          canvasRevealStepMap: htmlRevealStepMap || undefined,
+          canvasRevealStepMap: overlayCanvasRevealStepMap || htmlRevealStepMap || undefined,
+          canvasProgressive: overlayCanvasProgressive,
         }))
       : "";
 

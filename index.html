@@ -308,9 +308,13 @@
                 <input id="slide-bullets-sub-progressive" type="checkbox" />
                 <span>Révéler les sous-points</span>
               </label>
+              <button id="slide-bullets-single-column" class="button button-soft" type="button" aria-pressed="false">
+                Une colonne
+              </button>
               <div class="bullet-grid">
                 <div class="bullet-field">
                   <label for="slide-bullet-1">Point 1</label>
+                  <div class="bullet-style-controls"><input id="slide-bullet-color-1" type="color" value="#122033" aria-label="Couleur du point 1" /><label><input id="slide-bullet-bold-1" type="checkbox" /> Gras</label></div>
                   <div class="bullet-editor-row" data-bullet-row="0">
                     <button class="bullet-drag-handle" type="button" draggable="true" data-bullet-drag-handle="0" aria-label="Glisser le point 1" title="Glisser pour réordonner">
                       ::
@@ -321,6 +325,7 @@
                 </div>
                 <div class="bullet-field">
                   <label for="slide-bullet-2">Point 2</label>
+                  <div class="bullet-style-controls"><input id="slide-bullet-color-2" type="color" value="#122033" aria-label="Couleur du point 2" /><label><input id="slide-bullet-bold-2" type="checkbox" /> Gras</label></div>
                   <div class="bullet-editor-row" data-bullet-row="1">
                     <button class="bullet-drag-handle" type="button" draggable="true" data-bullet-drag-handle="1" aria-label="Glisser le point 2" title="Glisser pour réordonner">
                       ::
@@ -331,6 +336,7 @@
                 </div>
                 <div class="bullet-field">
                   <label for="slide-bullet-3">Point 3</label>
+                  <div class="bullet-style-controls"><input id="slide-bullet-color-3" type="color" value="#122033" aria-label="Couleur du point 3" /><label><input id="slide-bullet-bold-3" type="checkbox" /> Gras</label></div>
                   <div class="bullet-editor-row" data-bullet-row="2">
                     <button class="bullet-drag-handle" type="button" draggable="true" data-bullet-drag-handle="2" aria-label="Glisser le point 3" title="Glisser pour réordonner">
                       ::
@@ -383,6 +389,24 @@
                     <button id="add-table-fill" class="button button-soft" type="button">Appliquer</button>
                   </div>
                   <div id="table-fill-list" class="table-fill-list"></div>
+                </div>
+                <div class="table-cell-format-panel">
+                  <div class="table-fill-header"><span>Texte et commentaire de la cellule sélectionnée</span></div>
+                  <div class="table-cell-format-controls">
+                    <label>Taille
+                      <input id="table-cell-text-size" type="number" min="10" max="48" step="1" value="16" />
+                    </label>
+                    <label>Couleur
+                      <input id="table-cell-text-color" type="color" value="#1d1917" aria-label="Couleur du texte de la cellule" />
+                    </label>
+                    <label>Alignement
+                      <select id="table-cell-text-align" aria-label="Alignement du texte de la cellule"><option value="left">À gauche</option><option value="center">Centrer</option><option value="right">À droite</option></select>
+                    </label>
+                    <label class="table-cell-comment-label">Commentaire
+                      <textarea id="table-cell-comment" maxlength="500" rows="2" placeholder="Ajouter un commentaire à cette cellule"></textarea>
+                    </label>
+                  </div>
+                  <div id="table-cell-color-palette" class="table-cell-color-palette" aria-label="Couleurs de texte mémorisées"></div>
                 </div>
                 <div id="table-editor-grid" class="table-editor-grid"></div>
               </div>
@@ -508,9 +532,17 @@
                     <label>
                       Taille du texte
                       <div class="range-field">
-                        <input id="canvas-text-size" type="range" min="16" max="72" step="1" value="28" />
+                        <input id="canvas-text-size" type="range" min="10" max="72" step="1" value="28" />
                         <span id="canvas-text-size-value" class="range-field-value">28 px</span>
                       </div>
+                    </label>
+                    <label>
+                      Échelle de tout le texte
+                      <div class="range-field">
+                        <input id="canvas-text-scale" type="range" min="50" max="150" step="1" value="100" />
+                        <span id="canvas-text-scale-value" class="range-field-value">100 %</span>
+                      </div>
+                      <span class="field-label-secondary">Conserve les proportions entre les textes.</span>
                     </label>
                     <label>
                       Alignement
@@ -521,9 +553,11 @@
                       </select>
                     </label>
                     <label class="checkbox-field">
-                      <input id="canvas-text-frame" type="checkbox" checked />
+                      <input id="canvas-text-frame" type="checkbox" />
                       <span>Afficher le cartouche blanc</span>
                     </label>
+                    <label>Couleur du cartouche<input id="canvas-text-frame-color" type="color" value="#ffffff" /></label>
+                    <label>Transparence<input id="canvas-text-frame-transparency" type="range" min="0" max="100" value="20" /></label>
                   </div>
 
                   <details id="canvas-image-media-panel" class="canvas-editor-details">
@@ -827,6 +861,8 @@
               <div class="panel-heading-actions">
                 <p id="slide-hint" class="preview-hint"></p>
                 <button id="toggle-canvas-preview-fullscreen" class="button button-soft" type="button" aria-pressed="false" hidden>Éditer en plein écran</button>
+                <button id="toggle-canvas-grid" class="button button-soft" type="button" hidden>Grille</button>
+                <button id="toggle-canvas-snap" class="button button-soft" type="button" hidden>Magnétisme</button>
               </div>
             </div>
 

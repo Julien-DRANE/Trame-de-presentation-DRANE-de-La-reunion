@@ -137,16 +137,32 @@
     refs.slideBulletsProgressive.checked = Boolean(selectedSlide.bulletsProgressive);
     refs.slideBulletsSubProgressive.checked = Boolean(selectedSlide.bulletsSubProgressive);
     refs.slideBulletsSubProgressive.disabled = !Boolean(selectedSlide.bulletsProgressive);
+    refs.slideBulletsSingleColumn.classList.toggle("is-active", Boolean(selectedSlide.bulletsSingleColumn));
+    refs.slideBulletsSingleColumn.setAttribute("aria-pressed", selectedSlide.bulletsSingleColumn ? "true" : "false");
     refs.slideTableProgressive.checked = Boolean(selectedSlide.tableProgressive);
     refs.slideTableProgressiveOrder.value = selectedSlide.tableProgressiveOrder === "column" ? "column" : "row";
     refs.slideBullet1.value = selectedSlide.bullets[0] || "";
     refs.slideBullet2.value = selectedSlide.bullets[1] || "";
     refs.slideBullet3.value = selectedSlide.bullets[2] || "";
+    [0, 1, 2].forEach((index) => {
+      const style = (selectedSlide.bulletStyles || {})[index] || {};
+      const colorInput = refs.bulletColorInputs[index];
+      const boldInput = refs.bulletBoldInputs[index];
+      colorInput.value = /^#[0-9a-fA-F]{6}$/.test(style.color || "") ? style.color : "#122033";
+      boldInput.checked = Boolean(style.bold);
+    });
     refs.subBulletLists.forEach((container, index) => {
       container.innerHTML = renderSubBulletEditor(selectedSlide, index);
     });
     refs.extraBulletsList.innerHTML = renderExtraBullets(selectedSlide);
     refs.tableEditorGrid.innerHTML = renderTableEditor(selectedSlide);
+    const selectedCellKey = `${selectedTableCell.row}-${selectedTableCell.column}`;
+    const selectedCellStyle = (selectedSlide.cellTextStyles || {})[selectedCellKey] || {};
+    refs.tableCellTextSize.value = Math.max(10, Math.min(48, Number(selectedCellStyle.fontSize) || 16));
+    refs.tableCellTextColor.value = /^#[0-9a-fA-F]{6}$/.test(selectedCellStyle.color || "") ? selectedCellStyle.color : "#1d1917";
+    refs.tableCellTextAlign.value = selectedCellStyle.align === "center" || selectedCellStyle.align === "right" ? selectedCellStyle.align : "left";
+    refs.tableCellComment.value = (selectedSlide.cellComments || {})[selectedCellKey] || "";
+    refs.tableCellColorPalette.innerHTML = renderTableCellColorPalette(state.settings.tableTextColors, refs.tableCellTextColor.value);
     const currentFillTarget = refs.tableFillTarget.value === "column"
       ? "column"
       : refs.tableFillTarget.value === "cell"
@@ -247,8 +263,12 @@
       }
       refs.canvasTextSize.value = selectedCanvasElement.type === "text" ? String(Math.round(Number(selectedCanvasElement.fontSize) || 28)) : "28";
       refs.canvasTextSizeValue.textContent = `${refs.canvasTextSize.value} px`;
+      refs.canvasTextScale.value = "100";
+      refs.canvasTextScaleValue.textContent = "100 %";
       refs.canvasTextAlign.value = selectedCanvasElement.type === "text" ? (selectedCanvasElement.textAlign || "left") : "left";
       refs.canvasTextFrame.checked = selectedCanvasElement.type === "text" ? selectedCanvasElement.showFrame !== false : true;
+      refs.canvasTextFrameColor.value = selectedCanvasElement.type === "text" ? (selectedCanvasElement.frameColor || "#ffffff") : "#ffffff";
+      refs.canvasTextFrameTransparency.value = selectedCanvasElement.type === "text" ? String(Number(selectedCanvasElement.frameTransparency) || 0) : "20";
       refs.canvasTextBold.classList.remove("is-active");
       refs.canvasTextBold.setAttribute("aria-pressed", "false");
       refs.canvasTextItalic.classList.remove("is-active");
@@ -481,7 +501,7 @@
   function renderSlideList(state, activeId) {
     return state.slides
       .map((slide, index) => {
-        const activeClass = slide.id === activeId ? " is-active" : "";
+        const activeClass = `${slide.id === activeId ? " is-active" : ""}${slide.disabled ? " is-disabled" : ""}`;
         const bloomMeta = ns.ui.getBloomMeta(slide.bloomLevel);
         return `
           <article class="slide-item${activeClass}" data-list-slide="${ns.utils.escapeHtml(slide.id)}">
@@ -500,6 +520,9 @@
               </button>
               <button class="icon-button" type="button" data-move-slide="${ns.utils.escapeHtml(slide.id)}" data-direction="1" aria-label="Descendre">
                 v
+              </button>
+              <button class="icon-button" type="button" data-toggle-slide-disabled="${ns.utils.escapeHtml(slide.id)}" aria-label="${slide.disabled ? "Réactiver" : "Désactiver"} la slide" title="${slide.disabled ? "Réactiver" : "Désactiver"}">
+                ${slide.disabled ? "◉" : "○"}
               </button>
             </div>
           </article>
@@ -782,6 +805,7 @@
           `;
         }
         const locked = Boolean(element.locked);
+        const appearAtStart = Boolean(element.appearAtStart);
         const activeClass = element.id === activeId && !locked ? ' is-active' : '';
         const lockedClass = locked ? ' is-locked' : '';
         const layerIndex = layerOrder.indexOf(element.id);
@@ -795,7 +819,7 @@
             <button class="canvas-element-chip${activeClass}${lockedClass}" type="button" data-select-canvas-element="${ns.utils.escapeHtml(element.id)}"${locked ? ' disabled title="Objet verrouillé"' : ''}>
               <span class="canvas-element-chip-index">${index + 1}</span>
               <span class="canvas-element-chip-label">${previewMarkup}</span>
-              <span class="canvas-element-chip-meta">Ordre ${index + 1}${element.revealGroup ? ' · Groupe ' + ns.utils.escapeHtml(element.revealGroup) : ''}${locked ? ' · Verrouillé' : ''}</span>
+              <span class="canvas-element-chip-meta">Ordre ${index + 1}${element.revealGroup ? ' · Groupe ' + ns.utils.escapeHtml(element.revealGroup) : ''}${appearAtStart ? ' · Dès le début' : ''}${locked ? ' · Verrouillé' : ''}</span>
             </button>
             <div class="canvas-element-chip-actions">
               <label class="canvas-reveal-group-field" title="Révéler en même temps que les objets du même groupe">
@@ -811,6 +835,14 @@
                 aria-label="${locked ? 'Déverrouiller' : 'Verrouiller'} l'objet"
                 title="${locked ? 'Déverrouiller' : 'Verrouiller'}"
               >${locked ? '🔒' : '🔓'}</button>
+              <button
+                class="button button-ghost canvas-layer-action${appearAtStart ? ' is-active' : ''}"
+                type="button"
+                data-toggle-canvas-appear-at-start="${ns.utils.escapeHtml(element.id)}"
+                aria-pressed="${appearAtStart ? 'true' : 'false'}"
+                aria-label="${appearAtStart ? 'Ne plus afficher dès le début' : 'Afficher dès le début'}"
+                title="${appearAtStart ? 'Visible dès le début' : 'Révéler dans la séquence'}"
+              >Début</button>
               <button
                 class="button button-ghost canvas-layer-action"
                 type="button"
@@ -1053,6 +1085,8 @@
     return extraBullets
       .map((bullet, index) => {
         const actualIndex = index + 3;
+        const style = (selectedSlide.bulletStyles || {})[actualIndex] || {};
+        const color = /^#[0-9a-fA-F]{6}$/.test(style.color || "") ? style.color : "#122033";
         return `
           <div class="extra-bullet-row bullet-editor-row" data-bullet-row="${actualIndex}">
             <button
@@ -1080,6 +1114,10 @@
             >
               x
             </button>
+            <div class="bullet-style-controls">
+              <input type="color" value="${ns.utils.escapeHtml(color)}" data-bullet-style-color="${actualIndex}" aria-label="Couleur du point ${actualIndex + 1}" />
+              <label><input type="checkbox" data-bullet-style-bold="${actualIndex}"${style.bold ? " checked" : ""} /> Gras</label>
+            </div>
             <div class="extra-bullet-subpoints">
               ${renderSubBulletEditor(selectedSlide, actualIndex)}
             </div>
@@ -1092,20 +1130,27 @@
   function renderTableEditor(selectedSlide) {
     const table = normalizeTable(selectedSlide.table);
     const highlights = selectedSlide.tableHighlights || {};
+    const cellTextStyles = selectedSlide.cellTextStyles || {};
+    const cellComments = selectedSlide.cellComments || {};
     const rows = table
       .map((row, rowIndex) => {
         return row.map((cell, columnIndex) => {
           const headerClass = rowIndex === 0 || columnIndex === 0 ? " is-header" : "";
           const fillStyle = getTableCellFillStyle(highlights, rowIndex, columnIndex);
+          const key = `${rowIndex}-${columnIndex}`;
+          const textStyle = cellTextStyles[key] || {};
+          const style = [fillStyle, textStyle.fontSize ? `font-size:${textStyle.fontSize}px` : "", textStyle.color ? `color:${textStyle.color}` : "", textStyle.align ? `text-align:${textStyle.align}` : ""].filter(Boolean).join(";");
+          const commentMark = cellComments[key] ? " has-comment" : "";
           return `
             <input
-              class="table-editor-cell${headerClass}"
+              class="table-editor-cell${headerClass}${commentMark}"
               type="text"
               maxlength="120"
               value="${ns.utils.escapeHtml(cell || "")}"
               data-table-cell="${rowIndex}-${columnIndex}"
               placeholder="Cellule"
-              style="${fillStyle}"
+              style="${style}"
+              title="${ns.utils.escapeHtml(cellComments[key] || "")}"
             />
           `;
         }).join("");
@@ -1120,6 +1165,14 @@
         ${rows}
       </div>
     `;
+  }
+
+  function renderTableCellColorPalette(colors, activeColor) {
+    const fallback = ["#1d1917", "#0a66ff", "#0c6291", "#b42318", "#027a48", "#7a5af8"];
+    const palette = (Array.isArray(colors) ? colors : fallback).slice(0, 6);
+    return `<span class="table-cell-color-label">Couleurs mémorisées</span>${palette.map((color) => `
+      <button class="table-cell-color-swatch${color === activeColor ? " is-active" : ""}" type="button" data-table-cell-text-color-value="${ns.utils.escapeHtml(color)}" style="--swatch-color:${ns.utils.escapeHtml(color)}" title="Réutiliser ${ns.utils.escapeHtml(color)}" aria-label="Réutiliser la couleur ${ns.utils.escapeHtml(color)}"></button>
+    `).join("")}`;
   }
 
   function renderVisualChartEditor(visualData) {
