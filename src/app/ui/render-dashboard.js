@@ -116,6 +116,10 @@
       .join("");
 
     refs.slideLabel.value = selectedSlide.label;
+    const mapThemes = (state.mindMap && state.mindMap.themes) || [];
+    refs.slideTheme.innerHTML = mapThemes.map((theme) => `<option value="${ns.utils.escapeHtml(theme.id)}">${ns.utils.escapeHtml(theme.code)} — ${ns.utils.escapeHtml(theme.label)}</option>`).join("");
+    refs.slideTheme.value = selectedSlide.themeId || (mapThemes[0] && mapThemes[0].id) || "";
+    refs.slideThemeTitle.textContent = selectedSlide.title || selectedSlide.label || "Slide sans titre";
     refs.slideNumber.value = selectedSlide.number;
     refs.slideObjective.value = selectedSlide.objective;
     refs.slideEvidence.value = selectedSlide.evidence;
@@ -439,6 +443,12 @@
         ? getMediaSelectionText(selectedSlide, state.mediaLibrary)
         : "Aucun média affecté à cette slide.";
     refs.slideList.innerHTML = renderSlideList(state, selectedSlide.id);
+    if (refs.mindMap && ns.ui.renderMindMap) {
+      refs.mindMap.innerHTML = ns.ui.renderMindMap(state);
+    }
+    if (refs.mindMapThemeList) {
+      refs.mindMapThemeList.innerHTML = mapThemes.map((theme, index) => `<div class="mindmap-theme-row"><label>Code<input data-mindmap-theme-field="code" data-mindmap-theme-index="${index}" maxlength="6" value="${ns.utils.escapeHtml(theme.code)}"></label><label>Nom<input data-mindmap-theme-field="label" data-mindmap-theme-index="${index}" maxlength="40" value="${ns.utils.escapeHtml(theme.label)}"></label><label>Catégorie<input data-mindmap-theme-field="category" data-mindmap-theme-index="${index}" maxlength="40" value="${ns.utils.escapeHtml(theme.category || "")}"></label><label>Couleur<input type="color" data-mindmap-theme-field="color" data-mindmap-theme-index="${index}" value="${ns.utils.escapeHtml(theme.color)}"></label><button class="icon-button icon-button-danger" type="button" data-remove-mindmap-theme="${index}" aria-label="Supprimer ${ns.utils.escapeHtml(theme.label)}">×</button></div>`).join("");
+    }
     refs.taxonomyRoadmap.innerHTML = renderTaxonomyRoadmap(state, selectedSlide.bloomLevel);
     refs.principlesList.innerHTML = renderPrinciplesList(selectedSlide, principles);
     refs.stage.innerHTML = ns.ui.createSlideMarkup(selectedSlide, state.settings, {
@@ -503,6 +513,7 @@
       .map((slide, index) => {
         const activeClass = `${slide.id === activeId ? " is-active" : ""}${slide.disabled ? " is-disabled" : ""}`;
         const bloomMeta = ns.ui.getBloomMeta(slide.bloomLevel);
+        const mapCode = ns.ui.getSlideCode ? ns.ui.getSlideCode(slide, state) : slide.number;
         return `
           <article class="slide-item${activeClass}" data-list-slide="${ns.utils.escapeHtml(slide.id)}">
             <button class="slide-select" type="button" data-select-slide="${ns.utils.escapeHtml(slide.id)}">
@@ -510,7 +521,7 @@
                 ${String(index + 1).padStart(2, "0")}
               </span>
               <span class="slide-meta">
-                <span class="slide-title">${ns.utils.escapeHtml(slide.title || "Slide sans titre")}</span>
+                <span class="slide-title">${ns.utils.escapeHtml(mapCode)} · ${ns.utils.escapeHtml(slide.title || "Slide sans titre")}</span>
                 <span class="slide-subline">${ns.utils.escapeHtml(bloomMeta.title)} - ${ns.utils.escapeHtml(slide.subtitle || "À compléter")}</span>
               </span>
             </button>

@@ -108,6 +108,7 @@
       bullets: level.defaultBullets.slice(0, 3),
       note: level.defaultNote,
       presenterNotes: "",
+      themeId: index < 3 ? "theme-decouvrir" : "theme-agir",
     };
   }
 
@@ -161,6 +162,7 @@
       bullets: ["Premier point", "Deuxieme point", "Troisieme point"],
       note: "Une note breve suffit pour fermer la slide.",
       presenterNotes: "",
+      themeId: "theme-decouvrir",
     };
   }
 
@@ -173,6 +175,12 @@
       uiMediaPanelCollapsed: false,
       uiPictoPanelCollapsed: false,
       uiThumbStripCollapsed: false,
+      mindMap: {
+        themes: [
+          { id: "theme-decouvrir", code: "A", label: "Découvrir", category: "Fondamentaux", color: "#145da0" },
+          { id: "theme-agir", code: "B", label: "Mettre en pratique", category: "Approfondissement", color: "#ef9b20" },
+        ],
+      },
       settings: {
         title: "Ingénierie de formation",
         subtitle: "Deck structuré selon Bloom et principes cognitifs.",

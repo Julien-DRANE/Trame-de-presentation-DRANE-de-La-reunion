@@ -4,7 +4,7 @@
   const SLIDE_CLIPBOARD_KEY = "studio-ingenierie-slide-clipboard-v1";
 
   const themeOptions = ["random", "mix", "circles", "waves", "clean"];
-  const viewOptions = ["engineering", "presentation"];
+  const viewOptions = ["engineering", "presentation", "mindmap"];
   const paletteOptions = ((ns.data && ns.data.colorPalettes) || []).map((item) => item.id);
   const decorativeAccentOptions = ((ns.data && ns.data.decorativeAccents) || []).map((item) => item.id);
   const fontOptions = ((ns.data && ns.data.fontOptions) || []).map((item) => item.id);
@@ -95,9 +95,16 @@
       return fallbackState;
     }
 
-    const selectedSlideId = slides.some((slide) => slide.id === input.selectedSlideId)
+    const mindMap = sanitizeMindMap(input.mindMap, fallbackState.mindMap);
+    const slidesWithThemes = slides.map((slide, index) => {
+      const isKnownTheme = mindMap.themes.some((theme) => theme.id === slide.themeId);
+      const defaultTheme = mindMap.themes[index < Math.ceil(slides.length / 2) ? 0 : 1] || mindMap.themes[0];
+      return isKnownTheme || !defaultTheme ? slide : Object.assign({}, slide, { themeId: defaultTheme.id });
+    });
+
+    const selectedSlideId = slidesWithThemes.some((slide) => slide.id === input.selectedSlideId)
       ? input.selectedSlideId
-      : slides[0].id;
+      : slidesWithThemes[0].id;
     const hasFooterValue = Boolean(input.settings) && typeof input.settings.footer === "string";
 
     return {
@@ -107,6 +114,7 @@
       uiMediaPanelCollapsed: Boolean(input.uiMediaPanelCollapsed),
       uiPictoPanelCollapsed: Boolean(input.uiPictoPanelCollapsed),
       uiThumbStripCollapsed: Boolean(input.uiThumbStripCollapsed),
+      mindMap,
       settings: {
         title: utils.clampText(input.settings && input.settings.title, 60) || fallbackState.settings.title,
         subtitle: utils.clampText(input.settings && input.settings.subtitle, 90) || fallbackState.settings.subtitle,
@@ -126,7 +134,7 @@
         ? input.mediaLibrary.map((item) => ns.services.media.sanitizeMediaItem(item)).filter(Boolean)
         : [],
       selectedSlideId,
-      slides,
+      slides: slidesWithThemes,
     };
   }
 
@@ -202,7 +210,20 @@
       bullets: bullets.map((item) => utils.clampText(item, 220)),
       note: utils.clampText(slide.note, 180),
       presenterNotes: utils.clampText(slide.presenterNotes, 2000),
+      themeId: utils.clampText(slide.themeId, 80),
     };
+  }
+
+  function sanitizeMindMap(input, fallback) {
+    const utils = ns.utils;
+    const themes = Array.isArray(input && input.themes) ? input.themes : ((fallback && fallback.themes) || []);
+    return { themes: themes.slice(0, 12).map((theme, index) => ({
+      id: utils.clampText(theme && theme.id, 80) || `theme-${index + 1}`,
+      code: utils.clampText(theme && theme.code, 6).toUpperCase() || String.fromCharCode(65 + index),
+      label: utils.clampText(theme && theme.label, 40) || `Thème ${index + 1}`,
+      category: utils.clampText(theme && theme.category, 40),
+      color: normalizeHexColor(theme && theme.color, ["#145da0", "#ef9b20", "#008f7a"][index % 3]),
+    })) };
   }
 
   function sanitizeTable(input) {

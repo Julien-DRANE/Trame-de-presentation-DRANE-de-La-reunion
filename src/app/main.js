@@ -17,6 +17,7 @@
     deleteSlide: document.querySelector("#delete-slide"),
     deleteSlideInline: document.querySelector("#delete-slide-inline"),
     openPresentation: document.querySelector("#open-presentation"),
+    openMindMap: document.querySelector("#open-mind-map"),
     openPresentationActive: document.querySelector("#open-presentation-active"),
     openPresenter: document.querySelector("#open-presenter"),
     openPresenterActive: document.querySelector("#open-presenter-active"),
@@ -58,6 +59,8 @@
     toggleCanvasGrid: document.querySelector("#toggle-canvas-grid"),
     toggleCanvasSnap: document.querySelector("#toggle-canvas-snap"),
     densityBadge: document.querySelector("#density-badge"),
+    previousEngineeringSlide: document.querySelector("#previous-engineering-slide"),
+    nextEngineeringSlide: document.querySelector("#next-engineering-slide"),
     thumbStrip: document.querySelector("#thumb-strip"),
     globalPanelBody: document.querySelector("#global-panel-body"),
     pedagogyBrief: document.querySelector("#pedagogy-brief"),
@@ -80,6 +83,8 @@
     slideMediaSelection: document.querySelector("#slide-media-selection"),
     slideBloomLevel: document.querySelector("#slide-bloom-level"),
     slideLabel: document.querySelector("#slide-label"),
+    slideTheme: document.querySelector("#slide-theme"),
+    slideThemeTitle: document.querySelector("#slide-theme-title"),
     slideNumber: document.querySelector("#slide-number"),
     slideObjective: document.querySelector("#slide-objective"),
     slideEvidence: document.querySelector("#slide-evidence"),
@@ -236,6 +241,11 @@
     presenterNotesMeta: document.querySelector("#presenter-notes-meta"),
     objectiveMeta: document.querySelector("#objective-meta"),
     evidenceMeta: document.querySelector("#evidence-meta"),
+    mindMap: document.querySelector("#mind-map"),
+    mindMapPanel: document.querySelector("#mind-map-panel"),
+    toggleMindMapFullscreen: document.querySelector("#toggle-mindmap-fullscreen"),
+    mindMapThemeList: document.querySelector("#mindmap-theme-list"),
+    addMindMapTheme: document.querySelector("#add-mindmap-theme"),
   };
 
   let state = ns.services.storage.loadState(STORAGE_KEY);
@@ -611,6 +621,12 @@
     syncSelectedCanvasElement();
     getSafeSelectedTableCell(getSelectedSlide());
     ns.ui.renderDashboard({ state, refs, selectedCanvasElementId, selectedTableCell });
+    if (state.view === "mindmap") {
+      window.requestAnimationFrame(() => {
+        const canvas = refs.mindMap.querySelector(".mind-map-canvas");
+        if (canvas) canvas.scrollLeft = Math.max(0, (canvas.scrollWidth - canvas.clientWidth) / 2);
+      });
+    }
     syncUndoButton();
     syncSlideClipboardControls();
     syncCanvasPreviewFullscreenUi();
@@ -996,11 +1012,97 @@
   }
 
   function setView(view) {
-    if (view !== "engineering" && view !== "presentation") {
+    if (view !== "engineering" && view !== "presentation" && view !== "mindmap") {
       return;
     }
     closeAddSlideMenu();
     state.view = view;
+    render();
+  }
+
+  function openPresentationAtSlide(slideId) {
+    persistStateNow();
+    const presentationUrl = new URL(window.location.href);
+    presentationUrl.searchParams.set("present", "1");
+    presentationUrl.searchParams.delete("presenter");
+    presentationUrl.searchParams.set("start", slideId || "");
+    window.open(presentationUrl.toString(), "_blank", "noopener");
+  }
+
+  function navigateEngineeringSlide(direction) {
+    const currentIndex = state.slides.findIndex((slide) => slide.id === state.selectedSlideId);
+    if (currentIndex < 0) return;
+    const nextIndex = Math.max(0, Math.min(state.slides.length - 1, currentIndex + direction));
+    const nextSlide = state.slides[nextIndex];
+    if (nextSlide && nextSlide.id !== state.selectedSlideId) selectSlide(nextSlide.id);
+  }
+
+  async function toggleMindMapFullscreen() {
+    const panel = refs.mindMapPanel;
+    if (!panel) return;
+    if (document.fullscreenElement === panel) {
+      await document.exitFullscreen();
+      return;
+    }
+    if (panel.requestFullscreen) {
+      await panel.requestFullscreen();
+      return;
+    }
+    panel.classList.toggle("is-fullscreen");
+    syncMindMapFullscreenUi();
+  }
+
+  function syncMindMapFullscreenUi() {
+    const active = document.fullscreenElement === refs.mindMapPanel || refs.mindMapPanel.classList.contains("is-fullscreen");
+    refs.toggleMindMapFullscreen.textContent = active ? "Quitter le plein écran" : "Plein écran";
+    refs.toggleMindMapFullscreen.setAttribute("aria-pressed", active ? "true" : "false");
+  }
+
+  function updateMindMapZoom(canvas, nextZoom, clientX, clientY) {
+    if (!canvas) return;
+    const svg = canvas.querySelector("svg");
+    if (!svg) return;
+    const zoom = Math.max(0.65, Math.min(2.8, nextZoom));
+    const currentZoom = Number(canvas.dataset.mindMapZoom) || 1;
+    const currentPanX = Number(canvas.dataset.mindMapPanX) || 0;
+    const currentPanY = Number(canvas.dataset.mindMapPanY) || 0;
+    const canvasRect = canvas.getBoundingClientRect();
+    const pointerX = clientX - canvasRect.left + canvas.scrollLeft;
+    const pointerY = clientY - canvasRect.top + canvas.scrollTop;
+    const mapX = (pointerX - currentPanX) / currentZoom;
+    const mapY = (pointerY - currentPanY) / currentZoom;
+    const panX = zoom <= 0.65 ? Math.max(0, (canvas.clientWidth - svg.clientWidth * zoom) / 2) : pointerX - mapX * zoom;
+    const panY = zoom <= 0.65 ? Math.max(0, (canvas.clientHeight - svg.clientHeight * zoom) / 2) : pointerY - mapY * zoom;
+    canvas.dataset.mindMapZoom = String(zoom);
+    canvas.dataset.mindMapPanX = String(panX);
+    canvas.dataset.mindMapPanY = String(panY);
+    svg.style.transformOrigin = "0 0";
+    svg.style.transform = `translate(${panX}px, ${panY}px) scale(${zoom})`;
+    canvas.style.cursor = zoom > 1 ? "zoom-out" : "zoom-in";
+    if (zoom <= 0.65) {
+      window.requestAnimationFrame(() => {
+        canvas.scrollLeft = 0;
+        canvas.scrollTop = 0;
+        const centerPetal = canvas.querySelector(".mind-map-center-petal");
+        if (!centerPetal) return;
+        const rect = centerPetal.getBoundingClientRect();
+        const overlay = canvas.closest(".fullscreen-mindmap-overlay");
+        if (overlay) {
+          const overlayRect = overlay.getBoundingClientRect();
+          overlay.scrollBy({ left: rect.left + rect.width / 2 - (overlayRect.left + overlayRect.width / 2), top: rect.top + rect.height / 2 - (overlayRect.top + overlayRect.height / 2) });
+          return;
+        }
+        window.scrollBy({ left: rect.left + rect.width / 2 - window.innerWidth / 2, top: rect.top + rect.height / 2 - window.innerHeight / 2 });
+      });
+    }
+  }
+
+  function updateMindMapTheme(index, patch) {
+    const themes = ((state.mindMap && state.mindMap.themes) || []).slice();
+    if (!themes[index]) return;
+    pushUndoSnapshot();
+    themes[index] = Object.assign({}, themes[index], patch);
+    state.mindMap = Object.assign({}, state.mindMap, { themes });
     render();
   }
 
@@ -3868,6 +3970,9 @@
 
   refs.slideBloomLevel.addEventListener("change", (event) => updateSelectedSlide({ bloomLevel: event.target.value }));
   refs.slideLabel.addEventListener("input", (event) => updateSelectedSlide({ label: ns.utils.clampText(event.target.value, 24) }, false));
+  refs.slideTheme.addEventListener("change", (event) => updateSelectedSlide({ themeId: event.target.value }));
+  refs.previousEngineeringSlide.addEventListener("click", () => navigateEngineeringSlide(-1));
+  refs.nextEngineeringSlide.addEventListener("click", () => navigateEngineeringSlide(1));
   refs.slideNumber.addEventListener("input", (event) => updateSelectedSlide({ number: ns.utils.clampText(event.target.value, 8) }, false));
   refs.slideObjective.addEventListener("input", (event) => updateSelectedSlide({ objective: ns.utils.clampText(event.target.value, 180) }, false));
   refs.slideEvidence.addEventListener("input", (event) => updateSelectedSlide({ evidence: ns.utils.clampText(event.target.value, 120) }, false));
@@ -4707,6 +4812,71 @@
     presentationUrl.searchParams.delete("presenter");
     window.open(presentationUrl.toString(), "_blank", "noopener");
   });
+  refs.openMindMap.addEventListener("click", () => setView("mindmap"));
+  refs.toggleMindMapFullscreen.addEventListener("click", () => { void toggleMindMapFullscreen(); });
+  refs.mindMap.addEventListener("click", (event) => {
+    const petal = event.target.closest("[data-mindmap-slide]");
+    if (!petal) return;
+    openPresentationAtSlide(petal.getAttribute("data-mindmap-slide"));
+  });
+  refs.mindMap.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" || event.key === " ") {
+      const petal = event.target.closest("[data-mindmap-slide]");
+      if (!petal) return;
+      event.preventDefault();
+      openPresentationAtSlide(petal.getAttribute("data-mindmap-slide"));
+    }
+  });
+  refs.mindMap.addEventListener("wheel", (event) => {
+    const canvas = event.target.closest(".mind-map-canvas");
+    if (!canvas) return;
+    event.preventDefault();
+    const current = Number(canvas.dataset.mindMapZoom) || 1;
+    updateMindMapZoom(canvas, current * (event.deltaY < 0 ? 1.12 : 1 / 1.12), event.clientX, event.clientY);
+  }, { passive: false });
+  let mindMapPinch = null;
+  refs.mindMap.addEventListener("touchstart", (event) => {
+    if (event.touches.length !== 2) return;
+    const canvas = event.target.closest(".mind-map-canvas");
+    if (!canvas) return;
+    const [first, second] = event.touches;
+    mindMapPinch = { canvas, distance: Math.hypot(second.clientX - first.clientX, second.clientY - first.clientY), zoom: Number(canvas.dataset.mindMapZoom) || 1 };
+  }, { passive: true });
+  refs.mindMap.addEventListener("touchmove", (event) => {
+    if (!mindMapPinch || event.touches.length !== 2) return;
+    event.preventDefault();
+    const [first, second] = event.touches;
+    const distance = Math.hypot(second.clientX - first.clientX, second.clientY - first.clientY);
+    updateMindMapZoom(mindMapPinch.canvas, mindMapPinch.zoom * distance / mindMapPinch.distance, (first.clientX + second.clientX) / 2, (first.clientY + second.clientY) / 2);
+  }, { passive: false });
+  refs.mindMap.addEventListener("touchend", () => { mindMapPinch = null; }, { passive: true });
+  refs.mindMapThemeList.addEventListener("change", (event) => {
+    const input = event.target.closest("[data-mindmap-theme-field]");
+    if (!input) return;
+    const index = Number(input.getAttribute("data-mindmap-theme-index"));
+    const field = input.getAttribute("data-mindmap-theme-field");
+    const value = field === "code" ? ns.utils.clampText(input.value, 6).toUpperCase() : field === "color" ? input.value : ns.utils.clampText(input.value, 40);
+    updateMindMapTheme(index, { [field]: value });
+  });
+  refs.mindMapThemeList.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-remove-mindmap-theme]");
+    if (!button) return;
+    const themes = ((state.mindMap && state.mindMap.themes) || []).slice();
+    if (themes.length < 2) return;
+    pushUndoSnapshot();
+    const removed = themes.splice(Number(button.getAttribute("data-remove-mindmap-theme")), 1)[0];
+    state.slides = state.slides.map((slide) => slide.themeId === removed.id ? Object.assign({}, slide, { themeId: themes[0].id }) : slide);
+    state.mindMap = Object.assign({}, state.mindMap, { themes });
+    render();
+  });
+  refs.addMindMapTheme.addEventListener("click", () => {
+    const themes = ((state.mindMap && state.mindMap.themes) || []).slice();
+    if (themes.length >= 12) return;
+    pushUndoSnapshot();
+    themes.push({ id: ns.utils.createId("theme"), code: String.fromCharCode(65 + themes.length), label: `Thème ${themes.length + 1}`, category: "", color: ["#008f7a", "#8d4c9e", "#c85250"][themes.length % 3] });
+    state.mindMap = Object.assign({}, state.mindMap, { themes });
+    render();
+  });
   refs.openPresentationActive.addEventListener("click", () => {
     persistStateNow();
     const presentationUrl = new URL(window.location.href);
@@ -4744,6 +4914,7 @@
     }
   });
   window.addEventListener("resize", syncCanvasPreviewFullscreenScale);
+  document.addEventListener("fullscreenchange", syncMindMapFullscreenUi);
   refs.tabs.forEach((tab) => {
     tab.addEventListener("click", () => setView(tab.getAttribute("data-switch-view")));
   });
@@ -5448,6 +5619,12 @@
         return;
       }
       selectSlide(nextSlide.id, { focusPreviewPanel: true });
+      return;
+    }
+
+    if ((event.key === "ArrowUp" || event.key === "ArrowDown") && state.view === "engineering" && !isEditableTarget(event.target)) {
+      event.preventDefault();
+      navigateEngineeringSlide(event.key === "ArrowUp" ? -1 : 1);
       return;
     }
 

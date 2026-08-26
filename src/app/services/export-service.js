@@ -55,6 +55,14 @@
     };
   }
 
+  function mindMapIconMarkup() {
+    return '<svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 7 12 12 18 6M12 12v6"/><circle cx="6" cy="6" r="3"/><circle cx="18" cy="5" r="3"/><circle cx="12" cy="19" r="3"/></svg>';
+  }
+
+  function returnToSlideIconMarkup() {
+    return '<svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M14 5 7 12l7 7M8 12h10"/></svg>';
+  }
+
   function serializeForScript(value) {
     return JSON.stringify(value)
       .replace(/</g, "\\u003c")
@@ -298,6 +306,8 @@
     }
 
     const presentationSlides = state.slides.filter((slide) => !slide.disabled);
+    const mindMapMarkup = !opts.pdfMode && ns.ui.renderMindMap ? ns.ui.renderMindMap(state) : "";
+    const presentationSlideIds = serializeForScript(presentationSlides.map((slide) => slide.id));
     const slidesMarkup = presentationSlides
       .map((slide) => {
         return `<section class="slide-screen">${ns.ui.createSlideMarkup(slide, state.settings, {
@@ -405,6 +415,34 @@
         align-items: center;
         justify-content: center;
       }
+      .deck-mind-map { display: none; margin: 0 auto 1rem; max-width: 1180px; padding: 1rem; border-radius: 24px; background: rgba(255,255,255,.92); box-shadow: 0 16px 42px rgba(18,32,51,.14); }
+      .deck-mind-map.is-open { display: block; }
+      .deck-mind-map .mind-map-canvas { overflow: auto; border-radius: 18px; background: radial-gradient(circle at center, #eef5ff, #fff 60%); touch-action: none; cursor: zoom-in; }
+      .deck-mind-map svg { display: block; min-width: 800px; width: 100%; transform-origin: center; will-change: transform; }
+      .deck-mind-map .mind-map-center { fill: #fff; font-size: 21px; font-weight: 800; }
+      .deck-mind-map .mind-map-center-sub { fill: #c9dcf1; font-size: 15px; font-weight: 700; }
+      .deck-mind-map .mind-map-theme-code { fill: #fff; font-size: 27px; font-weight: 900; }
+      .deck-mind-map .mind-map-theme-name { fill: #fff; font-size: 13px; font-weight: 700; }
+      .deck-mind-map .mind-map-code { fill: #122033; font-size: 16px; font-weight: 900; }
+      .deck-mind-map .mind-map-slide-label { fill: #38495c; font-size: 13px; font-weight: 700; }
+      .deck-mind-map .mind-map-slide { cursor: pointer; }
+      .deck-mind-map .mind-map-slide.is-active rect, .fullscreen-mindmap-overlay .mind-map-slide.is-active rect { fill: #fcba04; stroke: #b25e00; stroke-width: 6; }
+      .fullscreen-mindmap-toggle, .fullscreen-mindmap-return { display: none; border: 1px solid rgba(255,255,255,.5); border-radius: 999px; background: rgba(10,24,43,.2); color: #fff; backdrop-filter: blur(10px); cursor: pointer; }
+      .fullscreen-mindmap-toggle { position: fixed; top: 1rem; right: 1rem; z-index: 100; width: 48px; height: 48px; padding: 10px; }
+      body.deck-is-fullscreen .fullscreen-mindmap-toggle { display: grid; place-items: center; }
+      .fullscreen-mindmap-toggle:hover, .fullscreen-mindmap-toggle:focus-visible, .fullscreen-mindmap-return:hover, .fullscreen-mindmap-return:focus-visible { background: rgba(10,24,43,.55); outline: 2px solid rgba(255,255,255,.9); outline-offset: 3px; }
+      .fullscreen-mindmap-overlay { display: none; position: fixed; inset: 0; z-index: 90; overflow: auto; padding: 4.5rem 1.5rem 1.5rem; background: rgba(244,249,255,.98); }
+      .fullscreen-mindmap-overlay.is-open { display: block; }
+      .fullscreen-mindmap-overlay .mind-map-canvas { overflow: auto; margin: 0 auto; border-radius: 24px; background: radial-gradient(circle at center, #eef5ff, #fff 60%); touch-action: none; cursor: zoom-in; }
+      .fullscreen-mindmap-overlay .mind-map-canvas svg { display: block; min-width: 1600px; width: 100%; }
+      .fullscreen-mindmap-return { display: grid; place-items: center; position: fixed; top: 1rem; left: 1rem; z-index: 101; width: 48px; height: 48px; padding: 10px; }
+      .fullscreen-mindmap-overlay .mind-map-center { fill: #fff; font-size: 21px; font-weight: 800; }
+      .fullscreen-mindmap-overlay .mind-map-center-sub { fill: #c9dcf1; font-size: 15px; font-weight: 700; }
+      .fullscreen-mindmap-overlay .mind-map-theme-code { fill: #fff; font-size: 27px; font-weight: 900; }
+      .fullscreen-mindmap-overlay .mind-map-theme-name { fill: #fff; font-size: 13px; font-weight: 700; }
+      .fullscreen-mindmap-overlay .mind-map-code { fill: #122033; font-size: 16px; font-weight: 900; }
+      .fullscreen-mindmap-overlay .mind-map-slide-label { fill: #38495c; font-weight: 800; }
+      .fullscreen-mindmap-overlay .mind-map-slide { cursor: pointer; }
       body.pdf-export {
         background: #ffffff;
       }
@@ -3069,12 +3107,15 @@
         <div class="deck-nav">
           <button type="button" id="prev-slide">Précédent</button>
           <button type="button" id="next-slide">Suivant</button>
+          <button type="button" id="toggle-mind-map">Carte mentale</button>
           <button type="button" id="fullscreen-deck">Plein écran</button>
           <button type="button" id="print-deck">Imprimer</button>
         </div>
       </header>`}
+      ${isPdfMode ? "" : `<section id="deck-mind-map" class="deck-mind-map" aria-label="Carte mentale de la présentation">${mindMapMarkup}</section>`}
       <main tabindex="-1">
         ${slidesMarkup}
+	        ${isPdfMode ? "" : `<button class="fullscreen-mindmap-toggle" id="fullscreen-mindmap-toggle" type="button" aria-label="Ouvrir la carte mentale" title="Carte mentale">${mindMapIconMarkup()}</button><section class="fullscreen-mindmap-overlay" id="fullscreen-mindmap-overlay" aria-label="Navigation par carte mentale"><button class="fullscreen-mindmap-return" id="fullscreen-mindmap-return" type="button" aria-label="Revenir à la présentation" title="Revenir à la slide active">${returnToSlideIconMarkup()}</button>${mindMapMarkup}</section>`}
 	        ${isPdfMode ? "" : `<div class="deck-progress${progressDensityClass}" id="deck-progress" data-slide-count="${slideCount}" aria-label="Progression de la présentation">
           ${progressMarkup}
         </div>
@@ -3115,6 +3156,13 @@
       const tableLightboxContent = document.querySelector("#table-lightbox-content");
       const tableLightboxClose = document.querySelector("#table-lightbox-close");
       const progressSteps = Array.from(document.querySelectorAll("[data-progress-index]"));
+      const deckSlideIds = ${presentationSlideIds};
+      const mindMapToggle = document.querySelector("#toggle-mind-map");
+      const mindMapPanel = document.querySelector("#deck-mind-map");
+      const fullscreenMindMapToggle = document.querySelector("#fullscreen-mindmap-toggle");
+      const fullscreenMindMapOverlay = document.querySelector("#fullscreen-mindmap-overlay");
+      const fullscreenMindMapReturn = document.querySelector("#fullscreen-mindmap-return");
+      let mindMapPinch = null;
       let currentIndex = 0;
       let isTransitioning = false;
       let htmlCommandRequestCount = 0;
@@ -3123,6 +3171,44 @@
       let activeProjectorMedia = { kind: "", index: -1 };
       let imageLightboxZoomActive = false;
       let pendingRemoteDeckState = null;
+
+      function updateMindMapZoom(canvas, nextZoom, clientX, clientY) {
+        const svg = canvas && canvas.querySelector("svg");
+        if (!svg) return;
+        const zoom = Math.max(0.65, Math.min(2.8, nextZoom));
+        const currentZoom = Number(canvas.dataset.mindMapZoom) || 1;
+        const currentPanX = Number(canvas.dataset.mindMapPanX) || 0;
+        const currentPanY = Number(canvas.dataset.mindMapPanY) || 0;
+        const canvasRect = canvas.getBoundingClientRect();
+        const pointerX = clientX - canvasRect.left + canvas.scrollLeft;
+        const pointerY = clientY - canvasRect.top + canvas.scrollTop;
+        const mapX = (pointerX - currentPanX) / currentZoom;
+        const mapY = (pointerY - currentPanY) / currentZoom;
+        const panX = zoom <= 0.65 ? Math.max(0, (canvas.clientWidth - svg.clientWidth * zoom) / 2) : pointerX - mapX * zoom;
+        const panY = zoom <= 0.65 ? Math.max(0, (canvas.clientHeight - svg.clientHeight * zoom) / 2) : pointerY - mapY * zoom;
+        canvas.dataset.mindMapZoom = String(zoom);
+        canvas.dataset.mindMapPanX = String(panX);
+        canvas.dataset.mindMapPanY = String(panY);
+        svg.style.transformOrigin = "0 0";
+        svg.style.transform = "translate(" + panX + "px, " + panY + "px) scale(" + zoom + ")";
+        canvas.style.cursor = zoom > 1 ? "zoom-out" : "zoom-in";
+        if (zoom <= 0.65) {
+          window.requestAnimationFrame(() => {
+            canvas.scrollLeft = 0;
+            canvas.scrollTop = 0;
+            const centerPetal = canvas.querySelector(".mind-map-center-petal");
+            if (!centerPetal) return;
+            const rect = centerPetal.getBoundingClientRect();
+            const overlay = canvas.closest(".fullscreen-mindmap-overlay");
+            if (overlay) {
+              const overlayRect = overlay.getBoundingClientRect();
+              overlay.scrollBy({ left: rect.left + rect.width / 2 - (overlayRect.left + overlayRect.width / 2), top: rect.top + rect.height / 2 - (overlayRect.top + overlayRect.height / 2) });
+              return;
+            }
+            window.scrollBy({ left: rect.left + rect.width / 2 - window.innerWidth / 2, top: rect.top + rect.height / 2 - window.innerHeight / 2 });
+          });
+        }
+      }
       const presentationSearchParams = new URLSearchParams(window.location.search);
       const syncSessionId = presentationSearchParams.get("session") || "";
       const syncClientId = "present-view-" + Math.random().toString(36).slice(2);
@@ -3575,6 +3661,10 @@
 	            step.removeAttribute("aria-current");
 	          }
 	        });
+        const activeSlideId = deckSlideIds[currentIndex];
+        document.querySelectorAll("[data-mindmap-slide]").forEach((petal) => {
+          petal.classList.toggle("is-active", petal.getAttribute("data-mindmap-slide") === activeSlideId);
+        });
       }
 
       function showSlide(nextIndex, options) {
@@ -4096,6 +4186,65 @@
 
       prevButton.addEventListener("click", () => showSlide(currentIndex - 1));
       nextButton.addEventListener("click", () => showSlide(currentIndex + 1));
+      mindMapToggle.addEventListener("click", () => {
+        const isOpen = mindMapPanel.classList.toggle("is-open");
+        mindMapToggle.textContent = isOpen ? "Revenir aux slides" : "Carte mentale";
+      });
+      mindMapPanel.addEventListener("click", (event) => {
+        const petal = event.target.closest("[data-mindmap-slide]");
+        if (!petal) return;
+        const index = deckSlideIds.indexOf(petal.getAttribute("data-mindmap-slide"));
+        if (index >= 0) showSlide(index);
+        mindMapPanel.classList.remove("is-open");
+        mindMapToggle.textContent = "Carte mentale";
+      });
+      function closeFullscreenMindMap() {
+        fullscreenMindMapOverlay.classList.remove("is-open");
+        fullscreenMindMapToggle.hidden = false;
+      }
+      fullscreenMindMapToggle.addEventListener("click", (event) => {
+        event.stopPropagation();
+        fullscreenMindMapOverlay.classList.add("is-open");
+        fullscreenMindMapToggle.hidden = true;
+        window.requestAnimationFrame(() => {
+          const canvas = fullscreenMindMapOverlay.querySelector(".mind-map-canvas");
+          if (canvas) canvas.scrollLeft = Math.max(0, (canvas.scrollWidth - canvas.clientWidth) / 2);
+        });
+      });
+      fullscreenMindMapReturn.addEventListener("click", (event) => {
+        event.stopPropagation();
+        closeFullscreenMindMap();
+      });
+      fullscreenMindMapOverlay.addEventListener("click", (event) => {
+        const petal = event.target.closest("[data-mindmap-slide]");
+        if (!petal) return;
+        event.stopPropagation();
+        const index = deckSlideIds.indexOf(petal.getAttribute("data-mindmap-slide"));
+        if (index >= 0) showSlide(index);
+        closeFullscreenMindMap();
+      });
+      document.addEventListener("wheel", (event) => {
+        const canvas = event.target.closest(".mind-map-canvas");
+        if (!canvas) return;
+        event.preventDefault();
+        const current = Number(canvas.dataset.mindMapZoom) || 1;
+        updateMindMapZoom(canvas, current * (event.deltaY < 0 ? 1.12 : 1 / 1.12), event.clientX, event.clientY);
+      }, { passive: false });
+      document.addEventListener("touchstart", (event) => {
+        if (event.touches.length !== 2) return;
+        const canvas = event.target.closest(".mind-map-canvas");
+        if (!canvas) return;
+        const [first, second] = event.touches;
+        mindMapPinch = { canvas, distance: Math.hypot(second.clientX - first.clientX, second.clientY - first.clientY), zoom: Number(canvas.dataset.mindMapZoom) || 1 };
+      }, { passive: true });
+      document.addEventListener("touchmove", (event) => {
+        if (!mindMapPinch || event.touches.length !== 2) return;
+        event.preventDefault();
+        const [first, second] = event.touches;
+        const distance = Math.hypot(second.clientX - first.clientX, second.clientY - first.clientY);
+        updateMindMapZoom(mindMapPinch.canvas, mindMapPinch.zoom * distance / mindMapPinch.distance, (first.clientX + second.clientX) / 2, (first.clientY + second.clientY) / 2);
+      }, { passive: false });
+      document.addEventListener("touchend", () => { mindMapPinch = null; }, { passive: true });
       progressSteps.forEach((step) => {
         step.addEventListener("click", (event) => {
           event.stopPropagation();
@@ -4180,6 +4329,9 @@
       });
       document.addEventListener("fullscreenchange", () => {
         document.body.classList.toggle("deck-is-fullscreen", Boolean(document.fullscreenElement));
+        if (!document.fullscreenElement) {
+          closeFullscreenMindMap();
+        }
         fullscreenButton.textContent = document.fullscreenElement ? "Quitter le plein écran" : "Plein écran";
         updateFullscreenScale();
         updateWindowScale();
