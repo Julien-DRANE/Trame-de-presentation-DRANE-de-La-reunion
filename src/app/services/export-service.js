@@ -881,6 +881,36 @@
         border: 0;
         background: transparent;
       }
+      .html-slide-touch-controls {
+        position: fixed;
+        inset: 0;
+        z-index: 1000;
+        pointer-events: none;
+      }
+      .html-slide-touch-controls[hidden] { display: none; }
+      .html-slide-nav-zone {
+        position: absolute;
+        top: 50%;
+        width: 2.7rem;
+        height: 5.2rem;
+        transform: translateY(-50%);
+        pointer-events: auto;
+        border: 1px solid rgba(255,255,255,0.36);
+        border-radius: 999px;
+        background: rgba(9, 28, 50, 0.22);
+        color: #ffffff;
+        font: 700 2rem/1 system-ui, sans-serif;
+        cursor: pointer;
+        opacity: 0.42;
+        backdrop-filter: blur(8px);
+      }
+      .html-slide-previous-zone { left: 0.9rem; }
+      .html-slide-advance-zone { top: 86%; right: 0.9rem; }
+      .html-slide-nav-zone:hover,
+      .html-slide-nav-zone:focus-visible { opacity: 0.75; background: rgba(9, 28, 50, 0.38); outline: 2px solid #ffffff; outline-offset: 3px; }
+      main:fullscreen .html-slide-nav-zone { width: 3.2rem; height: 6.4rem; }
+      main:fullscreen .html-slide-previous-zone { left: 1.4rem; }
+      main:fullscreen .html-slide-advance-zone { right: 1.4rem; }
       .deck-slide.is-html-slide[data-html-exit-armed="true"] .slide-html-embed-frame {
         pointer-events: none;
       }
@@ -3115,6 +3145,7 @@
       ${isPdfMode ? "" : `<section id="deck-mind-map" class="deck-mind-map" aria-label="Carte mentale de la présentation">${mindMapMarkup}</section>`}
       <main tabindex="-1">
         ${slidesMarkup}
+	        ${isPdfMode ? "" : `<div id="html-slide-touch-controls" class="html-slide-touch-controls" hidden><button class="html-slide-nav-zone html-slide-previous-zone" type="button" data-html-slide-advance aria-label="Incrémenter l’animation ou passer à la slide suivante" title="Continuer">›</button><button class="html-slide-nav-zone html-slide-advance-zone" type="button" data-html-slide-advance aria-label="Incrémenter l’animation ou passer à la slide suivante" title="Continuer">›</button></div>`}
 	        ${isPdfMode ? "" : `<button class="fullscreen-mindmap-toggle" id="fullscreen-mindmap-toggle" type="button" aria-label="Ouvrir la carte mentale" title="Carte mentale">${mindMapIconMarkup()}</button><section class="fullscreen-mindmap-overlay" id="fullscreen-mindmap-overlay" aria-label="Navigation par carte mentale"><button class="fullscreen-mindmap-return" id="fullscreen-mindmap-return" type="button" aria-label="Revenir à la présentation" title="Revenir à la slide active">${returnToSlideIconMarkup()}</button>${mindMapMarkup}</section>`}
 	        ${isPdfMode ? "" : `<div class="deck-progress${progressDensityClass}" id="deck-progress" data-slide-count="${slideCount}" aria-label="Progression de la présentation">
           ${progressMarkup}
@@ -3155,6 +3186,7 @@
       const tableLightbox = document.querySelector("#table-lightbox");
       const tableLightboxContent = document.querySelector("#table-lightbox-content");
       const tableLightboxClose = document.querySelector("#table-lightbox-close");
+      const htmlSlideTouchControls = document.querySelector("#html-slide-touch-controls");
       const progressSteps = Array.from(document.querySelectorAll("[data-progress-index]"));
       const deckSlideIds = ${presentationSlideIds};
       const mindMapToggle = document.querySelector("#toggle-mind-map");
@@ -3614,6 +3646,12 @@
         advanceSlideWithoutHtmlEmbed();
       }
 
+      async function advanceHtmlAnimationOnly(command) {
+        if (await sendHtmlEmbedCommand(command)) {
+          broadcastHtmlEmbedCommand(command);
+        }
+      }
+
       function rewindSlideWithoutHtmlEmbed() {
         showSlide(currentIndex - 1);
       }
@@ -3661,6 +3699,8 @@
 	            step.removeAttribute("aria-current");
 	          }
 	        });
+        const activeSlide = getActiveScreen() && getActiveScreen().querySelector(".deck-slide");
+        htmlSlideTouchControls.hidden = !activeSlide || !activeSlide.classList.contains("is-html-slide");
         const activeSlideId = deckSlideIds[currentIndex];
         document.querySelectorAll("[data-mindmap-slide]").forEach((petal) => {
           petal.classList.toggle("is-active", petal.getAttribute("data-mindmap-slide") === activeSlideId);
@@ -4292,6 +4332,14 @@
           return;
         }
         await advanceSlideWithHtmlEmbedOrder("click");
+      });
+      document.querySelectorAll("[data-html-slide-advance]").forEach((button) => {
+        button.addEventListener("click", async (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          if (isTransitioning) return;
+          await advanceSlideWithHtmlEmbedOrder("space");
+        });
       });
       lightbox.addEventListener("click", (event) => {
         event.stopPropagation();
