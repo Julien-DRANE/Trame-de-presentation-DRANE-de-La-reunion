@@ -725,7 +725,7 @@
 
   function createFreeMarkup(slide, options) {
     const utils = ns.utils;
-    const bodyMarkup = utils.sanitizeRichText(slide.freeBody || "", 3200);
+    const bodyMarkup = utils.sanitizeRichText(slide.freeBody || "", 6000);
     const freeLinks = Array.isArray(slide.freeLinks) ? slide.freeLinks : [];
     const galleryIds = Array.isArray(slide.freeMediaIds) ? slide.freeMediaIds : [];
     const textLength = utils.richTextLength(bodyMarkup);
@@ -1578,8 +1578,19 @@
           bulletsSubProgressive
         )
       : "";
-    const headline = !isHtmlMode && slide.title ? `<h3 class="slide-headline">${utils.escapeHtml(slide.title)}</h3>` : "";
-    const subtitle = !isHtmlMode && slide.subtitle ? `<p class="slide-subtitle-text">${utils.escapeHtml(slide.subtitle)}</p>` : "";
+    const titleAtTopRight = !isHtmlMode && Boolean(slide.titleAtTopRight);
+    const headline = !isHtmlMode && slide.title ? `<h3 class="slide-headline${titleAtTopRight ? " is-top-right" : ""}">${utils.escapeHtml(slide.title)}</h3>` : "";
+    const presenterName = String(slide.presenterName || "").trim();
+    const subtitleFont = slide.subtitleFontId ? getFontOption(slide.subtitleFontId) : null;
+    const subtitleStyle = [
+      subtitleFont ? `font-family:${subtitleFont.body}` : "",
+      /^#[0-9a-fA-F]{6}$/.test(slide.subtitleColor || "") ? `color:${slide.subtitleColor}` : "",
+    ].filter(Boolean).join(";");
+    const subtitle = !isHtmlMode && slide.subtitle
+      ? `<p class="slide-subtitle-text"${subtitleStyle ? ` style="${utils.escapeHtml(subtitleStyle)}"` : ""}>${utils.escapeHtml(slide.subtitle)}</p>`
+      : titleAtTopRight
+        ? '<div class="slide-subtitle-spacer" aria-hidden="true"></div>'
+        : "";
     const signature = !isHtmlMode && settings.footer ? `<span class="slide-signature">${utils.escapeHtml(settings.footer)}</span>` : "";
     const note = slide.note
       ? `<div class="slide-note${String(slide.note).length > 110 ? " is-long" : ""}"><span class="slide-note-content">${createLinkedTextMarkup(slide.note, { textClass: "slide-note-text", linksClass: "slide-link-bubbles slide-link-bubbles-inline slide-link-bubbles-note", linksTag: "span" })}</span></div>`
@@ -1657,6 +1668,7 @@
     const htmlModeClass = isHtmlMode ? " is-html-slide" : "";
     const tableModeClass = isTableMode ? " is-table-slide" : "";
     const visualHeaderClass = isVisualMode && (slide.title || slide.subtitle) ? " is-visual-has-header" : "";
+    const titlePlacementClass = titleAtTopRight ? " is-title-top-right" : "";
     const stackedMediaLayoutClass = slideMediaItems.length > 1 ? " has-media-stack-layout" : "";
     const compactBulletMediaClass = useCompactBulletMediaLayout ? " has-compact-media-layout" : "";
     const overlayMarkup = !isCanvasMode && hasOverlayElements
@@ -1669,16 +1681,18 @@
       : "";
 
     return `
-      <article class="deck-slide theme-${utils.escapeHtml(themeName)}${compactClass}${visualModeClass}${canvasModeClass}${htmlModeClass}${tableModeClass}${visualHeaderClass}" data-progressive-content="${bulletsProgressive || tableProgressive || visualProgressive || Boolean(canvasData.progressive) ? "true" : "false"}" style="${utils.escapeHtml(paletteStyle)}">
+      <article class="deck-slide theme-${utils.escapeHtml(themeName)}${compactClass}${visualModeClass}${canvasModeClass}${htmlModeClass}${tableModeClass}${visualHeaderClass}${titlePlacementClass}" data-progressive-content="${bulletsProgressive || tableProgressive || visualProgressive || Boolean(canvasData.progressive) ? "true" : "false"}" style="${utils.escapeHtml(paletteStyle)}">
         <div class="slide-wave" aria-hidden="true"></div>
         <img class="slide-logo slide-logo-region" src="${utils.escapeHtml(logoSources.region)}" alt="Logo region academique" />
         <img class="slide-logo slide-logo-drane" src="${utils.escapeHtml(logoSources.drane)}" alt="Logo Drane" />
+        ${presenterName ? `<span class="slide-presenter-name">${utils.escapeHtml(presenterName)}</span>` : ""}
         <div class="slide-content">
           ${isHtmlMode ? "" : '<div class="slide-topline"></div>'}
+          ${titleAtTopRight ? headline : ""}
           ${floatingTopRightMediaMarkup}
           <div class="${isCanvasMode ? "slide-body slide-body-no-media slide-body-canvas" : isVisualMode ? "slide-body slide-body-no-media slide-body-visual" : isHtmlMode ? "slide-body slide-body-no-media slide-body-html" : slideMedia && (!extraBullets.length || isTableMode || canKeepMediaWithExtendedBullets) && !isFreeMode && !useInlineBulletMediaLayout ? `slide-body${stackedMediaLayoutClass}${compactBulletMediaClass}` : "slide-body slide-body-no-media"}">
             <div class="slide-main">
-              ${headline}
+              ${titleAtTopRight ? "" : headline}
               ${subtitle}
               ${contentMarkup}
             </div>

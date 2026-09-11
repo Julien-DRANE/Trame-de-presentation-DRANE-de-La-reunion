@@ -1,0 +1,262 @@
+{
+  "src/app/data/bloom-levels.js": {
+    "mtime": 1787816718.0,
+    "ast_hash": "789b0242b637bf1fddabe3a370ca1ed5",
+    "semantic_hash": ""
+  },
+  "src/app/data/cognitive-principles.js": {
+    "mtime": 1787816718.0,
+    "ast_hash": "19e71a334db7173366f41abc728fc959",
+    "semantic_hash": ""
+  },
+  "src/app/data/color-palettes.js": {
+    "mtime": 1787816718.0,
+    "ast_hash": "6fad566001706f7a0e70be8b5daab404",
+    "semantic_hash": ""
+  },
+  "src/app/data/embedded-assets.js": {
+    "mtime": 1787816718.0,
+    "ast_hash": "6b3dd0f5c33a859b182a2326b5d690df",
+    "semantic_hash": ""
+  },
+  "src/app/data/font-options.js": {
+    "mtime": 1787816718.0,
+    "ast_hash": "9a1f6719a698b5c36fdcab06780319d2",
+    "semantic_hash": ""
+  },
+  "src/app/data/picto-assets.js": {
+    "mtime": 1787816718.0,
+    "ast_hash": "d7cee7c515a7a7fc45ce5093d05d9e57",
+    "semantic_hash": ""
+  },
+  "src/app/main.js": {
+    "mtime": 1789127407.9518435,
+    "ast_hash": "c3d1e4b1ac6d726f1e14824d6ac9c186",
+    "semantic_hash": ""
+  },
+  "src/app/services/export-service.js": {
+    "mtime": 1789126963.0815892,
+    "ast_hash": "7a6222c5931d2ff15df23f48866e4f28",
+    "semantic_hash": ""
+  },
+  "src/app/services/html-asset-service.js": {
+    "mtime": 1787816718.0,
+    "ast_hash": "a817b188da57f8d15812e74f3052f97d",
+    "semantic_hash": ""
+  },
+  "src/app/services/media-service.js": {
+    "mtime": 1787816718.0,
+    "ast_hash": "3507df46aba8fcbf172060367eb26207",
+    "semantic_hash": ""
+  },
+  "src/app/services/pptx-native-export-service.js": {
+    "mtime": 1789125259.2434094,
+    "ast_hash": "a53b80718c7138f6c21de3aec0407e2f",
+    "semantic_hash": ""
+  },
+  "src/app/services/presenter-service.js": {
+    "mtime": 1787816718.0,
+    "ast_hash": "6afb948dd09f5baab2e7f97541dd8ffe",
+    "semantic_hash": ""
+  },
+  "src/app/services/storage-service.js": {
+    "mtime": 1789125833.4644635,
+    "ast_hash": "0c3aab06ff839d779ed956876e48902e",
+    "semantic_hash": ""
+  },
+  "src/app/state/default-state.js": {
+    "mtime": 1789125660.5007484,
+    "ast_hash": "4a1ea706092ce6f963cd87a513fe8072",
+    "semantic_hash": ""
+  },
+  "src/app/ui/render-dashboard.js": {
+    "mtime": 1789125833.9774625,
+    "ast_hash": "1c681e05456fd5334407e67239fd36b2",
+    "semantic_hash": ""
+  },
+  "src/app/ui/render-mind-map.js": {
+    "mtime": 1787816718.0,
+    "ast_hash": "96fc7f8627f42a922e8869648b5ef604",
+    "semantic_hash": ""
+  },
+  "src/app/ui/slide-markup.js": {
+    "mtime": 1789126549.5732787,
+    "ast_hash": "5e151bd1adc591874551547228e5dc5a",
+    "semantic_hash": ""
+  },
+  "src/app/utils/helpers.js": {
+    "mtime": 1787816718.0,
+    "ast_hash": "13b2b3085a8ed8875f4298dc4ab4dda2",
+    "semantic_hash": ""
+  },
+  ".github/workflows/static.yml": {
+    "mtime": 1787816718.0,
+    "ast_hash": "6dece455dc91e6f867499fabc7ac5be9",
+    "semantic_hash": ""
+  },
+  "index.html": {
+    "mtime": 1789126794.8288698,
+    "ast_hash": "2011406d0f39ee1d9f566064cdd25f63",
+    "semantic_hash": ""
+  },
+  "assets/images/8K 18_logo_REGIONS ACA_REUNION fb.png": {
+    "mtime": 1787816718.0,
+    "ast_hash": "06d731b6b486a035975d32550b89a098",
+    "semantic_hash": ""
+  },
+  "assets/images/LOGO_DRANE.jpg": {
+    "mtime": 1787816718.0,
+    "ast_hash": "d39cb7ecdec87a8e73590df7c6f58f16",
+    "semantic_hash": ""
+  },
+  "assets/images/LOGO_DRANE.png": {
+    "mtime": 1787816718.0,
+    "ast_hash": "3640251873c0c58eea2b3410e8420667",
+    "semantic_hash": ""
+  },
+  "assets/images/icon.png": {
+    "mtime": 1787816718.0,
+    "ast_hash": "44948aebd476b646940975b287db28da",
+    "semantic_hash": ""
+  },
+  "assets/images/picto/ampoule.png": {
+    "mtime": 1787816718.0,
+    "ast_hash": "892c835a077de6bba3160c3428684a07",
+    "semantic_hash": ""
+  },
+  "assets/images/picto/boussole.png": {
+    "mtime": 1787816718.0,
+    "ast_hash": "d41e20bda8d0f205896ce8e9a8f2749d",
+    "semantic_hash": ""
+  },
+  "assets/images/picto/bulle.png": {
+    "mtime": 1787816718.0,
+    "ast_hash": "02971bdb13c0cc9d1fb2ac16c0db2e82",
+    "semantic_hash": ""
+  },
+  "assets/images/picto/camera.png": {
+    "mtime": 1787816718.0,
+    "ast_hash": "713bd21483117e721589e6cbdcee8f4b",
+    "semantic_hash": ""
+  },
+  "assets/images/picto/cerveau.png": {
+    "mtime": 1787816718.0,
+    "ast_hash": "ec910f6cc86f286803f352479cd435fc",
+    "semantic_hash": ""
+  },
+  "assets/images/picto/check.png": {
+    "mtime": 1787816718.0,
+    "ast_hash": "34e5c92324b9bef91d313838bf57e0e2",
+    "semantic_hash": ""
+  },
+  "assets/images/picto/crayon.png": {
+    "mtime": 1787816718.0,
+    "ast_hash": "5e10fb0d25fc5ea564cb6f053cd0af1e",
+    "semantic_hash": ""
+  },
+  "assets/images/picto/diplomee.png": {
+    "mtime": 1787816718.0,
+    "ast_hash": "d89886cd65ba302b2f7a40bc82ed9fc6",
+    "semantic_hash": ""
+  },
+  "assets/images/picto/engrenage.png": {
+    "mtime": 1787816718.0,
+    "ast_hash": "4a8a0033e2f507deadc31f8359a258a1",
+    "semantic_hash": ""
+  },
+  "assets/images/picto/enseigner.png": {
+    "mtime": 1787816718.0,
+    "ast_hash": "3c33080355a5a2899ed7be7e1fa53d30",
+    "semantic_hash": ""
+  },
+  "assets/images/picto/exclamation.png": {
+    "mtime": 1787816718.0,
+    "ast_hash": "5612d385d318f16da12bd732afbe858c",
+    "semantic_hash": ""
+  },
+  "assets/images/picto/fleche.png": {
+    "mtime": 1787816718.0,
+    "ast_hash": "5996c6531e06aa26466cf16782945243",
+    "semantic_hash": ""
+  },
+  "assets/images/picto/gps.png": {
+    "mtime": 1787816718.0,
+    "ast_hash": "bbc91219e3ef95d4abb36938f1339bf4",
+    "semantic_hash": ""
+  },
+  "assets/images/picto/info.png": {
+    "mtime": 1787816718.0,
+    "ast_hash": "7a7df86ff7d0b548cb58d5829323a2d0",
+    "semantic_hash": ""
+  },
+  "assets/images/picto/interdit.png": {
+    "mtime": 1787816718.0,
+    "ast_hash": "9f7defff0d2b552267b4da71174f0655",
+    "semantic_hash": ""
+  },
+  "assets/images/picto/interogation.png": {
+    "mtime": 1787816718.0,
+    "ast_hash": "87bdc33760c03d886757d1efcb3a4133",
+    "semantic_hash": ""
+  },
+  "assets/images/picto/livre.png": {
+    "mtime": 1787816718.0,
+    "ast_hash": "ea7e04a96a04298ea171ad2527834e75",
+    "semantic_hash": ""
+  },
+  "assets/images/picto/pause.png": {
+    "mtime": 1787816718.0,
+    "ast_hash": "4f4c8b8d191d160385411e96b8238b3b",
+    "semantic_hash": ""
+  },
+  "assets/images/picto/play.png": {
+    "mtime": 1787816718.0,
+    "ast_hash": "2158876359d733f47f9318eb6cc4ca16",
+    "semantic_hash": ""
+  },
+  "assets/images/picto/robot.png": {
+    "mtime": 1787816718.0,
+    "ast_hash": "5e595c4f54e657edacdfde9464a93065",
+    "semantic_hash": ""
+  },
+  "assets/images/picto/sensunique.png": {
+    "mtime": 1787816718.0,
+    "ast_hash": "356524d9c982abf8626afb0d1df549da",
+    "semantic_hash": ""
+  },
+  "assets/images/picto/stop.png": {
+    "mtime": 1787816718.0,
+    "ast_hash": "7a2dcb8648dfe513b636eb0dc4634b32",
+    "semantic_hash": ""
+  },
+  "assets/images/picto/s\u00e9curite.png": {
+    "mtime": 1787816718.0,
+    "ast_hash": "eee67db9858bc6fff095bdc5b212bc2b",
+    "semantic_hash": ""
+  },
+  "assets/images/picto/tablette.png": {
+    "mtime": 1787816718.0,
+    "ast_hash": "ee5200592d76d15771019484659427b7",
+    "semantic_hash": ""
+  },
+  "assets/images/picto/tourne.png": {
+    "mtime": 1787816718.0,
+    "ast_hash": "673e14afccdd77d32d2a3516bfb34ef1",
+    "semantic_hash": ""
+  },
+  "assets/images/picto/warning.png": {
+    "mtime": 1787816718.0,
+    "ast_hash": "f96044a4a277ee09bcc39c0d8ef7947b",
+    "semantic_hash": ""
+  },
+  "assets/images/picto/wifi.png": {
+    "mtime": 1787816718.0,
+    "ast_hash": "c32ec88f7db75e56a298f0f45742b3ac",
+    "semantic_hash": ""
+  },
+  "assets/images/picto/wrong.png": {
+    "mtime": 1787816718.0,
+    "ast_hash": "8afce35c7ea4e82d5d4a65f33c3db480",
+    "semantic_hash": ""
+  }
+}

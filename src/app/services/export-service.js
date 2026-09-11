@@ -82,7 +82,10 @@
   }
 
   async function exportJson(state) {
-    const fileName = `${ns.utils.slugify(state.settings.title || "presentation")}.json`;
+    const exportedAt = new Date();
+    const pad = (value) => String(value).padStart(2, "0");
+    const timestamp = `${exportedAt.getFullYear()}-${pad(exportedAt.getMonth() + 1)}-${pad(exportedAt.getDate())}_${pad(exportedAt.getHours())}-${pad(exportedAt.getMinutes())}-${pad(exportedAt.getSeconds())}`;
+    const fileName = `${ns.utils.slugify(state.settings.title || "presentation")}_${timestamp}.json`;
     const mediaDataMap = await ns.services.media.resolveExportMediaUrls(state.mediaLibrary || []);
     const htmlDataMap = ns.services.htmlAssets
       ? await ns.services.htmlAssets.exportRawSourceMap(state.slides || [])
@@ -709,7 +712,7 @@
         pointer-events: none;
       }
       .slide-logo-region {
-        top: clamp(0.9rem, 1.8vw, 1.5rem);
+        top: clamp(0.3rem, 0.8vw, 0.65rem);
         left: clamp(1rem, 2vw, 1.7rem);
         width: clamp(6.8rem, 12.2vw, 8.7rem);
         max-width: 18.5%;
@@ -819,6 +822,10 @@
       .deck-slide.is-html-slide .slide-logo-region {
         width: clamp(6.2rem, 11.8vw, 8.6rem);
         max-width: 17.8%;
+      }
+      .deck-slide.is-html-slide .slide-presenter-name {
+        z-index: 9;
+        pointer-events: none;
       }
       .deck-slide.is-html-slide .slide-headline,
       .deck-slide.is-html-slide .slide-subtitle-text {
@@ -954,6 +961,40 @@
       .slide-body-no-media .slide-headline {
         max-width: min(98%, 58ch);
       }
+      .slide-presenter-name {
+        position: absolute;
+        z-index: 3;
+        top: clamp(0.55rem, 1.2vw, 0.95rem);
+        right: clamp(2.1rem, 4.8vw, 3.35rem);
+        max-width: 20%;
+        overflow: hidden;
+        color: var(--slide-text-muted);
+        font-size: calc(clamp(0.62rem, 0.9vw, 0.8rem) * var(--slide-content-font-scale));
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        line-height: 1.15;
+        opacity: 0.42;
+        text-align: right;
+        text-overflow: ellipsis;
+        text-transform: uppercase;
+        white-space: nowrap;
+      }
+      .deck-slide.is-title-top-right .slide-headline.is-top-right {
+        position: absolute;
+        top: clamp(0.3rem, 0.8vw, 0.65rem);
+        left: calc(clamp(1rem, 2vw, 1.7rem) + clamp(6.8rem, 12.2vw, 8.7rem) + clamp(0.5rem, 0.9vw, 0.8rem));
+        right: clamp(2.2rem, 4.8vw, 3.35rem);
+        z-index: 3;
+        margin: 0;
+        max-width: none;
+        text-align: left;
+      }
+      .deck-slide.is-title-top-right .slide-subtitle-text {
+        margin-top: calc(0.5rem + 0.7cm);
+      }
+      .deck-slide.is-title-top-right .slide-subtitle-spacer {
+        min-height: clamp(3.4rem, 7.5vh, 4.85rem);
+      }
       .slide-body {
         display: grid;
         grid-template-columns: minmax(0, 1fr) clamp(16rem, 37%, 23.5rem);
@@ -1005,6 +1046,13 @@
         position: relative;
         overflow: visible;
       }
+      .deck-slide.is-canvas-slide .slide-main > .slide-headline:not(.is-top-right),
+      .deck-slide.is-canvas-slide .slide-main > .slide-subtitle-text,
+      .deck-slide.is-canvas-slide .slide-main > .slide-subtitle-spacer {
+        position: relative;
+        z-index: 3;
+        pointer-events: none;
+      }
       .slide-canvas-surface {
         position: relative;
         flex: 1;
@@ -1029,6 +1077,13 @@
         border-radius: 0;
         background: transparent;
         box-shadow: none;
+      }
+      .canvas-element-text-content [data-rich-layout="two-columns"] {
+        column-count: 2;
+        column-gap: 2.4rem;
+      }
+      .canvas-element-text-content [data-rich-layout="two-columns"] > * {
+        break-inside: avoid;
       }
       .slide-overlay-canvas-surface {
         position: absolute;
@@ -4418,11 +4473,6 @@
       window.addEventListener("resize", () => {
         updateFullscreenScale();
         updateWindowScale();
-      });
-      window.addEventListener("storage", (event) => {
-        if (event.key === "studio-ingenierie-formation-v2") {
-          window.location.reload();
-        }
       });
       printButton.addEventListener("click", () => window.print());
       document.addEventListener("keydown", async (event) => {

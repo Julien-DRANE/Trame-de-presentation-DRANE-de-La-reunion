@@ -124,7 +124,21 @@
     refs.slideObjective.value = selectedSlide.objective;
     refs.slideEvidence.value = selectedSlide.evidence;
     refs.slideTitle.value = selectedSlide.title;
+    refs.titlePlacementToggle.classList.toggle("is-active", Boolean(selectedSlide.titleAtTopRight));
+    refs.titlePlacementToggle.setAttribute("aria-pressed", selectedSlide.titleAtTopRight ? "true" : "false");
+    refs.titlePlacementToggle.textContent = selectedSlide.titleAtTopRight
+      ? "Titre placé à droite du logo"
+      : "Placer le titre à droite du logo";
     refs.slideSubtitle.value = selectedSlide.subtitle;
+    refs.slideSubtitleFont.innerHTML = [
+      '<option value="">Typo du diaporama</option>',
+      ...fontOptions.map((font) => `<option value="${ns.utils.escapeHtml(font.id)}">${ns.utils.escapeHtml(font.label)}</option>`),
+    ].join("");
+    refs.slideSubtitleFont.value = selectedSlide.subtitleFontId || "";
+    refs.slideSubtitleColor.value = /^#[0-9a-fA-F]{6}$/.test(selectedSlide.subtitleColor || "")
+      ? selectedSlide.subtitleColor
+      : "#5d6c82";
+    refs.slidePresenterName.value = selectedSlide.presenterName || "";
     refs.slideContentType.value = selectedSlide.contentType || "bullets";
     refs.slidePaletteOverride.innerHTML = [
       '<option value="">Palette du diaporama</option>',
@@ -166,7 +180,7 @@
     refs.tableCellTextColor.value = /^#[0-9a-fA-F]{6}$/.test(selectedCellStyle.color || "") ? selectedCellStyle.color : "#1d1917";
     refs.tableCellTextAlign.value = selectedCellStyle.align === "center" || selectedCellStyle.align === "right" ? selectedCellStyle.align : "left";
     refs.tableCellComment.value = (selectedSlide.cellComments || {})[selectedCellKey] || "";
-    refs.tableCellColorPalette.innerHTML = renderTableCellColorPalette(state.settings.tableTextColors, refs.tableCellTextColor.value);
+    refs.tableCellColorPalette.innerHTML = renderTableCellColorPalette(state.settings.savedColors || state.settings.tableTextColors, refs.tableCellTextColor.value);
     const currentFillTarget = refs.tableFillTarget.value === "column"
       ? "column"
       : refs.tableFillTarget.value === "cell"
@@ -180,7 +194,7 @@
     }
     refs.tableFillColor.value = getDefaultTableFillColor(selectedSlide, currentFillTarget, refs.tableFillIndex.value);
     refs.tableFillList.innerHTML = renderTableFillList(selectedSlide);
-    const sanitizedFreeBody = ns.utils.sanitizeRichText(selectedSlide.freeBody || "", 3200);
+    const sanitizedFreeBody = ns.utils.sanitizeRichText(selectedSlide.freeBody || "", 6000);
     if (document.activeElement !== refs.slideFreeBody || refs.slideFreeBody.innerHTML !== sanitizedFreeBody) {
       refs.slideFreeBody.innerHTML = sanitizedFreeBody;
     }
@@ -414,7 +428,7 @@
     refs.subtitleMeta.textContent = `${selectedSlide.subtitle.length}/170 caractères`;
     refs.noteMeta.textContent = `${selectedSlide.note.length}/180 caractères`;
     refs.presenterNotesMeta.textContent = `${(selectedSlide.presenterNotes || "").length}/2000 caractères`;
-    refs.freeBodyMeta.textContent = `${ns.utils.richTextLength(selectedSlide.freeBody || "")}/3200 caractères`;
+    refs.freeBodyMeta.textContent = `${ns.utils.richTextLength(selectedSlide.freeBody || "")}/6000 caractères`;
     refs.visualBodyMeta.textContent = `${(visualData.body || "").length}/320 caractères`;
     refs.visualCalloutMeta.textContent = `${(visualData.callout || "").length}/180 caractères`;
     refs.objectiveMeta.textContent = `${selectedSlide.objective.length}/180 caractères`;

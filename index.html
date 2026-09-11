@@ -280,11 +280,28 @@
                 <span id="title-meta" class="field-meta"></span>
               </label>
 
+              <button id="title-placement-toggle" class="button button-soft" type="button" aria-pressed="false">
+                Placer le titre à droite du logo
+              </button>
+
               <label>
                 Sous-titre
                 <textarea id="slide-subtitle" rows="3" maxlength="170"></textarea>
                 <span id="subtitle-meta" class="field-meta"></span>
               </label>
+
+              <div class="form-grid">
+                <label>
+                  Typo du sous-titre
+                  <select id="slide-subtitle-font"></select>
+                </label>
+                <label>
+                  Couleur du sous-titre
+                  <input id="slide-subtitle-color" type="color" value="#5d6c82" />
+                </label>
+              </div>
+
+              <div class="editor-section-divider" role="separator" aria-label="Réglages du contenu"></div>
 
               <div class="form-grid">
                 <label>
@@ -307,6 +324,10 @@
                 <label class="checkbox-field">
                   <input id="slide-decorative-accent-solid" type="checkbox" />
                   <span>Habillage décoratif plus marqué</span>
+                </label>
+                <label>
+                  Présenté par
+                  <input id="slide-presenter-name" type="text" maxlength="48" placeholder="Nom ou initiales" />
                 </label>
               </div>
 
@@ -443,6 +464,9 @@
                       <label class="free-editor-size-control">
                         <span>Taille</span>
                         <select id="free-text-size" aria-label="Taille du texte sélectionné">
+                          <option value="2">2 px</option>
+                          <option value="4">4 px</option>
+                          <option value="6">6 px</option>
                           <option value="8">8 px</option>
                           <option value="10">10 px</option>
                           <option value="12">12 px</option>
@@ -522,6 +546,7 @@
                         <button id="canvas-text-italic" class="button button-ghost canvas-text-action" type="button" aria-pressed="false" aria-label="Mettre le texte en italique"><em>I</em></button>
                         <button id="canvas-text-underline" class="button button-ghost canvas-text-action" type="button" aria-pressed="false" aria-label="Souligner le texte"><u>S</u></button>
                         <button id="canvas-text-bullets" class="button button-ghost canvas-text-action" type="button" aria-pressed="false" aria-label="Afficher des puces">Puces</button>
+                        <button id="canvas-text-two-columns" class="button button-ghost canvas-text-action" type="button" aria-pressed="false" aria-label="Passer la sélection sur deux colonnes">2 col.</button>
                         <div id="canvas-text-color-palette" class="canvas-text-color-palette" aria-label="Couleur du texte sélectionné">
                           <span class="canvas-text-color-label">Couleur</span>
                           <button class="canvas-text-color-swatch is-active" type="button" data-canvas-text-color-value="#1d1917" aria-label="Noir doux" title="Noir doux" style="--swatch-color:#1d1917;"></button>

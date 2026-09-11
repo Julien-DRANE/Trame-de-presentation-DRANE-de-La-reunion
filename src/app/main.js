@@ -89,11 +89,15 @@
     slideObjective: document.querySelector("#slide-objective"),
     slideEvidence: document.querySelector("#slide-evidence"),
     slideTitle: document.querySelector("#slide-title"),
+    titlePlacementToggle: document.querySelector("#title-placement-toggle"),
     slideSubtitle: document.querySelector("#slide-subtitle"),
+    slideSubtitleFont: document.querySelector("#slide-subtitle-font"),
+    slideSubtitleColor: document.querySelector("#slide-subtitle-color"),
     slideContentType: document.querySelector("#slide-content-type"),
     slidePaletteOverride: document.querySelector("#slide-palette-override"),
     slideDecorativeAccentOverride: document.querySelector("#slide-decorative-accent-override"),
     slideDecorativeAccentSolid: document.querySelector("#slide-decorative-accent-solid"),
+    slidePresenterName: document.querySelector("#slide-presenter-name"),
     slideBulletsEditor: document.querySelector("#slide-bullets-editor"),
     slideTableEditor: document.querySelector("#slide-table-editor"),
     slideFreeEditor: document.querySelector("#slide-free-editor"),
@@ -166,6 +170,7 @@
     canvasTextItalic: document.querySelector("#canvas-text-italic"),
     canvasTextUnderline: document.querySelector("#canvas-text-underline"),
     canvasTextBullets: document.querySelector("#canvas-text-bullets"),
+    canvasTextTwoColumns: document.querySelector("#canvas-text-two-columns"),
     canvasTextColorPalette: document.querySelector("#canvas-text-color-palette"),
     canvasTextStyleGrid: document.querySelector("#canvas-text-style-grid"),
     canvasTextFont: document.querySelector("#canvas-text-font"),
@@ -281,6 +286,7 @@
   let isPdfExportRunning = false;
   let isCanvasPreviewFullscreen = false;
   let activeUndoEditKey = "";
+  let colorMemorySequence = 0;
   const defaultPptxButtonLabel = refs.exportPptx ? refs.exportPptx.textContent : "Exporter PPTX";
   const defaultPdfButtonLabel = refs.exportPdf ? refs.exportPdf.textContent : "Exporter PDF";
   const urlSearchParams = new URLSearchParams(window.location.search);
@@ -621,6 +627,7 @@
     syncSelectedCanvasElement();
     getSafeSelectedTableCell(getSelectedSlide());
     ns.ui.renderDashboard({ state, refs, selectedCanvasElementId, selectedTableCell });
+    renderColorMemories();
     if (state.view === "mindmap") {
       window.requestAnimationFrame(() => {
         const canvas = refs.mindMap.querySelector(".mind-map-canvas");
@@ -692,6 +699,47 @@
     }
   }
 
+  function getSavedColors() {
+    const fallback = ["#1d1917", "#0a66ff", "#0c6291", "#b42318", "#027a48", "#7a5af8"];
+    const colors = Array.isArray(state.settings.savedColors) ? state.settings.savedColors : fallback;
+    return Array.from(new Set(colors.filter((color) => /^#[0-9a-fA-F]{6}$/.test(color || "")).map((color) => color.toLowerCase()))).slice(0, 12);
+  }
+
+  function rememberColor(value) {
+    if (!/^#[0-9a-fA-F]{6}$/.test(value || "")) {
+      return false;
+    }
+    const color = value.toLowerCase();
+    const nextColors = [color, ...getSavedColors().filter((item) => item !== color)].slice(0, 12);
+    if (nextColors.join("|") === getSavedColors().join("|")) {
+      return false;
+    }
+    state.settings.savedColors = nextColors;
+    scheduleStateSave();
+    return true;
+  }
+
+  function createSavedColorButtons(targetId, options) {
+    const opts = options || {};
+    return getSavedColors().map((color) => `<button class="saved-color-swatch" type="button" data-saved-color-value="${color}"${targetId ? ` data-saved-color-target="${targetId}"` : ""}${opts.canvasText ? " data-saved-color-canvas-text=\"true\"" : ""} style="--swatch-color:${color};" title="Réutiliser ${color}" aria-label="Réutiliser la couleur ${color}"></button>`).join("");
+  }
+
+  function renderColorMemories() {
+    if (!refs.appShell) {
+      return;
+    }
+    refs.appShell.querySelectorAll(".color-memory-palette").forEach((node) => node.remove());
+    refs.appShell.querySelectorAll('input[type="color"]').forEach((input) => {
+      const targetId = `color-memory-${++colorMemorySequence}`;
+      input.setAttribute("data-saved-color-target", targetId);
+      input.insertAdjacentHTML("afterend", `<span class="color-memory-palette" aria-label="Couleurs mémorisées">${createSavedColorButtons(targetId)}</span>`);
+    });
+    if (refs.canvasTextColorPalette) {
+      refs.canvasTextColorPalette.querySelectorAll(".canvas-saved-color-memory").forEach((node) => node.remove());
+      refs.canvasTextColorPalette.insertAdjacentHTML("beforeend", `<span class="canvas-saved-color-memory">${createSavedColorButtons("", { canvasText: true })}</span>`);
+    }
+  }
+
   async function hydrateMediaLibrary() {
     state.mediaLibrary = await ns.services.media.hydrateMediaLibrary(state.mediaLibrary);
     render();
@@ -731,7 +779,7 @@
     refs.presenterNotesMeta.textContent = `${(selectedSlide.presenterNotes || "").length}/2000 caractères`;
     refs.objectiveMeta.textContent = `${selectedSlide.objective.length}/180 caractères`;
     refs.evidenceMeta.textContent = `${selectedSlide.evidence.length}/120 caractères`;
-    refs.freeBodyMeta.textContent = `${ns.utils.richTextLength(selectedSlide.freeBody || "")}/3200 caractères`;
+    refs.freeBodyMeta.textContent = `${ns.utils.richTextLength(selectedSlide.freeBody || "")}/6000 caractères`;
     refs.visualBodyMeta.textContent = `${(visualData.body || "").length}/320 caractères`;
     refs.visualCalloutMeta.textContent = `${(visualData.callout || "").length}/180 caractères`;
     refs.densityBadge.className = density.className;
@@ -1528,6 +1576,25 @@
     return Math.round(clamped * 10) / 10;
   }
 
+  // La grille visible est découpée en pas de 5 %. Lorsque le magnétisme est
+  // actif, on utilise volontairement un accrochage franc : chaque bord suit
+  // réellement un repère, plutôt qu'un simple arrondi au dixième.
+  function snapCanvasMetricToGrid(value, fallback, min, max, snapToGrid) {
+    const clamped = clampCanvasMetric(value, fallback, min, max);
+    if (!snapToGrid) {
+      return clamped;
+    }
+    const gridStep = 5;
+    const lowerBound = Number.isFinite(min) ? min : 0;
+    const upperBound = Number.isFinite(max) ? max : 100;
+    const firstGridPoint = Math.ceil(lowerBound / gridStep) * gridStep;
+    const lastGridPoint = Math.floor(upperBound / gridStep) * gridStep;
+    if (firstGridPoint > lastGridPoint) {
+      return clamped;
+    }
+    return Math.max(firstGridPoint, Math.min(lastGridPoint, Math.round(clamped / gridStep) * gridStep));
+  }
+
   function normalizeCanvasColor(value, fallback) {
     return /^#[0-9a-fA-F]{6}$/.test(value || "") ? value.toLowerCase() : (fallback || "#1d1917");
   }
@@ -2214,6 +2281,56 @@
     parent.removeChild(element);
   }
 
+  function findCanvasTextEditorLayoutAncestor(range, layoutName) {
+    if (!range) return null;
+    const findAncestor = (node) => {
+      let current = node && node.nodeType === Node.ELEMENT_NODE ? node : node && node.parentNode;
+      while (current && current !== refs.canvasTextContent) {
+        if (current.nodeType === Node.ELEMENT_NODE && current.getAttribute("data-rich-layout") === layoutName) return current;
+        current = current.parentNode;
+      }
+      return null;
+    };
+    const commonAncestor = findAncestor(range.commonAncestorContainer);
+    if (commonAncestor) return commonAncestor;
+    const startAncestor = findAncestor(range.startContainer);
+    const endAncestor = findAncestor(range.endContainer);
+    return startAncestor && startAncestor === endAncestor ? startAncestor : null;
+  }
+
+  function applyCanvasTextEditorTwoColumns() {
+    if (!restoreCanvasTextEditorSelection()) {
+      refs.canvasTextContent.focus();
+      return;
+    }
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0 || selection.isCollapsed) return;
+    const range = selection.getRangeAt(0);
+    if (!refs.canvasTextContent.contains(range.commonAncestorContainer)) return;
+    const existingLayout = findCanvasTextEditorLayoutAncestor(range, "two-columns");
+    if (existingLayout) {
+      unwrapCanvasTextEditorFormat(existingLayout);
+      saveCanvasTextEditorSelection();
+      normalizeCanvasTextEditorMarkup(true);
+      return;
+    }
+    const wrapper = document.createElement("div");
+    wrapper.setAttribute("data-rich-layout", "two-columns");
+    try {
+      const content = range.extractContents();
+      if (!content.textContent || !content.textContent.trim()) return;
+      wrapper.appendChild(content);
+      range.insertNode(wrapper);
+      range.selectNodeContents(wrapper);
+      selection.removeAllRanges();
+      selection.addRange(range);
+      saveCanvasTextEditorSelection();
+      normalizeCanvasTextEditorMarkup(true);
+    } catch (error) {
+      return;
+    }
+  }
+
   function getCanvasTextEditorSelectionFontSize(range, fallbackSize) {
     let current = range && range.startContainer;
     if (current && current.nodeType !== Node.ELEMENT_NODE) {
@@ -2240,6 +2357,7 @@
     let activeItalic = false;
     let activeUnderline = false;
     let activeBullets = false;
+    let activeTwoColumns = false;
     const selectedElement = getCanvasSelectedElement(getSelectedCanvasData().elements);
     const activeColor = selectedElement && selectedElement.type === "text"
       ? normalizeCanvasColor(selectedElement.color, "#1d1917")
@@ -2253,6 +2371,7 @@
         activeItalic = Boolean(findCanvasTextEditorFormatAncestor(range, "em"));
         activeUnderline = Boolean(findCanvasTextEditorFormatAncestor(range, "u"));
         activeBullets = Boolean(findCanvasTextEditorFormatAncestor(range, "ul") || findCanvasTextEditorFormatAncestor(range, "li"));
+        activeTwoColumns = Boolean(findCanvasTextEditorLayoutAncestor(range, "two-columns"));
         syncCanvasTextSizeControlFromSelection(range, selectedElement && selectedElement.type === "text" ? selectedElement.fontSize : 28);
       }
     }
@@ -2265,6 +2384,8 @@
     refs.canvasTextUnderline.setAttribute("aria-pressed", activeUnderline ? "true" : "false");
     refs.canvasTextBullets.classList.toggle("is-active", activeBullets);
     refs.canvasTextBullets.setAttribute("aria-pressed", activeBullets ? "true" : "false");
+    refs.canvasTextTwoColumns.classList.toggle("is-active", activeTwoColumns);
+    refs.canvasTextTwoColumns.setAttribute("aria-pressed", activeTwoColumns ? "true" : "false");
     document.querySelectorAll("[data-canvas-text-color-value]").forEach((button) => {
       button.classList.toggle(
         "is-active",
@@ -2582,6 +2703,7 @@
       moved: false,
       livePatch: null,
       livePatches: null,
+      snapToGrid: Boolean(canvasData.snapToGrid),
     };
     if (typeof surfaceData.surface.setPointerCapture === "function") {
       try {
@@ -2680,8 +2802,8 @@
 
     if (interaction.mode === "resize") {
       patch = {
-        w: clampCanvasMetric(interaction.startRect.w + dxPercent, interaction.startRect.w, 6, 100 - interaction.startRect.x),
-        h: clampCanvasMetric(interaction.startRect.h + dyPercent, interaction.startRect.h, 6, 100 - interaction.startRect.y),
+        w: snapCanvasMetricToGrid(interaction.startRect.w + dxPercent, interaction.startRect.w, 6, 100 - interaction.startRect.x, interaction.snapToGrid),
+        h: snapCanvasMetricToGrid(interaction.startRect.h + dyPercent, interaction.startRect.h, 6, 100 - interaction.startRect.y, interaction.snapToGrid),
       };
     } else if (interaction.mode === "rotate") {
       const currentAngle = Math.atan2(event.clientY - interaction.centerY, event.clientX - interaction.centerX);
@@ -2697,16 +2819,16 @@
           return {
             id,
             patch: {
-              x: clampCanvasMetric((Number(item && item.x) || 0) + dxPercent, Number(item && item.x) || 0, 0, 100 - (Number(item && item.w) || 6)),
-              y: clampCanvasMetric((Number(item && item.y) || 0) + dyPercent, Number(item && item.y) || 0, -14, 100 - (Number(item && item.h) || 6)),
+              x: snapCanvasMetricToGrid((Number(item && item.x) || 0) + dxPercent, Number(item && item.x) || 0, 0, 100 - (Number(item && item.w) || 6), interaction.snapToGrid),
+              y: snapCanvasMetricToGrid((Number(item && item.y) || 0) + dyPercent, Number(item && item.y) || 0, -14, 100 - (Number(item && item.h) || 6), interaction.snapToGrid),
             },
           };
         });
         interaction.livePatch = null;
       } else {
         patch = {
-          x: clampCanvasMetric(interaction.startRect.x + dxPercent, interaction.startRect.x, 0, 100 - interaction.startRect.w),
-          y: clampCanvasMetric(interaction.startRect.y + dyPercent, interaction.startRect.y, -14, 100 - interaction.startRect.h),
+          x: snapCanvasMetricToGrid(interaction.startRect.x + dxPercent, interaction.startRect.x, 0, 100 - interaction.startRect.w, interaction.snapToGrid),
+          y: snapCanvasMetricToGrid(interaction.startRect.y + dyPercent, interaction.startRect.y, -14, 100 - interaction.startRect.h, interaction.snapToGrid),
         };
       }
     }
@@ -3161,7 +3283,7 @@
       if (slide.id !== state.selectedSlideId) {
         return slide;
       }
-      return Object.assign({}, slide, { freeBody: ns.utils.sanitizeRichText(value, 3200) });
+      return Object.assign({}, slide, { freeBody: ns.utils.sanitizeRichText(value, 6000) });
     });
     scheduleStateSave();
   }
@@ -3170,7 +3292,7 @@
     const selectedSlide = getSelectedSlide();
     syncSelectedCanvasElement();
     renderStage(selectedSlide, { preserveInteractiveMedia: true });
-    refs.freeBodyMeta.textContent = `${ns.utils.richTextLength(selectedSlide.freeBody || "")}/3200 caractères`;
+    refs.freeBodyMeta.textContent = `${ns.utils.richTextLength(selectedSlide.freeBody || "")}/6000 caractères`;
   }
 
   function saveFreeEditorSelection() {
@@ -3203,7 +3325,7 @@
   }
 
   function normalizeFreeEditorMarkup(assignToEditor) {
-    const sanitized = ns.utils.sanitizeRichText(refs.slideFreeBody.innerHTML, 3200);
+    const sanitized = ns.utils.sanitizeRichText(refs.slideFreeBody.innerHTML, 6000);
     if (assignToEditor) {
       refs.slideFreeBody.innerHTML = sanitized;
     }
@@ -3323,7 +3445,7 @@
   }
 
   function applyFreeEditorFontSize(size) {
-    const normalizedSize = Math.round(Math.min(72, Math.max(8, Number(size) || 8)));
+    const normalizedSize = Math.round(Math.min(72, Math.max(2, Number(size) || 8)));
     applyFreeEditorInlineStyle(`font-size:${normalizedSize}px;`);
   }
 
@@ -3962,6 +4084,38 @@
   });
   refs.deckTransition.addEventListener("change", (event) => updateSettings("transition", event.target.value, 12));
   refs.deckTheme.addEventListener("change", (event) => updateSettings("theme", event.target.value, 12));
+  document.addEventListener("change", (event) => {
+    const colorInput = event.target.closest('input[type="color"]');
+    if (colorInput && rememberColor(colorInput.value)) {
+      renderColorMemories();
+    }
+  });
+  document.addEventListener("click", (event) => {
+    const swatch = event.target.closest("[data-saved-color-value]");
+    if (!swatch) {
+      return;
+    }
+    const color = swatch.getAttribute("data-saved-color-value");
+    if (swatch.hasAttribute("data-saved-color-canvas-text")) {
+      event.preventDefault();
+      markCanvasTextEditorToolbarInteraction();
+      saveCanvasTextEditorSelection();
+      createCanvasTextSelectionBookmark();
+      applyCanvasTextEditorTextColor(color);
+      rememberColor(color);
+      renderColorMemories();
+      return;
+    }
+    const targetId = swatch.getAttribute("data-saved-color-target");
+    const colorInput = targetId ? refs.appShell.querySelector(`[data-saved-color-target="${targetId}"]`) : null;
+    if (!colorInput) {
+      return;
+    }
+    event.preventDefault();
+    colorInput.value = color;
+    colorInput.dispatchEvent(new Event("input", { bubbles: true }));
+    colorInput.dispatchEvent(new Event("change", { bubbles: true }));
+  });
   refs.deckFrameShadow.addEventListener("change", (event) => {
     pushUndoSnapshot({ editKey: "" });
     state.settings.frameShadow = Boolean(event.target.checked);
@@ -3977,7 +4131,14 @@
   refs.slideObjective.addEventListener("input", (event) => updateSelectedSlide({ objective: ns.utils.clampText(event.target.value, 180) }, false));
   refs.slideEvidence.addEventListener("input", (event) => updateSelectedSlide({ evidence: ns.utils.clampText(event.target.value, 120) }, false));
   refs.slideTitle.addEventListener("input", (event) => updateSelectedSlide({ title: ns.utils.clampText(event.target.value, 72) }, false));
+  refs.titlePlacementToggle.addEventListener("click", () => {
+    const selectedSlide = getSelectedSlide();
+    updateSelectedSlide({ titleAtTopRight: !selectedSlide.titleAtTopRight });
+  });
   refs.slideSubtitle.addEventListener("input", (event) => updateSelectedSlide({ subtitle: ns.utils.clampText(event.target.value, 170) }, false));
+  refs.slideSubtitleFont.addEventListener("change", (event) => updateSelectedSlide({ subtitleFontId: event.target.value }, false));
+  refs.slideSubtitleColor.addEventListener("input", (event) => updateSelectedSlide({ subtitleColor: event.target.value }, false));
+  refs.slidePresenterName.addEventListener("input", (event) => updateSelectedSlide({ presenterName: ns.utils.clampText(event.target.value, 48) }, false));
   refs.slideContentType.addEventListener("change", (event) => updateSelectedSlide({
     contentType: event.target.value === "table"
       ? "table"
@@ -4267,6 +4428,16 @@
     applyCanvasTextEditorBullets();
   });
   refs.canvasTextBullets.addEventListener("click", (event) => {
+    event.preventDefault();
+  });
+  refs.canvasTextTwoColumns.addEventListener("mousedown", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    markCanvasTextEditorToolbarInteraction();
+    saveCanvasTextEditorSelection();
+    applyCanvasTextEditorTwoColumns();
+  });
+  refs.canvasTextTwoColumns.addEventListener("click", (event) => {
     event.preventDefault();
   });
   refs.canvasTextSize.addEventListener("input", (event) => {

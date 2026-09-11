@@ -817,14 +817,32 @@
       color: palette.accentStrong,
     });
 
-    const titleY = 1.05;
+    if (slide.presenterName) {
+      pptSlide.addText(slide.presenterName, {
+        x: 9.15,
+        y: 0.31,
+        w: 2.05,
+        h: 0.22,
+        align: "right",
+        margin: 0,
+        fit: "shrink",
+        fontFace: deckFont.pptBody || "Aptos",
+        fontSize: 9,
+        bold: true,
+        color: palette.textMuted,
+        transparency: 55,
+      });
+    }
+
+    const titleAtTopRight = Boolean(slide.titleAtTopRight);
+    const titleY = titleAtTopRight ? 0.3 : 1.05;
     let bodyTop = titleY;
 
     if (slide.title) {
       pptSlide.addText(slide.title, {
-        x: 0.66,
+        x: titleAtTopRight ? 2.55 : 0.66,
         y: titleY,
-        w: 10.45,
+        w: titleAtTopRight ? 8.65 : 10.45,
         h: 0.62,
         margin: 0,
         fit: "shrink",
@@ -832,11 +850,17 @@
         fontSize: 24,
         bold: true,
         color: palette.text,
+        align: "left",
       });
-      bodyTop += 0.58;
+      bodyTop += titleAtTopRight ? 0 : 0.58;
+    }
+
+    if (titleAtTopRight) {
+      bodyTop = slide.subtitle ? 1.05 : 1.63;
     }
 
     if (slide.subtitle) {
+      const subtitleFont = ((ns.data && ns.data.fontOptions) || []).find((item) => item.id === slide.subtitleFontId) || deckFont;
       pptSlide.addText(slide.subtitle, {
         x: 0.68,
         y: bodyTop,
@@ -844,9 +868,9 @@
         h: 0.44,
         margin: 0,
         fit: "shrink",
-        fontFace: deckFont.pptBody || "Aptos",
+        fontFace: subtitleFont.pptBody || deckFont.pptBody || "Aptos",
         fontSize: 12 * contentFontScale,
-        color: palette.textMuted,
+        color: stripHex(slide.subtitleColor, palette.textMuted),
       });
       bodyTop += 0.44;
     }

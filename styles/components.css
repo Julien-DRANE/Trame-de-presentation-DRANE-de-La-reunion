@@ -183,6 +183,13 @@ h2 {
 @media (max-width: 760px) { .mindmap-theme-row { grid-template-columns: 1fr 1fr; } }
 .slide-theme-title { display: block; min-height: 2.8rem; padding: .68rem .8rem; border: 1px solid rgba(23,71,139,.14); border-radius: 12px; background: rgba(44,115,218,.07); color: var(--ink); font-weight: 700; line-height: 1.25; }
 
+.editor-section-divider {
+  width: 100%;
+  height: 1px;
+  margin: 0.1rem 0;
+  background: rgba(18, 32, 51, 0.16);
+}
+
 .button {
   min-height: 2.9rem;
   padding: 0.72rem 1rem;
@@ -1568,6 +1575,33 @@ select {
   cursor: pointer;
 }
 .table-cell-color-swatch.is-active { border-color: rgba(44, 115, 218, 0.9); box-shadow: 0 0 0 2px rgba(44, 115, 218, 0.18); }
+
+.color-memory-palette,
+.canvas-saved-color-memory {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.22rem;
+  margin: 0.18rem 0 0 0.3rem;
+  vertical-align: middle;
+}
+
+.saved-color-swatch {
+  width: 0.92rem;
+  height: 0.92rem;
+  padding: 0;
+  border: 1px solid rgba(18, 32, 51, 0.22);
+  border-radius: 999px;
+  background: var(--swatch-color);
+  cursor: pointer;
+}
+
+.saved-color-swatch:hover,
+.saved-color-swatch:focus-visible {
+  border-color: var(--blue-deep);
+  box-shadow: 0 0 0 2px rgba(44, 115, 218, 0.2);
+  outline: none;
+}
 
 .free-editor-field {
   display: grid;

@@ -24,6 +24,14 @@
     return /^#[0-9a-fA-F]{6}$/.test(value || "") ? value.toLowerCase() : (fallback || "#60b2e5");
   }
 
+  function sanitizeSavedColors(input, fallback) {
+    const source = Array.isArray(input) ? input : (Array.isArray(fallback) ? fallback : []);
+    return Array.from(new Set(source
+      .filter((color) => /^#[0-9a-fA-F]{6}$/.test(color || ""))
+      .map((color) => color.toLowerCase())))
+      .slice(0, 12);
+  }
+
   function clampCanvasMetric(value, fallback, min, max) {
     const parsed = Number(value);
     const safeValue = Number.isFinite(parsed) ? parsed : fallback;
@@ -129,6 +137,10 @@
         transition: transitionOptions.includes(input.settings && input.settings.transition) ? input.settings.transition : fallbackState.settings.transition,
         frameShadow: Boolean(input.settings && input.settings.frameShadow),
         tableTextColors: sanitizeTableTextColors(input.settings && input.settings.tableTextColors, fallbackState.settings.tableTextColors),
+        savedColors: sanitizeSavedColors(
+          input.settings && input.settings.savedColors,
+          (input.settings && input.settings.tableTextColors) || fallbackState.settings.savedColors
+        ),
       },
       mediaLibrary: Array.isArray(input.mediaLibrary)
         ? input.mediaLibrary.map((item) => ns.services.media.sanitizeMediaItem(item)).filter(Boolean)
@@ -192,7 +204,7 @@
       cellTextStyles,
       cellComments,
       table,
-      freeBody: utils.sanitizeRichText(slide.freeBody, 3200),
+      freeBody: utils.sanitizeRichText(slide.freeBody, 6000),
       freeLinks,
       freeMediaIds,
       visualData,
@@ -206,7 +218,11 @@
       evidence: utils.clampText(slide.evidence, 120),
       principleIds,
       title: utils.clampText(slide.title, 72),
+      titleAtTopRight: Boolean(slide.titleAtTopRight),
       subtitle: utils.clampText(slide.subtitle, 170),
+      subtitleFontId: fontOptions.includes(slide.subtitleFontId) ? slide.subtitleFontId : "",
+      subtitleColor: /^#[0-9a-fA-F]{6}$/.test(slide.subtitleColor || "") ? slide.subtitleColor.toLowerCase() : "",
+      presenterName: utils.clampText(slide.presenterName, 48),
       bullets: bullets.map((item) => utils.clampText(item, 220)),
       note: utils.clampText(slide.note, 180),
       presenterNotes: utils.clampText(slide.presenterNotes, 2000),
