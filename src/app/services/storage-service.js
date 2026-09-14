@@ -643,10 +643,17 @@
       ? input.mediaItems.map((item) => ns.services.media.sanitizeMediaItem(item)).filter(Boolean)
       : [];
 
+    const htmlDataMap = {};
+    const htmlAssetId = slide.htmlEmbed && slide.htmlEmbed.assetId;
+    if (htmlAssetId && input.htmlDataMap && typeof input.htmlDataMap[htmlAssetId] === "string") {
+      htmlDataMap[htmlAssetId] = input.htmlDataMap[htmlAssetId];
+    }
+
     return {
       copiedAt: typeof input.copiedAt === "string" ? input.copiedAt : "",
       slide,
       mediaItems,
+      htmlDataMap,
     };
   }
 

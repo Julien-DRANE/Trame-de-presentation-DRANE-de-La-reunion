@@ -3896,7 +3896,7 @@
     }
   }
 
-  function copyCurrentSlide() {
+  async function copyCurrentSlide() {
     closeAddSlideMenu();
     const selected = getSelectedSlide();
     if (!selected) {
@@ -3909,10 +3909,15 @@
       .map((item) => ns.services.media.sanitizeMediaItem(item))
       .filter(Boolean);
 
+    const htmlDataMap = ns.services.htmlAssets
+      ? await ns.services.htmlAssets.exportRawSourceMap([selected])
+      : {};
+
     ns.services.storage.saveSlideClipboard({
       copiedAt: new Date().toISOString(),
       slide: ns.utils.clone(selected),
       mediaItems,
+      htmlDataMap,
     });
     hasSlideClipboard = true;
     syncSlideClipboardControls();
@@ -3940,6 +3945,10 @@
 
     if (importedMediaItems.length) {
       state.mediaLibrary = await ns.services.media.hydrateMediaLibrary(state.mediaLibrary.concat(importedMediaItems));
+    }
+
+    if (ns.services.htmlAssets) {
+      await ns.services.htmlAssets.importSourceDataMap(clipboard.htmlDataMap || {}, [slideToInsert]);
     }
 
     const selectedIndex = state.slides.findIndex((slide) => slide.id === state.selectedSlideId);
