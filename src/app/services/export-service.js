@@ -1081,6 +1081,8 @@
       .canvas-element-text-content [data-rich-layout="two-columns"] {
         column-count: 2;
         column-gap: 2.4rem;
+        width: 100%;
+        align-self: stretch;
       }
       .canvas-element-text-content [data-rich-layout="two-columns"] > * {
         break-inside: avoid;
@@ -1152,6 +1154,11 @@
         padding: 0.9rem 1.05rem;
         border-radius: 0;
         background: transparent;
+        box-shadow: none;
+      }
+      .canvas-element-text-content.is-outline {
+        background: transparent;
+        border: var(--canvas-text-frame-stroke-width, 2px) solid var(--canvas-text-frame, rgba(255, 255, 255, 0.66));
         box-shadow: none;
       }
       .canvas-element-text-content p {

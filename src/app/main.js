@@ -180,8 +180,11 @@
     canvasTextScaleValue: document.querySelector("#canvas-text-scale-value"),
     canvasTextAlign: document.querySelector("#canvas-text-align"),
     canvasTextFrame: document.querySelector("#canvas-text-frame"),
+    canvasTextFrameOutline: document.querySelector("#canvas-text-frame-outline"),
     canvasTextFrameColor: document.querySelector("#canvas-text-frame-color"),
     canvasTextFrameTransparency: document.querySelector("#canvas-text-frame-transparency"),
+    canvasTextFrameStrokeWidth: document.querySelector("#canvas-text-frame-stroke-width"),
+    canvasTextFrameStrokeWidthValue: document.querySelector("#canvas-text-frame-stroke-width-value"),
     canvasImageMediaPanel: document.querySelector("#canvas-image-media-panel"),
     canvasImageMediaWrap: document.querySelector("#canvas-image-media-wrap"),
     canvasImageMedia: document.querySelector("#canvas-image-media"),
@@ -1706,8 +1709,10 @@
     normalized.color = normalizeCanvasColor(input.color, "#1d1917");
     normalized.textAlign = normalizeCanvasTextAlign(input.textAlign);
     normalized.showFrame = Boolean(input.showFrame);
+    normalized.frameOutline = Boolean(input.frameOutline);
     normalized.frameColor = normalizeCanvasColor(input.frameColor, "#ffffff");
     normalized.frameTransparency = normalizeCanvasShapeTransparency(input.frameTransparency);
+    normalized.frameStrokeWidth = normalizeCanvasShapeStrokeWidth(input.frameStrokeWidth);
     normalized.bold = Boolean(input.bold);
     normalized.italic = Boolean(input.italic);
     normalized.underline = Boolean(input.underline);
@@ -1749,8 +1754,10 @@
         color: "#1d1917",
         textAlign: "left",
         showFrame: false,
+        frameOutline: false,
         frameColor: "#ffffff",
         frameTransparency: 20,
+        frameStrokeWidth: 2,
         bold: false,
         italic: false,
         underline: false,
@@ -2309,11 +2316,30 @@
     if (!refs.canvasTextContent.contains(range.commonAncestorContainer)) return;
     const existingLayout = findCanvasTextEditorLayoutAncestor(range, "two-columns");
     if (existingLayout) {
-      unwrapCanvasTextEditorFormat(existingLayout);
+      if (existingLayout.tagName.toLowerCase() === "ul") {
+        existingLayout.removeAttribute("data-rich-layout");
+      } else {
+        unwrapCanvasTextEditorFormat(existingLayout);
+      }
       saveCanvasTextEditorSelection();
       normalizeCanvasTextEditorMarkup(true);
       return;
     }
+
+    // Apply the layout directly to the list. A wrapper inserted in a list (or
+    // in the paragraph produced by execCommand) produces invalid markup and
+    // leads browsers to place the complete list in one column.
+    const selectedList = findCanvasTextEditorFormatAncestor(range, "ul");
+    if (selectedList) {
+      selectedList.setAttribute("data-rich-layout", "two-columns");
+      range.selectNodeContents(selectedList);
+      selection.removeAllRanges();
+      selection.addRange(range);
+      saveCanvasTextEditorSelection();
+      normalizeCanvasTextEditorMarkup(false);
+      return;
+    }
+
     const wrapper = document.createElement("div");
     wrapper.setAttribute("data-rich-layout", "two-columns");
     try {
@@ -3598,7 +3624,24 @@
 
     const existingLayout = findFreeEditorLayoutAncestor(range, "two-columns");
     if (existingLayout) {
-      unwrapFreeEditorFormat(existingLayout);
+      if (existingLayout.tagName.toLowerCase() === "ul") {
+        existingLayout.removeAttribute("data-rich-layout");
+      } else {
+        unwrapFreeEditorFormat(existingLayout);
+      }
+      saveFreeEditorSelection();
+      normalizeFreeEditorMarkup(false);
+      return;
+    }
+
+    // Applying columns directly to the list keeps valid HTML and lets each
+    // bullet remain an independently breakable column item.
+    const selectedList = findFreeEditorFormatAncestor(range, "ul");
+    if (selectedList) {
+      selectedList.setAttribute("data-rich-layout", "two-columns");
+      range.selectNodeContents(selectedList);
+      selection.removeAllRanges();
+      selection.addRange(range);
       saveFreeEditorSelection();
       normalizeFreeEditorMarkup(false);
       return;
@@ -3896,7 +3939,7 @@
     }
   }
 
-  async function copyCurrentSlide() {
+  function copyCurrentSlide() {
     closeAddSlideMenu();
     const selected = getSelectedSlide();
     if (!selected) {
@@ -3909,15 +3952,10 @@
       .map((item) => ns.services.media.sanitizeMediaItem(item))
       .filter(Boolean);
 
-    const htmlDataMap = ns.services.htmlAssets
-      ? await ns.services.htmlAssets.exportRawSourceMap([selected])
-      : {};
-
     ns.services.storage.saveSlideClipboard({
       copiedAt: new Date().toISOString(),
       slide: ns.utils.clone(selected),
       mediaItems,
-      htmlDataMap,
     });
     hasSlideClipboard = true;
     syncSlideClipboardControls();
@@ -3945,10 +3983,6 @@
 
     if (importedMediaItems.length) {
       state.mediaLibrary = await ns.services.media.hydrateMediaLibrary(state.mediaLibrary.concat(importedMediaItems));
-    }
-
-    if (ns.services.htmlAssets) {
-      await ns.services.htmlAssets.importSourceDataMap(clipboard.htmlDataMap || {}, [slideToInsert]);
     }
 
     const selectedIndex = state.slides.findIndex((slide) => slide.id === state.selectedSlideId);
@@ -4487,9 +4521,20 @@
   refs.canvasTextFrame.addEventListener("change", (event) => updateSelectedCanvasElement({
     showFrame: Boolean(event.target.checked),
   }, false));
+  refs.canvasTextFrameOutline.addEventListener("change", (event) => updateSelectedCanvasElement({
+    frameOutline: Boolean(event.target.checked),
+  }, false));
   refs.canvasTextFrameColor.addEventListener("change", (event) => updateSelectedCanvasElement({ frameColor: normalizeCanvasColor(event.target.value, "#ffffff") }));
   refs.canvasTextFrameTransparency.addEventListener("input", (event) => updateSelectedCanvasElement({ frameTransparency: normalizeCanvasShapeTransparency(event.target.value) }, false));
   refs.canvasTextFrameTransparency.addEventListener("change", (event) => updateSelectedCanvasElement({ frameTransparency: normalizeCanvasShapeTransparency(event.target.value) }));
+  refs.canvasTextFrameStrokeWidth.addEventListener("input", (event) => {
+    const frameStrokeWidth = normalizeCanvasShapeStrokeWidth(event.target.value);
+    refs.canvasTextFrameStrokeWidthValue.textContent = `${frameStrokeWidth} px`;
+    updateSelectedCanvasElement({ frameStrokeWidth }, false);
+  });
+  refs.canvasTextFrameStrokeWidth.addEventListener("change", (event) => updateSelectedCanvasElement({
+    frameStrokeWidth: normalizeCanvasShapeStrokeWidth(event.target.value),
+  }));
   if (refs.canvasTextColorPalette) {
     refs.canvasTextColorPalette.addEventListener("mousedown", (event) => {
       const swatch = event.target.closest("[data-canvas-text-color-value]");

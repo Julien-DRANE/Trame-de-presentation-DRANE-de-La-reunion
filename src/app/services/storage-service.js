@@ -437,8 +437,10 @@
       color: normalizeHexColor(input.color, "#1d1917"),
       textAlign: normalizeCanvasTextAlign(input.textAlign),
       showFrame: Boolean(input.showFrame),
+      frameOutline: Boolean(input.frameOutline),
       frameColor: normalizeHexColor(input.frameColor, "#ffffff"),
       frameTransparency: normalizeCanvasShapeTransparency(input.frameTransparency),
+      frameStrokeWidth: normalizeCanvasShapeStrokeWidth(input.frameStrokeWidth),
       bold: Boolean(input.bold),
       italic: Boolean(input.italic),
       underline: Boolean(input.underline),
@@ -643,17 +645,10 @@
       ? input.mediaItems.map((item) => ns.services.media.sanitizeMediaItem(item)).filter(Boolean)
       : [];
 
-    const htmlDataMap = {};
-    const htmlAssetId = slide.htmlEmbed && slide.htmlEmbed.assetId;
-    if (htmlAssetId && input.htmlDataMap && typeof input.htmlDataMap[htmlAssetId] === "string") {
-      htmlDataMap[htmlAssetId] = input.htmlDataMap[htmlAssetId];
-    }
-
     return {
       copiedAt: typeof input.copiedAt === "string" ? input.copiedAt : "",
       slide,
       mediaItems,
-      htmlDataMap,
     };
   }
 

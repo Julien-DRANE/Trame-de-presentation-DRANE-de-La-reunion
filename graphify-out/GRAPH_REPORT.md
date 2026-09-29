@@ -1,11 +1,11 @@
-# Graph Report - Trame-de-presentation-DRANE-de-La-reunion-main  (2026-09-11)
+# Graph Report - Trame-de-presentation-DRANE-de-La-reunion-main  (2026-09-29)
 
 ## Corpus Check
-- 18 files · ~129,913 words
+- 18 files · ~161,376 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 573 nodes · 1289 edges · 27 communities
+- 573 nodes · 1291 edges · 27 communities
 - Extraction: 100% EXTRACTED · 0% INFERRED · 0% AMBIGUOUS
 - Token cost: 0 input · 0 output
 
@@ -55,7 +55,7 @@
 - `createBlankSlide()` --calls--> `pushUndoSnapshot()`  [EXTRACTED]
   src/app/main.js → src/app/main.js  _Bridges community 7 → community 11_
 - `resizeSelectedTable()` --calls--> `pushUndoSnapshot()`  [EXTRACTED]
-  src/app/main.js → src/app/main.js  _Bridges community 7 → community 15_
+  src/app/main.js → src/app/main.js  _Bridges community 7 → community 10_
 
 ## Import Cycles
 - None detected.
@@ -99,12 +99,12 @@ Cohesion: 0.11
 Nodes (34): clampCanvasMetric(), loadSlideClipboard(), loadState(), normalizeCanvasArrowLength(), normalizeCanvasRevealGroup(), normalizeCanvasRotation(), normalizeCanvasShapeKind(), normalizeCanvasShapeStrokeWidth() (+26 more)
 
 ### Community 9 - "Community 9"
-Cohesion: 0.17
+Cohesion: 0.18
 Nodes (18): applyFreeEditorBullets(), applyFreeEditorFontSize(), applyFreeEditorInlineStyle(), applyFreeEditorInlineTag(), applyFreeEditorTextColor(), applyFreeEditorTwoColumns(), findFreeEditorFormatAncestor(), findFreeEditorLayoutAncestor() (+10 more)
 
 ### Community 10 - "Community 10"
-Cohesion: 0.15
-Nodes (17): applyBloomLevel(), assignMediaToSelectedSlide(), clearSelectedHtmlEmbed(), collectPreservedStageMediaNodes(), getHtmlAssetUsageCount(), getSelectedSlide(), getStageRenderOptions(), importHtmlEmbedForSelectedSlide() (+9 more)
+Cohesion: 0.13
+Nodes (22): applyBloomLevel(), assignMediaToSelectedSlide(), collectPreservedStageMediaNodes(), getSafeSelectedTableCell(), getSelectedSlide(), getSelectedTableFillColor(), getStageRenderOptions(), getTableColumnCount() (+14 more)
 
 ### Community 11 - "Community 11"
 Cohesion: 0.18
@@ -123,8 +123,8 @@ Cohesion: 0.27
 Nodes (14): addSelectedVisualChartBar(), assignVisualMedia(), getDefaultVisualChartBar(), getDefaultVisualData(), getSelectedVisualData(), getVisibleVisualChartBars(), moveSelectedVisualChartBar(), normalizeVisualArrowColor() (+6 more)
 
 ### Community 15 - "Community 15"
-Cohesion: 0.22
-Nodes (10): getSafeSelectedTableCell(), getSelectedTableFillColor(), getTableColumnCount(), normalizeHexColor(), normalizeTable(), resizeSelectedTable(), serializeTableCellKey(), syncTableCellFormatControls() (+2 more)
+Cohesion: 0.40
+Nodes (5): clearSelectedHtmlEmbed(), getHtmlAssetUsageCount(), importHtmlEmbedForSelectedSlide(), maybeDeleteUnusedHtmlAsset(), setSelectedHtmlEmbedMeta()
 
 ### Community 16 - "Community 16"
 Cohesion: 0.43
@@ -164,6 +164,6 @@ _Questions this graph is uniquely positioned to answer:_
 - **Should `Community 2` be split into smaller, more focused modules?**
   _Cohesion score 0.05725490196078432 - nodes in this community are weakly interconnected._
 - **Should `Community 3` be split into smaller, more focused modules?**
-  _Cohesion score 0.07294117647058823 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.07372549019607844 - nodes in this community are weakly interconnected._
 - **Should `Community 4` be split into smaller, more focused modules?**
   _Cohesion score 0.09936575052854123 - nodes in this community are weakly interconnected._

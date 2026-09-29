@@ -1180,8 +1180,10 @@
     normalized.color = /^#[0-9a-fA-F]{6}$/.test(input.color || "") ? input.color : "#1d1917";
     normalized.textAlign = normalizeCanvasTextAlign(input.textAlign);
     normalized.showFrame = input.showFrame !== false;
+    normalized.frameOutline = Boolean(input.frameOutline);
     normalized.frameColor = /^#[0-9a-fA-F]{6}$/.test(input.frameColor || '') ? input.frameColor : '#ffffff';
     normalized.frameTransparency = normalizeCanvasShapeTransparency(input.frameTransparency);
+    normalized.frameStrokeWidth = normalizeCanvasShapeStrokeWidth(input.frameStrokeWidth);
     normalized.bold = Boolean(input.bold);
     normalized.italic = Boolean(input.italic);
     normalized.underline = Boolean(input.underline);
@@ -1303,7 +1305,7 @@
     const textAlignmentLayout = textAlign === "left" ? "" : " width:100%; align-items:stretch;";
     return `
       <div ${baseAttrs}${revealAttrs}>
-        <div class="canvas-element-content canvas-element-text-content${element.showFrame === false ? ' is-frameless' : ''}" style="font-family:${ns.utils.escapeHtml(textFont.body)}; font-size:${element.fontSize}px; color:${ns.utils.escapeHtml(element.color)}; text-align:${textAlign}; --canvas-text-frame:${ns.utils.escapeHtml(canvasHexToRgba(element.frameColor || '#ffffff', 1 - (Number(element.frameTransparency) || 0) / 100))};${textAlignmentLayout}">
+        <div class="canvas-element-content canvas-element-text-content${element.showFrame === false ? ' is-frameless' : ''}${element.frameOutline ? ' is-outline' : ''}" style="font-family:${ns.utils.escapeHtml(textFont.body)}; font-size:${element.fontSize}px; color:${ns.utils.escapeHtml(element.color)}; text-align:${textAlign}; --canvas-text-frame:${ns.utils.escapeHtml(canvasHexToRgba(element.frameColor || '#ffffff', 1 - (Number(element.frameTransparency) || 0) / 100))}; --canvas-text-frame-stroke-width:${normalizeCanvasShapeStrokeWidth(element.frameStrokeWidth)}px;${textAlignmentLayout}">
           ${createCanvasTextMarkup(element.text)}
         </div>
         ${interactive && !locked ? '<button class="canvas-resize-handle" type="button" data-canvas-resize-handle="true" aria-label="Redimensionner l’élément"></button>' : ''}

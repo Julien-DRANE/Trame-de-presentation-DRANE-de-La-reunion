@@ -162,6 +162,9 @@
       }
 
       if (tag === "ul") {
+        if (node.getAttribute("data-rich-layout") === "two-columns") {
+          return `<ul data-rich-layout="two-columns">${inner}</ul>`;
+        }
         return `<ul>${inner}</ul>`;
       }
 

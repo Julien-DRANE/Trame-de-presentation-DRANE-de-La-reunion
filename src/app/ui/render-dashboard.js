@@ -285,8 +285,11 @@
       refs.canvasTextScaleValue.textContent = "100 %";
       refs.canvasTextAlign.value = selectedCanvasElement.type === "text" ? (selectedCanvasElement.textAlign || "left") : "left";
       refs.canvasTextFrame.checked = selectedCanvasElement.type === "text" ? selectedCanvasElement.showFrame !== false : true;
+      refs.canvasTextFrameOutline.checked = selectedCanvasElement.type === "text" ? Boolean(selectedCanvasElement.frameOutline) : false;
       refs.canvasTextFrameColor.value = selectedCanvasElement.type === "text" ? (selectedCanvasElement.frameColor || "#ffffff") : "#ffffff";
       refs.canvasTextFrameTransparency.value = selectedCanvasElement.type === "text" ? String(Number(selectedCanvasElement.frameTransparency) || 0) : "20";
+      refs.canvasTextFrameStrokeWidth.value = selectedCanvasElement.type === "text" ? String(Number(selectedCanvasElement.frameStrokeWidth) || 2) : "2";
+      refs.canvasTextFrameStrokeWidthValue.textContent = `${refs.canvasTextFrameStrokeWidth.value} px`;
       refs.canvasTextBold.classList.remove("is-active");
       refs.canvasTextBold.setAttribute("aria-pressed", "false");
       refs.canvasTextItalic.classList.remove("is-active");
