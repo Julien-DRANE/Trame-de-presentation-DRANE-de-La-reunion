@@ -1579,7 +1579,7 @@
     return Math.round(clamped * 10) / 10;
   }
 
-  // La grille visible est découpée en pas de 5 %. Lorsque le magnétisme est
+  // La grille visible est découpée en pas de 2,5 %. Lorsque le magnétisme est
   // actif, on utilise volontairement un accrochage franc : chaque bord suit
   // réellement un repère, plutôt qu'un simple arrondi au dixième.
   function snapCanvasMetricToGrid(value, fallback, min, max, snapToGrid) {
@@ -1587,7 +1587,7 @@
     if (!snapToGrid) {
       return clamped;
     }
-    const gridStep = 5;
+    const gridStep = 2.5;
     const lowerBound = Number.isFinite(min) ? min : 0;
     const upperBound = Number.isFinite(max) ? max : 100;
     const firstGridPoint = Math.ceil(lowerBound / gridStep) * gridStep;
