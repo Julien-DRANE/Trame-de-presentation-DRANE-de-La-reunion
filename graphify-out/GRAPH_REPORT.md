@@ -1,7 +1,7 @@
 # Graph Report - Trame-de-presentation-DRANE-de-La-reunion-main  (2026-09-29)
 
 ## Corpus Check
-- 18 files · ~161,643 words
+- 18 files · ~172,086 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary

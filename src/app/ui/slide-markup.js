@@ -241,15 +241,6 @@
       `;
     }
 
-    if (options && options.exportMode === "html" && media.kind === "embed") {
-      return `
-        <div class="slide-media-print-card">
-          <img class="slide-media-image" src="${utils.escapeHtml(media.src)}" alt="${utils.escapeHtml(media.name)}" />
-          ${media.pdfLinkHref ? `<a class="slide-media-link" href="${utils.escapeHtml(media.pdfLinkHref)}" target="_blank" rel="noopener noreferrer">Ouvrir la vidÃ©o</a>` : ""}
-        </div>
-      `;
-    }
-
     if (isCompact && media.kind === "embed") {
       const badgeLabel = media.embedLayout === "audio" ? "Audio" : "Embed";
       return `
@@ -273,11 +264,11 @@
       return `
         <div class="slide-media-print-card">
           ${linkHref ? `
-            <a class="slide-media-external-link" href="${utils.escapeHtml(linkHref)}" target="_blank" rel="noopener noreferrer" aria-label="Ouvrir la vidÃ©o ${utils.escapeHtml(media.name)}">
+            <a class="slide-media-external-link" href="${utils.escapeHtml(linkHref)}" target="_blank" rel="noopener noreferrer" aria-label="Ouvrir la vidéo ${utils.escapeHtml(media.name)}">
               <img class="slide-media-image" src="${utils.escapeHtml(media.src)}" alt="${utils.escapeHtml(media.name)}" />
             </a>
           ` : `<img class="slide-media-image" src="${utils.escapeHtml(media.src)}" alt="${utils.escapeHtml(media.name)}" />`}
-          ${linkHref ? `<a class="slide-media-link" href="${utils.escapeHtml(linkHref)}" target="_blank" rel="noopener noreferrer">Ouvrir la vidÃ©o</a>` : ""}
+          ${linkHref ? `<a class="slide-media-link" href="${utils.escapeHtml(linkHref)}" target="_blank" rel="noopener noreferrer">Ouvrir la vidéo</a>` : ""}
         </div>
       `;
     }
@@ -299,13 +290,16 @@
             allowfullscreen
           ></iframe>
         </div>
+        ${options && options.exportMode === "html" && (media.externalUrl || media.embedUrl)
+          ? `<a class="slide-media-link" href="${utils.escapeHtml(media.externalUrl || media.embedUrl)}" target="_blank" rel="noopener noreferrer">Ouvrir l’embed dans un nouvel onglet</a>`
+          : ""}
       `;
     }
 
     if (media.kind === "video") {
       return `
         <video class="slide-media-video" src="${utils.escapeHtml(media.src)}"${preserveMediaAttrs} ${isCompact ? 'muted playsinline preload="metadata"' : 'controls preload="metadata"'}>
-          Votre navigateur ne peut pas lire cette vidÃ©o.
+          Votre navigateur ne peut pas lire cette vidéo.
         </video>
       `;
     }

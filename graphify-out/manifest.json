@@ -25,8 +25,8 @@
     "semantic_hash": ""
   },
   "src/app/data/picto-assets.js": {
-    "mtime": 1787816718.0,
-    "ast_hash": "d7cee7c515a7a7fc45ce5093d05d9e57",
+    "mtime": 1790678697.190501,
+    "ast_hash": "1219dd0c16fdbbc2a103a7df4c3acd6b",
     "semantic_hash": ""
   },
   "src/app/main.js": {
@@ -80,8 +80,8 @@
     "semantic_hash": ""
   },
   "src/app/ui/slide-markup.js": {
-    "mtime": 1790676867.5258844,
-    "ast_hash": "7a2d29725ce4c0f5279c9ea43875c463",
+    "mtime": 1790678908.2096965,
+    "ast_hash": "748e939941a91239080d41627896319c",
     "semantic_hash": ""
   },
   "src/app/utils/helpers.js": {
@@ -302,6 +302,91 @@
   ".playwright-cli/page-2026-09-29T08-23-16-741Z.yml": {
     "mtime": 1790670196.7414098,
     "ast_hash": "1d02405e019591014e60186c1c85f7fb",
+    "semantic_hash": ""
+  },
+  "assets/images/picto/picto-0.png": {
+    "mtime": 1790677526.0956597,
+    "ast_hash": "f1910625c03fa00bf8581a66b49b49d8",
+    "semantic_hash": ""
+  },
+  "assets/images/picto/picto-1.png": {
+    "mtime": 1790677526.1436596,
+    "ast_hash": "e842bbe1f0e83bdde77429cd3ede6acf",
+    "semantic_hash": ""
+  },
+  "assets/images/picto/picto-10.png": {
+    "mtime": 1790677526.627658,
+    "ast_hash": "287ec398d9878d00c9b4aa5779489140",
+    "semantic_hash": ""
+  },
+  "assets/images/picto/picto-2.png": {
+    "mtime": 1790677526.1924558,
+    "ast_hash": "f5c2085632ac1fac69e0c8c55de16e40",
+    "semantic_hash": ""
+  },
+  "assets/images/picto/picto-3.png": {
+    "mtime": 1790677526.2393608,
+    "ast_hash": "d2e826caca1277d2690b5f448d7762da",
+    "semantic_hash": ""
+  },
+  "assets/images/picto/picto-4.png": {
+    "mtime": 1790677526.282659,
+    "ast_hash": "29007590337b3e24ff2f2fa503f35f15",
+    "semantic_hash": ""
+  },
+  "assets/images/picto/picto-5.png": {
+    "mtime": 1790677526.3353245,
+    "ast_hash": "9d871039d1178b1e148b03c828d6b273",
+    "semantic_hash": ""
+  },
+  "assets/images/picto/picto-6.png": {
+    "mtime": 1790677526.3936586,
+    "ast_hash": "0fd59c589d0ffb0a8333af20b1bfdb13",
+    "semantic_hash": ""
+  },
+  "assets/images/picto/picto-7.png": {
+    "mtime": 1790677526.4445353,
+    "ast_hash": "ad44c9a906033dff7f46c94960f23d2f",
+    "semantic_hash": ""
+  },
+  "assets/images/picto/picto-8.png": {
+    "mtime": 1790677526.5164027,
+    "ast_hash": "47a96d52fc02ee412bcf6dc038a2832f",
+    "semantic_hash": ""
+  },
+  "assets/images/picto/picto-9.png": {
+    "mtime": 1790677526.577658,
+    "ast_hash": "29da39b56dac644acb6318287337108c",
+    "semantic_hash": ""
+  },
+  "assets/images/picto/picto-A.png": {
+    "mtime": 1790677526.6906576,
+    "ast_hash": "b6552ca766181b58ab14362d28e8f708",
+    "semantic_hash": ""
+  },
+  "assets/images/picto/picto-B.png": {
+    "mtime": 1790677526.7426574,
+    "ast_hash": "aede1dc3dcd0775bf206e0764e6e16fd",
+    "semantic_hash": ""
+  },
+  "assets/images/picto/picto-C.png": {
+    "mtime": 1790677526.800888,
+    "ast_hash": "1668e2c658e011c0469f2169700e3bf2",
+    "semantic_hash": ""
+  },
+  "assets/images/picto/picto-D.png": {
+    "mtime": 1790677526.860657,
+    "ast_hash": "a3dbfebeda4e64653f976a149e0a1f11",
+    "semantic_hash": ""
+  },
+  "assets/images/picto/picto-E.png": {
+    "mtime": 1790677526.9156568,
+    "ast_hash": "f25da6ff10b416854260808449dadda7",
+    "semantic_hash": ""
+  },
+  "assets/images/picto/picto-F.png": {
+    "mtime": 1790677526.974575,
+    "ast_hash": "42f9646e188672cb867d886d72040a80",
     "semantic_hash": ""
   }
 }
