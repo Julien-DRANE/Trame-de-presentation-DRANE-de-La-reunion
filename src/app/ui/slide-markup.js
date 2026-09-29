@@ -602,6 +602,21 @@
       .length;
   }
 
+  // A long entry should make its own type smaller, not make every row taller.
+  // The scale is deliberately bounded so that even dense tables remain legible.
+  function getTableCellTextScale(value, rowCount, columnCount) {
+    const length = getTableCellTextLength(value);
+    const columns = Math.max(2, Number(columnCount) || 2);
+    const rows = Math.max(2, Number(rowCount) || 2);
+    const capacity = Math.max(18, Math.round((columns >= 6 ? 24 : columns >= 5 ? 30 : columns >= 4 ? 38 : 54) * (rows >= 7 ? 0.68 : rows >= 5 ? 0.82 : 1)));
+
+    if (length > capacity * 4) return 0.64;
+    if (length > capacity * 3) return 0.70;
+    if (length > capacity * 2.1) return 0.80;
+    if (length > capacity * 1.45) return 0.90;
+    return 1;
+  }
+
   function computeTableDensityLevel(table, options) {
     const rows = Array.isArray(table) ? table : [];
     const rowCount = rows.length;
@@ -692,7 +707,8 @@
               const fillStyle = getTableCellFillStyle(tableHighlights, rowIndex, columnIndex);
               const key = `${rowIndex}-${columnIndex}`;
               const textStyle = cellTextStyles[key] || {};
-              const textStyleAttr = [textStyle.fontSize ? `font-size:${Number(textStyle.fontSize)}px` : "", /^#[0-9a-fA-F]{6}$/.test(textStyle.color || "") ? `color:${textStyle.color}` : "", textStyle.align ? `text-align:${textStyle.align}` : ""].filter(Boolean).join(";");
+              const textScale = getTableCellTextScale(cell, rowCount, columnCount);
+              const textStyleAttr = [textStyle.fontSize ? `font-size:calc(${Number(textStyle.fontSize)}px * ${textScale})` : `font-size:calc(1em * ${textScale})`, /^#[0-9a-fA-F]{6}$/.test(textStyle.color || "") ? `color:${textStyle.color}` : "", textStyle.align ? `text-align:${textStyle.align}` : ""].filter(Boolean).join(";");
               const comment = cellComments[key] || "";
               const revealStep = revealStepOffset + (progressiveOrder === "column"
                 ? (columnIndex * bodyRowCount) + rowIndex

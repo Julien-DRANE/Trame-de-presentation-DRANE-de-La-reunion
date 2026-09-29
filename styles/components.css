@@ -1539,6 +1539,12 @@ select {
   font-weight: 800;
 }
 
+textarea.table-editor-cell {
+  min-height: 4.6rem;
+  resize: vertical;
+  line-height: 1.35;
+}
+
 .table-cell-format-panel {
   display: grid;
   gap: 0.5rem;

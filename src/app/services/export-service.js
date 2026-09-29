@@ -1414,6 +1414,7 @@
       .slide-table-cell-text {
         display: block;
         overflow-wrap: anywhere;
+        white-space: pre-wrap;
       }
       .slide-link-bubbles {
         display: flex;
@@ -1562,8 +1563,8 @@
       }
       .deck-slide.is-table-slide .slide-table-cell {
         min-height: 0;
-        padding: 0.84rem 0.96rem;
-        font-size: calc(clamp(1.2rem, 1.84vw, 1.52rem) * var(--slide-content-font-scale));
+        padding: 0.56rem 0.66rem;
+        font-size: calc(clamp(1.3rem, 1.96vw, 1.62rem) * var(--slide-content-font-scale));
         line-height: 1.2;
         display: flex;
         flex-direction: column;
@@ -1572,55 +1573,55 @@
       }
       .deck-slide.is-table-slide .slide-table-cell:has(.slide-table-cell-comment) {
         justify-content: flex-start;
-        padding-block: 0.78rem;
+        padding-block: 0.52rem;
       }
       .deck-slide.is-table-slide .slide-table[data-column-count="5"] .slide-table-cell {
-        padding-inline: 0.58rem;
-        font-size: clamp(0.92rem, 1.36vw, 1.12rem);
+        padding-inline: 0.4rem;
+        font-size: clamp(1rem, 1.46vw, 1.2rem);
       }
       .deck-slide.is-table-slide .slide-table[data-column-count="6"] .slide-table-cell {
-        padding-inline: 0.38rem;
-        font-size: clamp(0.76rem, 1.02vw, 0.92rem);
+        padding-inline: 0.28rem;
+        font-size: clamp(0.82rem, 1.1vw, 1rem);
         line-height: 1.08;
       }
       .deck-slide.is-table-slide .slide-table.slide-table-dense-1 .slide-table-cell {
-        padding: 0.74rem 0.86rem;
-        font-size: calc(clamp(1.1rem, 1.66vw, 1.36rem) * var(--slide-content-font-scale));
+        padding: 0.5rem 0.6rem;
+        font-size: calc(clamp(1.18rem, 1.76vw, 1.44rem) * var(--slide-content-font-scale));
         line-height: 1.17;
       }
       .deck-slide.is-table-slide .slide-table.slide-table-dense-2 .slide-table-cell {
-        padding: 0.64rem 0.78rem;
-        font-size: calc(clamp(1rem, 1.5vw, 1.24rem) * var(--slide-content-font-scale));
+        padding: 0.44rem 0.54rem;
+        font-size: calc(clamp(1.08rem, 1.6vw, 1.32rem) * var(--slide-content-font-scale));
         line-height: 1.15;
       }
       .deck-slide.is-table-slide .slide-table.slide-table-dense-3 .slide-table-cell {
-        padding: 0.58rem 0.72rem;
-        font-size: calc(clamp(0.92rem, 1.36vw, 1.12rem) * var(--slide-content-font-scale));
+        padding: 0.38rem 0.48rem;
+        font-size: calc(clamp(1rem, 1.46vw, 1.2rem) * var(--slide-content-font-scale));
         line-height: 1.12;
       }
       .deck-slide.is-table-slide .slide-table.slide-table-dense-4 .slide-table-cell {
-        padding: 0.46rem 0.58rem;
-        font-size: calc(clamp(0.84rem, 1.18vw, 1rem) * var(--slide-content-font-scale));
+        padding: 0.3rem 0.4rem;
+        font-size: calc(clamp(0.92rem, 1.28vw, 1.08rem) * var(--slide-content-font-scale));
         line-height: 1.08;
       }
       .deck-slide.is-table-slide .slide-table.slide-table-dense-5 .slide-table-cell {
-        padding: 0.34rem 0.46rem;
-        font-size: clamp(0.76rem, 1.02vw, 0.9rem);
+        padding: 0.22rem 0.3rem;
+        font-size: clamp(0.84rem, 1.12vw, 0.98rem);
         line-height: 1;
       }
       .deck-slide.is-table-slide .slide-table[data-row-count="8"] .slide-table-cell {
-        padding: 0.42rem 0.56rem;
-        font-size: clamp(0.84rem, 1.18vw, 1rem);
+        padding: 0.28rem 0.38rem;
+        font-size: clamp(0.92rem, 1.28vw, 1.08rem);
         line-height: 1.04;
       }
       .deck-slide.is-table-slide .slide-table.slide-table-dense-4[data-row-count="8"] .slide-table-cell {
-        padding: 0.32rem 0.44rem;
-        font-size: clamp(0.74rem, 0.98vw, 0.88rem);
+        padding: 0.22rem 0.3rem;
+        font-size: clamp(0.82rem, 1.08vw, 0.96rem);
         line-height: 0.98;
       }
       .deck-slide.is-table-slide .slide-table.slide-table-dense-5[data-row-count="8"] .slide-table-cell {
-        padding: 0.24rem 0.36rem;
-        font-size: clamp(0.68rem, 0.9vw, 0.8rem);
+        padding: 0.16rem 0.24rem;
+        font-size: clamp(0.76rem, 1vw, 0.88rem);
         line-height: 0.96;
       }
       .deck-slide.is-table-slide .slide-footer {

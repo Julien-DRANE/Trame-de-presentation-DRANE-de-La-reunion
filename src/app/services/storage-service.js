@@ -246,7 +246,7 @@
     const utils = ns.utils;
     const rows = Array.isArray(input) ? input.slice(0, 8) : [];
     const sanitizedRows = rows
-      .map((row) => Array.isArray(row) ? row.slice(0, 6).map((cell) => utils.clampText(cell, 120)) : null)
+      .map((row) => Array.isArray(row) ? row.slice(0, 6).map((cell) => utils.clampText(cell, 420)) : null)
       .filter(Boolean);
 
     const rowCount = Math.max(2, sanitizedRows.length);

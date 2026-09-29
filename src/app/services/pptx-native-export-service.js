@@ -1166,9 +1166,23 @@
     addFooter(pptSlide, slide, state, deckFont, palette);
   }
 
-  function getTableRowsForPpt(slide, palette) {
+  function getTableCellFontScale(value, rowCount, columnCount) {
+    const length = String(value || "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim().length;
+    const columns = Math.max(2, Number(columnCount) || 2);
+    const rows = Math.max(2, Number(rowCount) || 2);
+    const capacity = Math.max(18, Math.round((columns >= 6 ? 24 : columns >= 5 ? 30 : columns >= 4 ? 38 : 54) * (rows >= 7 ? 0.68 : rows >= 5 ? 0.82 : 1)));
+    if (length > capacity * 4) return 0.64;
+    if (length > capacity * 3) return 0.70;
+    if (length > capacity * 2.1) return 0.80;
+    if (length > capacity * 1.45) return 0.90;
+    return 1;
+  }
+
+  function getTableRowsForPpt(slide, palette, defaultFontSize) {
     const table = Array.isArray(slide.table) ? slide.table : [];
     const tableHighlights = slide.tableHighlights || {};
+    const rowCount = table.length || 2;
+    const columnCount = table[0] ? table[0].length : 2;
     return table.map((row, rowIndex) => row.map((cell, colIndex) => {
       const cellColor = tableHighlights.cells ? tableHighlights.cells[`${rowIndex}-${colIndex}`] : "";
       const rowColor = tableHighlights.rows ? tableHighlights.rows[String(rowIndex)] : "";
@@ -1176,16 +1190,18 @@
       const fillColor = cellColor || rowColor || columnColor;
       const textStyle = (slide.cellTextStyles || {})[`${rowIndex}-${colIndex}`] || {};
       const isHeader = rowIndex === 0 || (row.length > 2 && colIndex === 0);
+      const baseFontSize = Number(textStyle.fontSize) ? Math.max(10, Math.min(48, Number(textStyle.fontSize))) : defaultFontSize;
+      const fontSize = Math.max(7, baseFontSize * getTableCellFontScale(cell, rowCount, columnCount));
       return {
         text: flattenLinkedText(cell || ""),
         options: {
           bold: isHeader,
           color: /^#[0-9a-fA-F]{6}$/.test(textStyle.color || "") ? stripHex(textStyle.color) : palette.text,
-          fontSize: Number(textStyle.fontSize) ? Math.max(10, Math.min(48, Number(textStyle.fontSize))) : undefined,
+          fontSize,
           valign: "mid",
           align: textStyle.align === "center" || textStyle.align === "right" ? textStyle.align : (colIndex === 0 ? "left" : "center"),
           fill: fillColor ? stripHex(lightenHex(fillColor, 0.75)) : stripHex(palette.surface),
-          margin: { left: 0.06, right: 0.06, top: 0.05, bottom: 0.05 },
+          margin: { left: 0.035, right: 0.035, top: 0.03, bottom: 0.03 },
         },
       };
     }));
@@ -1193,12 +1209,12 @@
 
   function getTableFontSize(rowCount, hasMedia) {
     if (rowCount >= 8) {
-      return hasMedia ? 11.5 : 13;
+      return hasMedia ? 12.5 : 14;
     }
     if (rowCount >= 6) {
-      return hasMedia ? 12.5 : 14.5;
+      return hasMedia ? 13.5 : 15.5;
     }
-    return hasMedia ? 13.5 : 15.5;
+    return hasMedia ? 14.5 : 16.5;
   }
 
   async function addTableSlide(pptSlide, slide, state, assets, deckFont, palette) {
@@ -1212,14 +1228,15 @@
     const tableY = chrome.bodyTop + 0.04;
     const tableW = hasMedia ? 8.55 : 11.75;
     const tableH = chrome.bodyBottom - tableY;
+    const tableFontSize = scaleContentFont(state.settings, getTableFontSize(rowCount, hasMedia));
 
-    pptSlide.addTable(getTableRowsForPpt(slide, palette), {
+    pptSlide.addTable(getTableRowsForPpt(slide, palette, tableFontSize), {
       x: tableX,
       y: tableY,
       w: tableW,
       h: tableH,
       fontFace: deckFont.pptBody || "Aptos",
-      fontSize: scaleContentFont(state.settings, getTableFontSize(rowCount, hasMedia)),
+      fontSize: tableFontSize,
       color: palette.text,
       border: { type: "solid", pt: 1, color: palette.line },
       fill: stripHex(palette.surface),

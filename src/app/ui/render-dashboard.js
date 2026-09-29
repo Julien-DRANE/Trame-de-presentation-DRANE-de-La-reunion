@@ -1170,16 +1170,15 @@
           const style = [fillStyle, textStyle.fontSize ? `font-size:${textStyle.fontSize}px` : "", textStyle.color ? `color:${textStyle.color}` : "", textStyle.align ? `text-align:${textStyle.align}` : ""].filter(Boolean).join(";");
           const commentMark = cellComments[key] ? " has-comment" : "";
           return `
-            <input
+            <textarea
               class="table-editor-cell${headerClass}${commentMark}"
-              type="text"
-              maxlength="120"
-              value="${ns.utils.escapeHtml(cell || "")}"
+              maxlength="420"
+              rows="3"
               data-table-cell="${rowIndex}-${columnIndex}"
               placeholder="Cellule"
               style="${style}"
               title="${ns.utils.escapeHtml(cellComments[key] || "")}"
-            />
+            >${ns.utils.escapeHtml(cell || "")}</textarea>
           `;
         }).join("");
       })

@@ -30,13 +30,13 @@
     "semantic_hash": ""
   },
   "src/app/main.js": {
-    "mtime": 1790670416.4652793,
-    "ast_hash": "9aa1df4b2ba4440e273ad34fe7e346b4",
+    "mtime": 1790676422.7299027,
+    "ast_hash": "4eefa0bc6d65366f5a5d938c5bad0626",
     "semantic_hash": ""
   },
   "src/app/services/export-service.js": {
-    "mtime": 1790670416.8852787,
-    "ast_hash": "f036b0658a8b9afca6abc4e73a9e9914",
+    "mtime": 1790676896.9138837,
+    "ast_hash": "af5fd49b88fbb3bd719b6bc36d2f86b7",
     "semantic_hash": ""
   },
   "src/app/services/html-asset-service.js": {
@@ -50,8 +50,8 @@
     "semantic_hash": ""
   },
   "src/app/services/pptx-native-export-service.js": {
-    "mtime": 1789125259.2434094,
-    "ast_hash": "a53b80718c7138f6c21de3aec0407e2f",
+    "mtime": 1790676897.0168836,
+    "ast_hash": "6e9172841d33f4fe1dacdab582b45353",
     "semantic_hash": ""
   },
   "src/app/services/presenter-service.js": {
@@ -60,8 +60,8 @@
     "semantic_hash": ""
   },
   "src/app/services/storage-service.js": {
-    "mtime": 1790670416.5472794,
-    "ast_hash": "d016a24adf72370e39f04b9e674d257b",
+    "mtime": 1790676422.8519027,
+    "ast_hash": "100bb40cd03e3c1f170fbdca268d411d",
     "semantic_hash": ""
   },
   "src/app/state/default-state.js": {
@@ -70,8 +70,8 @@
     "semantic_hash": ""
   },
   "src/app/ui/render-dashboard.js": {
-    "mtime": 1790670416.714279,
-    "ast_hash": "d6ba95ae20d46f683d5d1fc21cac8544",
+    "mtime": 1790676422.6379027,
+    "ast_hash": "81352f487201e59e256b915a11cb7345",
     "semantic_hash": ""
   },
   "src/app/ui/render-mind-map.js": {
@@ -80,8 +80,8 @@
     "semantic_hash": ""
   },
   "src/app/ui/slide-markup.js": {
-    "mtime": 1790670416.6312792,
-    "ast_hash": "9ae7bc059c94ea4fae8c78614bbb6e7f",
+    "mtime": 1790676867.5258844,
+    "ast_hash": "7a2d29725ce4c0f5279c9ea43875c463",
     "semantic_hash": ""
   },
   "src/app/utils/helpers.js": {

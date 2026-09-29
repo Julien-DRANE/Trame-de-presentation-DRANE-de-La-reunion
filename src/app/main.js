@@ -4792,7 +4792,7 @@
     const [rowIndex, columnIndex] = input.getAttribute("data-table-cell").split("-").map(Number);
     selectedTableCell = { row: rowIndex, column: columnIndex };
     pendingTableFocus = { row: rowIndex, column: columnIndex, caret: input.selectionStart || 0 };
-    updateSelectedTableCell(rowIndex, columnIndex, ns.utils.clampText(input.value, 120), false);
+    updateSelectedTableCell(rowIndex, columnIndex, ns.utils.clampText(input.value, 420), false);
   });
   refs.tableEditorGrid.addEventListener("focusin", (event) => {
     const input = event.target.closest("[data-table-cell]");
