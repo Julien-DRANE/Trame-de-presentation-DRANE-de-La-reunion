@@ -499,7 +499,7 @@ body.is-canvas-preview-fullscreen .slide-canvas-surface.is-grid-visible {
   background-image:
     linear-gradient(rgba(44, 115, 218, 0.42) 2px, transparent 2px),
     linear-gradient(90deg, rgba(44, 115, 218, 0.42) 2px, transparent 2px);
-  background-size: 5% 5%;
+  background-size: 2.5% 2.5%;
 }
 
 .slide-overlay-canvas-surface {
